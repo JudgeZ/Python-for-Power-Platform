@@ -14,6 +14,14 @@
 - Add docstrings & examples for public functions
 - Mock external calls with `respx` in tests
 
+## Style guides & best practices
+- Favor explicit imports over wildcard imports to keep namespaces predictable.
+- Keep functions under 30 lines by extracting helpers when logic grows complex.
+- Use descriptive variable names; avoid abbreviations except for well-known terms (e.g., `id`, `url`).
+- Document non-obvious business rules with inline comments adjacent to the logic.
+- Prefer immutable data structures (tuples, frozensets) for constants and configuration.
+- Ensure examples in documentation are runnable snippets that mirror unit tests when possible.
+
 ## TDD workflow
 1. Write tests for the desired behavior.
 2. Implement minimally to pass tests.
