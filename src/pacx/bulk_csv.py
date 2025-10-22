@@ -2,11 +2,19 @@
 from __future__ import annotations
 
 import csv
-from typing import List, Dict, Any, Optional
+from collections import Counter
+from dataclasses import dataclass
+from typing import Dict, List, Optional
 
 from .clients.dataverse import DataverseClient
-from .batch import send_batch
+from .batch import BatchSendResult, send_batch
 from .odata import build_alternate_key_segment
+
+
+@dataclass
+class BulkCsvResult:
+    operations: List[Dict[str, Any]]
+    stats: Dict[str, Any]
 
 
 def bulk_csv_upsert(
@@ -34,6 +42,11 @@ def bulk_csv_upsert(
             yield lst[i:i+n]
 
     all_results: List[Dict[str, Any]] = []
+    retry_histogram: Counter[int] = Counter()
+    total_retries = 0
+    grouped_errors: Counter[str] = Counter()
+    total_attempts = 0
+    row_offset = 0
     for group in chunk(rows, chunk_size):
         ops: List[Dict[str, Any]] = []
         for idx, row in enumerate(group, start=1):
@@ -48,9 +61,29 @@ def bulk_csv_upsert(
             elif create_if_missing:
                 ops.append({"method": "POST", "url": f"/api/data/v9.2/{entityset}", "body": body})
         if ops:
-            res = send_batch(dv, ops)
-            # annotate with local row offset
-            for i, item in enumerate(res, start=1):
-                item["row_index"] = i  # within this chunk
-            all_results.extend(res)
-    return all_results
+            batch_res: BatchSendResult = send_batch(dv, ops)
+            total_attempts = max(total_attempts, batch_res.attempts)
+            for count in batch_res.retry_counts.values():
+                retry_histogram[count] += 1
+                total_retries += count
+            for op_result in batch_res.operations:
+                local_index = op_result.get("operation_index", 0)
+                op_result["row_index"] = row_offset + local_index + 1
+                status = int(op_result.get("status_code") or 0)
+                if status < 200 or status >= 300:
+                    grouped_errors[str(status or op_result.get("reason") or "unknown")] += 1
+                all_results.append(op_result)
+        row_offset += len(group)
+
+    successes = sum(1 for r in all_results if 200 <= int(r.get("status_code") or 0) < 300)
+    failures = sum(1 for r in all_results if not (200 <= int(r.get("status_code") or 0) < 300))
+    stats = {
+        "total_rows": len(rows),
+        "attempts": total_attempts,
+        "successes": successes,
+        "failures": failures,
+        "retry_invocations": total_retries,
+        "retry_histogram": dict(retry_histogram),
+        "grouped_errors": dict(grouped_errors),
+    }
+    return BulkCsvResult(operations=all_results, stats=stats)

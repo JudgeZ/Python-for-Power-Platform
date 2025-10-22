@@ -1,18 +1,27 @@
 from __future__ import annotations
-from typer.testing import CliRunner
-from pacx.cli import app
 
-runner = CliRunner()
+import zipfile
+from pathlib import Path
 
-def test_solution_zip_unzip(tmp_path):
-    src = tmp_path / "folder"
-    src.mkdir()
-    (src / "a.txt").write_text("hello")
-    zpath = tmp_path / "out.zip"
+from pacx.solution_sp import pack_from_source, unpack_to_source
 
-    result = runner.invoke(app, ["solution", "zip", "--folder", str(src), "--file", str(zpath)])
-    assert result.exit_code == 0 and zpath.exists()
 
-    dest = tmp_path / "unpacked"
-    result = runner.invoke(app, ["solution", "unzip", "--file", str(zpath), "--folder", str(dest)])
-    assert result.exit_code == 0 and (dest / "a.txt").exists()
+def test_unpack_and_pack_solution(tmp_path):
+    sol = tmp_path / "solution.zip"
+    with zipfile.ZipFile(sol, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("WebResources/new_/script.js", "console.log('hi')")
+        z.writestr("Workflows/sample.xaml", "<xaml />")
+        z.writestr("customizations.xml", "<root />")
+
+    src_dir = unpack_to_source(str(sol), tmp_path)
+    assert (Path(src_dir) / "WebResources" / "new_" / "script.js").exists()
+    assert (Path(src_dir) / "Workflows" / "sample.xaml").exists()
+
+    repacked = tmp_path / "repacked.zip"
+    pack_from_source(src_dir, repacked)
+    with zipfile.ZipFile(repacked, "r") as z:
+        names = set(z.namelist())
+    assert "WebResources/new_/script.js" in names
+    assert "Workflows/sample.xaml" in names
+    assert "customizations.xml" in names
+    assert "Other/customizations.xml" not in names

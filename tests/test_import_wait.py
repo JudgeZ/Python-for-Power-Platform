@@ -30,12 +30,9 @@ def test_solution_import_wait(monkeypatch, tmp_path, respx_mock):
     job_url = "https://example.crm.dynamics.com/api/data/v9.2/importjobs"
     call_count = {"n": 0}
 
-    @respx_mock.route(path__regex=r"https://example\\.crm\\.dynamics\\.com/api/data/v9\\.2/importjobs\\([0-9a-fA-F]+\\)")
-    def import_job_route(request):
-        call_count["n"] += 1
-        if call_count["n"] < 2:
-            return httpx.Response(200, json={"progress": 50})
-        return httpx.Response(200, json={"progress": 100, "statecode": "Completed"})
+    respx_mock.get(
+        url__regex=r"https://example\.crm\.dynamics\.com/api/data/v9\.2/importjobs\([0-9a-fA-F]+\)"
+    ).mock(side_effect=[httpx.Response(200, json={"progress": 50}), httpx.Response(200, json={"progress": 100, "statecode": "Completed"})])
 
     result = runner.invoke(app, ["solution", "import", "--file", str(z), "--wait"])
     assert result.exit_code == 0

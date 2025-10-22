@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import re
-from typing import List, Dict, Any, Tuple, Optional
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 from .clients.dataverse import DataverseClient
 
@@ -88,8 +90,55 @@ def parse_batch_response(content_type: str, body: bytes) -> List[Dict[str, Any]]
     return results
 
 
-def send_batch(dv: DataverseClient, ops: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    batch_id, body = build_batch(ops)
-    headers = {"Content-Type": f'multipart/mixed; boundary={batch_id}'}
-    resp = dv.http.post("$batch", headers=headers, data=body)
-    return parse_batch_response(resp.headers.get("Content-Type", ""), resp.content)
+@dataclass
+class BatchSendResult:
+    operations: List[Dict[str, Any]]
+    retry_counts: Dict[int, int]
+    attempts: int
+
+
+TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
+
+
+def send_batch(
+    dv: DataverseClient,
+    ops: List[Dict[str, Any]],
+    *,
+    max_retries: int = 3,
+    retry_statuses: Optional[set[int]] = None,
+    base_backoff: float = 0.5,
+) -> BatchSendResult:
+    statuses = retry_statuses or TRANSIENT_STATUSES
+    pending = list(enumerate(ops))
+    retry_counts: Dict[int, int] = {}
+    final_results: Dict[int, Dict[str, Any]] = {}
+    attempt = 0
+
+    while pending and attempt <= max_retries:
+        attempt += 1
+        idxs, payload = zip(*pending)
+        req_ops = list(payload)
+        batch_id, body = build_batch(req_ops)
+        headers = {"Content-Type": f"multipart/mixed; boundary={batch_id}"}
+        resp = dv.http.post("$batch", headers=headers, data=body)
+        parsed = parse_batch_response(resp.headers.get("Content-Type", ""), resp.content)
+
+        next_round: List[Tuple[int, Dict[str, Any]]] = []
+        for idx, result in zip(idxs, parsed):
+            result["operation_index"] = idx
+            if result.get("status_code") in statuses and attempt <= max_retries:
+                retry_counts[idx] = retry_counts.get(idx, 0) + 1
+                next_round.append((idx, ops[idx]))
+            else:
+                final_results[idx] = result
+        if next_round and attempt <= max_retries:
+            time.sleep(base_backoff * (2 ** (attempt - 1)))
+        pending = next_round
+
+    # attach final attempt results for any exhausted retries
+    for idx, _ in pending:
+        if idx not in final_results:
+            final_results[idx] = {"status_code": 0, "reason": "RetryExhausted", "operation_index": idx}
+
+    ordered = [final_results[i] for i in sorted(final_results.keys())]
+    return BatchSendResult(operations=ordered, retry_counts=retry_counts, attempts=attempt)

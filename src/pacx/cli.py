@@ -4,7 +4,8 @@ from __future__ import annotations
 import base64
 import json
 import os
-from typing import Optional
+from pathlib import Path
+from typing import Dict, List, Optional
 
 import typer
 from rich import print
@@ -13,6 +14,7 @@ from .clients.power_platform import PowerPlatformClient
 from .clients.dataverse import DataverseClient
 from .clients.connectors import ConnectorsClient
 from .clients.power_pages import PowerPagesClient
+from .power_pages.diff import diff_permissions
 from .bulk_csv import bulk_csv_upsert
 from .solution_sp import unpack_to_source, pack_from_source
 from .models.dataverse import ExportSolutionRequest, ImportSolutionRequest
@@ -30,6 +32,46 @@ app.add_typer(dv_app, name="dv")
 app.add_typer(connector_app, name="connector")
 pages_app = typer.Typer(help="Power Pages site ops")
 app.add_typer(pages_app, name="pages")
+
+
+@app.command("doctor")
+def doctor(
+    ctx: typer.Context,
+    host: Optional[str] = typer.Option(None, help="Dataverse host to probe"),
+    check_dataverse: bool = typer.Option(True, help="Attempt Dataverse connectivity test"),
+):
+    """Validate PACX environment configuration."""
+
+    cfg = ConfigStore().load()
+    ok = True
+    if cfg.default_profile:
+        print(f"[green]Default profile:[/green] {cfg.default_profile}")
+    else:
+        print("[yellow]No default profile configured.[/yellow]")
+    try:
+        token_getter = _resolve_token_getter()
+        token_preview = token_getter()
+        print("[green]Token acquisition successful.[/green]")
+        ctx.obj = {"token_getter": lambda: token_preview}
+    except Exception as exc:  # pragma: no cover - error path tested separately
+        print(f"[red]Token acquisition failed:[/red] {exc}")
+        ok = False
+        token_getter = None
+
+    if check_dataverse and token_getter:
+        hv = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
+        if not hv:
+            print("[yellow]Skipping Dataverse probe: host unknown.[/yellow]")
+        else:
+            try:
+                dv = DataverseClient(lambda: token_preview, host=hv)
+                who = dv.whoami()
+                print(f"[green]Dataverse reachable:[/green] {who.get('UserId', 'unknown')}")
+            except Exception as exc:  # pragma: no cover - network failures
+                print(f"[red]Dataverse probe failed:[/red] {exc}")
+                ok = False
+
+    raise typer.Exit(code=0 if ok else 1)
 
 
 def _resolve_token_getter() -> callable:
@@ -440,20 +482,46 @@ def pages_download(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
-    binaries: bool = typer.Option(False, help="Extract web file binaries to files_bin/"),
+    binaries: bool = typer.Option(False, help="Use default binary provider (annotations)"),
     out: str = typer.Option("site_out", help="Output directory"),
     host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)"),
     include_files: bool = typer.Option(True, help="Include adx_webfiles"),
+    binary_provider: List[str] = typer.Option([], "--binary-provider", help="Explicit binary providers to run"),
+    provider_options: Optional[str] = typer.Option(None, help="JSON string/path for provider options"),
 ):
     token_getter = ctx.obj["token_getter"]
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
         raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
+    if binary_provider and not include_files:
+        raise typer.BadParameter("Binary providers require --include-files True")
+    provider_opts: Dict[str, Dict[str, object]] = {}
+    if provider_options:
+        try:
+            path = Path(provider_options)
+            if path.exists():
+                provider_opts = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                provider_opts = json.loads(provider_options)
+        except json.JSONDecodeError as exc:
+            raise typer.BadParameter(f"Invalid JSON for --provider-options: {exc}") from exc
     dv = DataverseClient(token_getter, host=host)
     pp = PowerPagesClient(dv)
-    outp = pp.download_site(website_id, out, tables=tables, include_files=include_files, binaries=binaries)
-    print(f"Downloaded site to {outp}")
+    providers = binary_provider or None
+    res = pp.download_site(
+        website_id,
+        out,
+        tables=tables,
+        include_files=include_files,
+        binaries=binaries,
+        binary_providers=providers,
+        provider_options=provider_opts,
+    )
+    print(f"Downloaded site to {res.output_path}")
+    if res.providers:
+        for name, prov in res.providers.items():
+            print(f"Provider {name}: {len(prov.files)} files, skipped={prov.skipped}")
 
 
 @pages_app.command("upload")
@@ -461,9 +529,10 @@ def pages_upload(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
-    binaries: bool = typer.Option(False, help="Extract web file binaries to files_bin/"),
     src: str = typer.Option(..., help="Source directory created by pages download"),
     host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)"),
+    strategy: str = typer.Option("replace", help="replace|merge|skip-existing|create-only"),
+    key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding natural keys"),
 ):
     token_getter = ctx.obj["token_getter"]
     cfg = ConfigStore().load()
@@ -472,9 +541,72 @@ def pages_upload(
         raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
     dv = DataverseClient(token_getter, host=host)
     pp = PowerPagesClient(dv)
-    pp.upload_site(website_id, src, strategy=merge_strategy)
+    manifest_path = Path(src) / "manifest.json"
+    manifest_keys: Dict[str, List[str]] = {}
+    if manifest_path.exists():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
+        except Exception:
+            pass
+    cli_keys: Dict[str, List[str]] = {}
+    if key_config:
+        try:
+            path = Path(key_config)
+            if path.exists():
+                cli_keys = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                cli_keys = json.loads(key_config)
+        except json.JSONDecodeError as exc:
+            raise typer.BadParameter(f"Invalid JSON for --key-config: {exc}") from exc
+    key_map = manifest_keys
+    key_map.update(cli_keys)
+    pp.upload_site(website_id, src, tables=tables, strategy=strategy, key_config=key_map)
     print("Uploaded site content")
 
+
+@pages_app.command("diff-permissions")
+def pages_diff_permissions(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="adx_website id GUID"),
+    src: str = typer.Option(..., help="Local export directory"),
+    host: Optional[str] = typer.Option(None, help="Dataverse host"),
+    key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding keys"),
+):
+    token_getter = ctx.obj["token_getter"]
+    cfg = ConfigStore().load()
+    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
+    if not host:
+        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
+    dv = DataverseClient(token_getter, host=host)
+    manifest_path = Path(src) / "manifest.json"
+    manifest_keys: Dict[str, List[str]] = {}
+    if manifest_path.exists():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
+        except Exception:
+            pass
+    cli_keys: Dict[str, List[str]] = {}
+    if key_config:
+        try:
+            path = Path(key_config)
+            if path.exists():
+                cli_keys = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                cli_keys = json.loads(key_config)
+        except json.JSONDecodeError as exc:
+            raise typer.BadParameter(f"Invalid JSON for --key-config: {exc}") from exc
+    merged_keys = manifest_keys
+    merged_keys.update(cli_keys)
+    plan = diff_permissions(dv, website_id, src, key_config=merged_keys)
+    if not plan:
+        print("No permission differences detected.")
+        return
+    print("Permission diff plan:")
+    for entry in plan:
+        key_repr = ",".join(entry.key)
+        print(f"- {entry.entityset}: {entry.action} [{key_repr}]")
 
 @dv_app.command("bulk-csv")
 def dv_bulk_csv(
@@ -495,13 +627,26 @@ def dv_bulk_csv(
         raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
     dv = DataverseClient(token_getter, host=host)
     keys = [s.strip() for s in (key_columns or '').split(',') if s.strip()]
-    res = bulk_csv_upsert(dv, entityset, csv_path, id_column, key_columns=keys or None, chunk_size=chunk_size, create_if_missing=create_if_missing)
+    res = bulk_csv_upsert(
+        dv,
+        entityset,
+        csv_path,
+        id_column,
+        key_columns=keys or None,
+        chunk_size=chunk_size,
+        create_if_missing=create_if_missing,
+    )
     if report:
         import csv as _csv
         with open(report, 'w', newline='', encoding='utf-8') as f:
             w = _csv.writer(f)
             w.writerow(['row_index','content_id','status_code','reason','json'])
-            for r in res:
+            for r in res.operations:
                 w.writerow([r.get('row_index'), r.get('content_id'), r.get('status_code'), r.get('reason'), (r.get('json') or '')])
         print(f"Wrote per-op report to {report}")
-    print("Bulk upsert submitted via $batch")
+    stats = res.stats
+    print(
+        "Bulk upsert completed: "
+        f"{stats['successes']} succeeded, {stats['failures']} failed, "
+        f"retries={stats['retry_invocations']}"
+    )

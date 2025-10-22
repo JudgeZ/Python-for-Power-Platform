@@ -111,35 +111,34 @@ class DataverseClient:
         path = f"{entityset}({record_id})"
         self.http.delete(path)
 
+    # ---- Import Job helpers ----
+    def get_import_job(self, job_id: str) -> Dict[str, Any]:
+        resp = self.http.get(f"importjobs({job_id})")
+        return resp.json()
 
-# ---- Import Job helpers ----
-def get_import_job(self, job_id: str) -> Dict[str, Any]:
-    resp = self.http.get(f"importjobs({job_id})")
-    return resp.json()
+    def wait_for_import_job(self, job_id: str, *, interval: float = 2.0, timeout: float = 600.0) -> Dict[str, Any]:
+        from ..utils.poller import poll_until
 
-def wait_for_import_job(self, job_id: str, *, interval: float = 2.0, timeout: float = 600.0) -> Dict[str, Any]:
-    from ..utils.poller import poll_until
+        def get_status() -> Dict[str, Any]:
+            try:
+                return self.get_import_job(job_id)
+            except Exception:
+                return {"status": "Unknown"}
 
-    def get_status() -> Dict[str, Any]:
-        try:
-            return self.get_import_job(job_id)
-        except Exception:
-            return {"status": "Unknown"}
+        def is_done(s: Dict[str, Any]) -> bool:
+            # Heuristic: look for progress >= 100 or state indicating completion
+            for k in ("progress", "percent", "percentagecomplete"):
+                v = s.get(k)
+                if isinstance(v, (int, float)) and v >= 100:
+                    return True
+            state = str(s.get("statecode") or s.get("status") or "").lower()
+            return state in {"completed", "succeeded", "failed"}
 
-    def is_done(s: Dict[str, Any]) -> bool:
-        # Heuristic: look for progress >= 100 or state indicating completion
-        for k in ("progress", "percent", "percentagecomplete"):
-            v = s.get(k)
-            if isinstance(v, (int, float)) and v >= 100:
-                return True
-        state = str(s.get("statecode") or s.get("status") or "").lower()
-        return state in {"completed", "succeeded", "failed"}
+        def get_progress(s: Dict[str, Any]):
+            for k in ("progress", "percent", "percentagecomplete"):
+                v = s.get(k)
+                if isinstance(v, (int, float)):
+                    return int(v)
+            return None
 
-    def get_progress(s: Dict[str, Any]):
-        for k in ("progress", "percent", "percentagecomplete"):
-            v = s.get(k)
-            if isinstance(v, (int, float)):
-                return int(v)
-        return None
-
-    return poll_until(get_status, is_done, get_progress, interval=interval, timeout=timeout)
+        return poll_until(get_status, is_done, get_progress, interval=interval, timeout=timeout)
