@@ -170,6 +170,17 @@ class AzureBlobVirtualFileProvider:
         return result
 
 
+def normalize_provider_name(name: str) -> str:
+    """Return the canonical provider identifier for a given alias."""
+
+    key = name.lower()
+    if key == "annotations":
+        return "annotations"
+    if key in {"azure", "azure-blob", "blob"}:
+        return "azure-blob"
+    raise ValueError(f"Unknown binary provider: {name}")
+
+
 def resolve_providers(
     names: Iterable[str],
     *,
@@ -178,14 +189,13 @@ def resolve_providers(
     """Instantiate providers by name."""
 
     resolved: List[BinaryExportProvider] = []
-    opts = options or {}
     for name in names:
-        key = name.lower()
-        if key == "annotations":
+        canonical = normalize_provider_name(name)
+        if canonical == "annotations":
             resolved.append(AnnotationBinaryProvider())
-        elif key in {"azure", "azure-blob", "blob"}:
+        elif canonical == "azure-blob":
             resolved.append(AzureBlobVirtualFileProvider())
-        else:
+        else:  # pragma: no cover - normalize_provider_name validates names
             raise ValueError(f"Unknown binary provider: {name}")
     # attach options metadata for later use (stored externally)
     return resolved

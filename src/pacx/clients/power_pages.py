@@ -10,7 +10,12 @@ from typing import Dict, Iterable, List, Mapping, Sequence
 
 from ..errors import HttpError
 from ..odata import build_alternate_key_segment
-from ..power_pages.providers import ProviderResult, provider_options_for_manifest, resolve_providers
+from ..power_pages.providers import (
+    ProviderResult,
+    normalize_provider_name,
+    provider_options_for_manifest,
+    resolve_providers,
+)
 from .dataverse import DataverseClient
 
 
@@ -183,7 +188,14 @@ class PowerPagesClient:
             provider_names = []
 
         providers: Dict[str, ProviderResult] = {}
-        resolved_options = provider_options or {}
+        raw_options = provider_options or {}
+        resolved_options: Dict[str, Mapping[str, object]] = {}
+        for opt_key, opt_value in raw_options.items():
+            try:
+                canonical_key = normalize_provider_name(opt_key)
+            except ValueError:
+                canonical_key = opt_key
+            resolved_options[canonical_key] = opt_value
         resolved_names: List[str] = list(provider_names)
         if provider_names and include_files:
             resolved = resolve_providers(provider_names, options=resolved_options)
