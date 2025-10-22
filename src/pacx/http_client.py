@@ -46,13 +46,23 @@ class HttpClient:
         json: Optional[Any] = None,
         headers: Optional[Dict[str, str]] = None,
         data: Optional[bytes | str] = None,
+        content: Optional[bytes | str] = None,
     ) -> httpx.Response:
         url = f"{self.base_url}/{path.lstrip('/')}"
         merged_headers = {**self._default_headers, **(headers or {}), **self._auth_header()}
         attempt = 0
         while True:
             try:
-                resp = self._client.request(method, url, params=params, json=json, data=data, headers=merged_headers)
+                request_kwargs: Dict[str, Any] = {
+                    "params": params,
+                    "json": json,
+                    "headers": merged_headers,
+                }
+                if content is not None:
+                    request_kwargs["content"] = content
+                else:
+                    request_kwargs["data"] = data
+                resp = self._client.request(method, url, **request_kwargs)
             except httpx.TransportError as e:
                 if attempt < self._max_retries:
                     time.sleep(self._backoff_factor * (2 ** attempt))

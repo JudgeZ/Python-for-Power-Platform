@@ -120,17 +120,27 @@ def send_batch(
         req_ops = list(payload)
         batch_id, body = build_batch(req_ops)
         headers = {"Content-Type": f"multipart/mixed; boundary={batch_id}"}
-        resp = dv.http.post("$batch", headers=headers, data=body)
+        resp = dv.http.post("$batch", headers=headers, content=body)
         parsed = parse_batch_response(resp.headers.get("Content-Type", ""), resp.content)
 
         next_round: List[Tuple[int, Dict[str, Any]]] = []
+        processed_indices: set[int] = set()
         for idx, result in zip(idxs, parsed):
+            processed_indices.add(idx)
             result["operation_index"] = idx
             if result.get("status_code") in statuses and attempt <= max_retries:
                 retry_counts[idx] = retry_counts.get(idx, 0) + 1
                 next_round.append((idx, ops[idx]))
             else:
                 final_results[idx] = result
+        missing_indices = set(idxs) - processed_indices
+        for idx in missing_indices:
+            if idx not in final_results:
+                final_results[idx] = {
+                    "status_code": 0,
+                    "reason": "MissingResponse",
+                    "operation_index": idx,
+                }
         if next_round and attempt <= max_retries:
             time.sleep(base_backoff * (2 ** (attempt - 1)))
         pending = next_round
