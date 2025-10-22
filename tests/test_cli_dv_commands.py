@@ -1,8 +1,6 @@
 
 from __future__ import annotations
 
-import os
-
 import httpx
 import respx
 from typer.testing import CliRunner
@@ -21,6 +19,7 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
     result = runner.invoke(app, ["dv", "whoami"])
     assert result.exit_code == 0
     assert "UserId" in result.stdout
+    assert respx_mock.calls[0].request.headers["Authorization"] == "Bearer dummy"
 
 
 def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):

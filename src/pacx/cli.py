@@ -52,7 +52,7 @@ def doctor(
         token_getter = _resolve_token_getter()
         token_preview = token_getter()
         print("[green]Token acquisition successful.[/green]")
-        ctx.obj = {"token_getter": lambda: token_preview}
+        ctx.obj = {"token_getter": token_getter}
     except Exception as exc:  # pragma: no cover - error path tested separately
         print(f"[red]Token acquisition failed:[/red] {exc}")
         ok = False
@@ -109,7 +109,13 @@ def _resolve_token_getter() -> callable:
 
 @app.callback()
 def common(ctx: typer.Context):
-    ctx.obj = {"token_getter": _resolve_token_getter}
+    try:
+        token_getter = _resolve_token_getter()
+    except typer.BadParameter:
+        raise
+    except Exception as exc:  # pragma: no cover - defensive guard
+        raise typer.BadParameter(str(exc)) from exc
+    ctx.obj = {"token_getter": token_getter}
 
 
 # ---- Core: environments/apps/flows ----
