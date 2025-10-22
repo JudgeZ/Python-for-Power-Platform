@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import json
-import base64
-import hashlib
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Iterable
 
@@ -61,35 +59,13 @@ class PowerPagesClient:
                 out.append(tup)
         return out
 
-    def download_site(
-        self,
-        website_id: str,
-        out_dir: str,
-        *,
-        tables: str | Iterable[str] = "core",
-        top: int = 5000,
-        include_files: bool = True,
-        binaries: bool = False,
-    ) -> str:
-        """Download site content into ``out_dir``.
-
-        When ``include_files`` is ``False`` the ``files`` folder is skipped. Set ``binaries`` to
-        ``True`` to fetch related annotation binaries after exporting metadata.
-        """
-
+    def download_site(self, website_id: str, out_dir: str, *, tables: str | Iterable[str] = "core", top: int = 5000) -> str:
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
 
-        sets = (
-            CORE_TABLES
-            if tables == "core"
-            else (CORE_TABLES + EXTRA_TABLES if tables == "full" else self._select_sets(tables))
-        )
+        sets = CORE_TABLES if tables == "core" else (CORE_TABLES + EXTRA_TABLES if tables == "full" else self._select_sets(tables))
         summary: Dict[str, int] = {}
-        webfiles: list[dict] = []
         for folder, entityset, key, select in sets:
-            if folder == "files" and not include_files:
-                continue
             (out / folder).mkdir(parents=True, exist_ok=True)
             filter_expr = None
             # Most ADX tables expose _adx_websiteid_value; safe to filter when that field is in select
@@ -97,59 +73,18 @@ class PowerPagesClient:
                 filter_expr = f"_adx_websiteid_value eq {website_id}"
             data = self.dv.list_records(entityset, select=select, filter=filter_expr, top=top).get("value", [])
             summary[folder] = len(data)
-            if folder == "files":
-                webfiles = data
             for obj in data:
                 rec_id = obj.get(key) or obj.get("id") or obj.get("name")  # fallback
                 name = str(rec_id).replace("/", "_")
                 (out / folder / f"{name}.json").write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
         (out / "site.json").write_text(json.dumps({"website_id": website_id, "summary": summary}, indent=2), encoding="utf-8")
-
-        if binaries and include_files and webfiles:
-            self.download_webfile_binaries(webfiles, str(out))
-
         return str(out)
 
-    def download_webfile_binaries(self, webfiles: list[dict], out_dir: str) -> None:
-        """Fetch annotation binaries for each ``adx_webfile`` and write to ``files_bin``."""
-
-        out = Path(out_dir) / "files_bin"
-        out.mkdir(parents=True, exist_ok=True)
-        for wf in webfiles:
-            wf_id = wf.get("adx_webfileid") or wf.get("id")
-            if not wf_id:
-                continue
-            data = self.dv.list_records(
-                "annotations",
-                select="annotationid,filename,documentbody,_objectid_value",
-                filter=f"_objectid_value eq {wf_id}",
-                top=50,
-            )
-            for note in data.get("value", []):
-                fname = note.get("filename") or f"{note.get('annotationid')}.bin"
-                b64 = note.get("documentbody")
-                if not b64:
-                    continue
-                raw = base64.b64decode(b64)
-                p = out / fname
-                p.write_bytes(raw)
-                (out / f"{fname}.sha256").write_text(hashlib.sha256(raw).hexdigest(), encoding="utf-8")
-
-    def upload_site(self, website_id: str, src_dir: str, *, strategy: str = "replace") -> None:
-        """Upload JSON artifacts from ``src_dir`` using the provided ``strategy``."""
-
-        if strategy not in {"replace", "merge", "skip-existing", "create-only"}:
-            raise ValueError(f"Unknown strategy: {strategy}")
-
-        if strategy == "replace":
-            self._upload_site_replace(src_dir)
-        else:
-            self._upload_site_with_strategy(src_dir, strategy)
-
-    def _upload_site_replace(self, src_dir: str) -> None:
+    def upload_site(self, website_id: str, src_dir: str) -> None:
         base = Path(src_dir)
-        for folder, entityset, key, _ in CORE_TABLES + EXTRA_TABLES:
+        sets = CORE_TABLES + EXTRA_TABLES
+        for folder, entityset, key, _ in sets:
             p = base / folder
             if not p.exists():
                 continue
@@ -160,32 +95,68 @@ class PowerPagesClient:
                     try:
                         self.dv.update_record(entityset, rid, obj)
                     except Exception:
+                        # record might not exist; create
                         self.dv.create_record(entityset, obj)
                 else:
                     self.dv.create_record(entityset, obj)
 
-    def _upload_site_with_strategy(self, src_dir: str, strategy: str) -> None:
-        base = Path(src_dir)
-        for folder, entityset, key, _ in CORE_TABLES + EXTRA_TABLES:
-            p = base / folder
-            if not p.exists():
+
+def download_webfile_binaries(self, webfiles: list[dict], out_dir: str) -> None:
+    """Fetch annotation binaries for each adx_webfile and write to files_bin.
+    Assumes web file content is stored in related 'annotations' with 'documentbody' (base64) & 'filename'.
+    """
+    from pathlib import Path
+    import base64, hashlib
+    out = Path(out_dir) / "files_bin"
+    out.mkdir(parents=True, exist_ok=True)
+    for wf in webfiles:
+        wf_id = wf.get("adx_webfileid") or wf.get("id")
+        if not wf_id:
+            continue
+        # Query annotations by object id
+        data = self.dv.list_records(
+            "annotations",
+            select="annotationid,filename,documentbody,_objectid_value",
+            filter=f"_objectid_value eq {wf_id}",
+            top=50,
+        )
+        for note in data.get("value", []):
+            fname = note.get("filename") or f"{note.get('annotationid')}.bin"
+            b64 = note.get("documentbody")
+            if not b64:
                 continue
-            for jf in p.glob("*.json"):
-                obj = json.loads(jf.read_text(encoding="utf-8"))
-                rid = obj.get(key)
-                if rid:
-                    if strategy in {"skip-existing", "create-only"}:
-                        continue
-                    if strategy == "merge":
-                        try:
-                            current = self.dv.get_record(entityset, rid)
-                        except Exception:
-                            current = {}
-                        merged = {**current, **obj}
-                        self.dv.update_record(entityset, rid, merged)
-                    else:  # strategy == "replace" handled earlier
-                        self.dv.update_record(entityset, rid, obj)
-                else:
-                    if strategy == "skip-existing":
-                        continue
-                    self.dv.create_record(entityset, obj)
+            raw = base64.b64decode(b64)
+            p = out / fname
+            p.write_bytes(raw)
+            # write sidecar checksum
+            (out / f"{fname}.sha256").write_text(hashlib.sha256(raw).hexdigest(), encoding="utf-8")
+
+def upload_site(self, website_id: str, src_dir: str, *, strategy: str = "replace") -> None:
+    base = Path(src_dir)
+    sets = CORE_TABLES + EXTRA_TABLES
+    for folder, entityset, key, _ in sets:
+        p = base / folder
+        if not p.exists():
+            continue
+        for jf in p.glob("*.json"):
+            obj = json.loads(jf.read_text(encoding="utf-8"))
+            rid = obj.get(key)
+            if rid:
+                if strategy == "skip-existing":
+                    continue
+                elif strategy == "create-only":
+                    # ignore updates
+                    continue
+                elif strategy == "merge":
+                    try:
+                        current = self.dv.get_record(entityset, rid)
+                    except Exception:
+                        current = {}
+                    merged = {**current, **obj}
+                    self.dv.update_record(entityset, rid, merged)
+                else:  # replace (default)
+                    self.dv.update_record(entityset, rid, obj)
+            else:
+                if strategy == "skip-existing":
+                    continue
+                self.dv.create_record(entityset, obj)
