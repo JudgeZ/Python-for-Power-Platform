@@ -107,9 +107,28 @@ def _resolve_token_getter() -> callable:
     raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
 
 
+def _get_token_getter(ctx: typer.Context, *, required: bool = True):
+    ctx.ensure_object(dict)
+    token_getter = ctx.obj.get("token_getter") if ctx.obj else None
+    if callable(token_getter):
+        return token_getter
+
+    if token_getter is None:
+        try:
+            token_getter = _resolve_token_getter()
+        except typer.BadParameter:
+            if not required:
+                return None
+            raise
+        ctx.obj["token_getter"] = token_getter
+
+    return token_getter
+
+
 @app.callback()
 def common(ctx: typer.Context):
-    ctx.obj = {"token_getter": _resolve_token_getter}
+    ctx.ensure_object(dict)
+    ctx.obj.setdefault("token_getter", None)
 
 
 # ---- Core: environments/apps/flows ----
@@ -120,7 +139,7 @@ def list_envs(
     api_version: str = typer.Option("2022-03-01-preview", help="Power Platform API version"),
 ):
     """List Power Platform environments."""
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     client = PowerPlatformClient(token_getter, api_version=api_version)
     envs = client.list_environments()
     for e in envs:
@@ -133,7 +152,7 @@ def list_apps(
     environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
     top: Optional[int] = typer.Option(None, help="$top"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     if not environment_id:
         cfg = ConfigStore().load()
         environment_id = cfg.environment_id
@@ -150,7 +169,7 @@ def list_flows(
     ctx: typer.Context,
     environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     if not environment_id:
         cfg = ConfigStore().load()
         environment_id = cfg.environment_id
@@ -179,14 +198,16 @@ def solution_cmd(
 ):
     from .solution_source import pack_solution_folder, unpack_solution_zip
 
-    token_getter = ctx.obj["token_getter"]
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host and action in ("list", "export", "import", "publish-all"):
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default dataverse_host")
-
-    if action in ("list", "export", "import", "publish-all"):
-        dv = DataverseClient(token_getter, host=host)
+    requires_dataverse = action in ("list", "export", "import", "publish-all")
+    resolved_host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
+    token_getter = _get_token_getter(ctx, required=requires_dataverse)
+    if requires_dataverse:
+        if not resolved_host:
+            raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default dataverse_host")
+        dv = DataverseClient(token_getter, host=resolved_host)
+    else:
+        dv = None
 
     if action == "list":
         sols = dv.list_solutions(select="uniquename,friendlyname,version")
@@ -350,7 +371,7 @@ def profile_set_host(dataverse_host: str = typer.Argument(..., help="Default Dat
 
 @dv_app.command("whoami")
 def dv_whoami(ctx: typer.Context, host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)")):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -361,7 +382,7 @@ def dv_whoami(ctx: typer.Context, host: Optional[str] = typer.Option(None, help=
 
 @dv_app.command("list")
 def dv_list(ctx: typer.Context, entityset: str = typer.Argument(...), select: Optional[str] = None, filter: Optional[str] = None, top: Optional[int] = None, orderby: Optional[str] = None, host: Optional[str] = None):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -372,7 +393,7 @@ def dv_list(ctx: typer.Context, entityset: str = typer.Argument(...), select: Op
 
 @dv_app.command("get")
 def dv_get(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: Optional[str] = None):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -383,7 +404,7 @@ def dv_get(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: 
 
 @dv_app.command("create")
 def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: Optional[str] = None):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -395,7 +416,7 @@ def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: st
 
 @dv_app.command("update")
 def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: Optional[str] = None):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -408,7 +429,7 @@ def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_i
 
 @dv_app.command("delete")
 def dv_delete(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: Optional[str] = None):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -426,7 +447,7 @@ def connectors_list(
     environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
     top: Optional[int] = typer.Option(None, help="$top"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     if not environment_id:
         cfg = ConfigStore().load()
         environment_id = cfg.environment_id
@@ -445,7 +466,7 @@ def connectors_get(
     environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
     api_name: str = typer.Argument(..., help="API (connector) name"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     if not environment_id:
         cfg = ConfigStore().load()
         environment_id = cfg.environment_id
@@ -464,7 +485,7 @@ def connector_push(
     openapi_path: str = typer.Option(..., "--openapi", help="Path to OpenAPI/Swagger file (YAML/JSON)"),
     display_name: Optional[str] = typer.Option(None, help="Display name override"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     if not environment_id:
         cfg = ConfigStore().load()
         environment_id = cfg.environment_id
@@ -489,7 +510,7 @@ def pages_download(
     binary_provider: List[str] = typer.Option([], "--binary-provider", help="Explicit binary providers to run"),
     provider_options: Optional[str] = typer.Option(None, help="JSON string/path for provider options"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -534,7 +555,7 @@ def pages_upload(
     strategy: str = typer.Option("replace", help="replace|merge|skip-existing|create-only"),
     key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding natural keys"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -573,7 +594,7 @@ def pages_diff_permissions(
     host: Optional[str] = typer.Option(None, help="Dataverse host"),
     key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding keys"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:
@@ -620,7 +641,7 @@ def dv_bulk_csv(
     chunk_size: int = typer.Option(50, help="Records per $batch"),
     report: Optional[str] = typer.Option(None, help="Write per-op results CSV to this path"),
 ):
-    token_getter = ctx.obj["token_getter"]
+    token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
     host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
     if not host:

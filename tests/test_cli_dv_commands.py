@@ -21,6 +21,9 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
     result = runner.invoke(app, ["dv", "whoami"])
     assert result.exit_code == 0
     assert "UserId" in result.stdout
+    assert respx_mock.calls, "expected Dataverse request"
+    auth_header = respx_mock.calls.last.request.headers.get("Authorization")
+    assert auth_header == "Bearer dummy"
 
 
 def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):
@@ -35,3 +38,6 @@ def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):
     result = runner.invoke(app, ["connector", "push", "--environment-id", "ENV", "--name", "myapi", "--openapi", str(p)])
     assert result.exit_code == 0
     assert "myapi" in result.stdout
+    assert respx_mock.calls, "expected connector request"
+    auth_header = respx_mock.calls.last.request.headers.get("Authorization")
+    assert auth_header == "Bearer dummy"
