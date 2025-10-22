@@ -49,14 +49,14 @@ jobs:
         working-directory: dist
       - name: Publish to TestPyPI
         if: matrix.target == 'testpypi'
-        uses: pypa/gh-action-pypi-publish@v1.8.11
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           packages-dir: dist
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PYPI_TOKEN }}
       - name: Publish to PyPI
         if: matrix.target == 'pypi'
-        uses: pypa/gh-action-pypi-publish@v1.8.11
+        uses: pypa/gh-action-pypi-publish@v1.13.0
         with:
           packages-dir: dist
           password: ${{ secrets.PYPI_TOKEN }}
