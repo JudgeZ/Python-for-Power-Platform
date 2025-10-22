@@ -107,3 +107,26 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
     respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(side_effect=patcher)
 
     pp.upload_site("site", str(site), strategy="merge")
+
+
+def test_pages_upload_natural_keys_skip_existing(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    site = Path(tmp_path) / "site"
+    pages_dir = site / "pages"
+    pages_dir.mkdir(parents=True)
+    page_data = {"adx_partialurl": "home", "_adx_websiteid_value": "site", "adx_name": "Existing"}
+    (pages_dir / "home.json").write_text(json.dumps(page_data), encoding="utf-8")
+
+    get_route = respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(
+        return_value=httpx.Response(200, json=page_data)
+    )
+    patch_route = respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(
+        return_value=httpx.Response(204)
+    )
+
+    pp.upload_site("site", str(site), strategy="skip-existing")
+
+    assert get_route.called
+    assert not patch_route.called

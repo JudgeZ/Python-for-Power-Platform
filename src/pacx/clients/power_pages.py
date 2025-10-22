@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence
 
+from ..errors import HttpError
 from ..odata import build_alternate_key_segment
 from ..power_pages.providers import ProviderResult, provider_options_for_manifest, resolve_providers
 from .dataverse import DataverseClient
@@ -234,15 +235,19 @@ class PowerPagesClient:
 
                 natural = key_map.get(entityset.lower())
                 if natural and all(obj.get(col) for col in natural):
-                    key_segment = build_alternate_key_segment({col: obj[col] for col in natural})
+                    key_values = {col: obj[col] for col in natural}
+                    key_segment = build_alternate_key_segment(key_values)
                     path = f"{entityset}({key_segment})"
                     if strategy == "create-only":
                         self.dv.create_record(entityset, obj)
                     elif strategy == "skip-existing":
                         try:
-                            self.dv.http.patch(path, json=obj)
-                        except Exception:
-                            continue
+                            self.dv.http.get(path)
+                        except HttpError as exc:
+                            if exc.status_code == 404:
+                                self.dv.create_record(entityset, obj)
+                            else:
+                                raise
                     elif strategy == "merge":
                         try:
                             current = self.dv.http.get(path).json()
