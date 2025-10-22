@@ -59,13 +59,25 @@ class PowerPagesClient:
                 out.append(tup)
         return out
 
-    def download_site(self, website_id: str, out_dir: str, *, tables: str | Iterable[str] = "core", top: int = 5000) -> str:
+    def download_site(
+        self,
+        website_id: str,
+        out_dir: str,
+        *,
+        tables: str | Iterable[str] = "core",
+        top: int = 5000,
+        include_files: bool = True,
+        binaries: bool = False,
+    ) -> str:
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
 
         sets = CORE_TABLES if tables == "core" else (CORE_TABLES + EXTRA_TABLES if tables == "full" else self._select_sets(tables))
         summary: Dict[str, int] = {}
+        webfile_records: List[Dict[str, Any]] = []
         for folder, entityset, key, select in sets:
+            if folder == "files" and not include_files:
+                continue
             (out / folder).mkdir(parents=True, exist_ok=True)
             filter_expr = None
             # Most ADX tables expose _adx_websiteid_value; safe to filter when that field is in select
@@ -73,12 +85,16 @@ class PowerPagesClient:
                 filter_expr = f"_adx_websiteid_value eq {website_id}"
             data = self.dv.list_records(entityset, select=select, filter=filter_expr, top=top).get("value", [])
             summary[folder] = len(data)
+            if folder == "files":
+                webfile_records = data
             for obj in data:
                 rec_id = obj.get(key) or obj.get("id") or obj.get("name")  # fallback
                 name = str(rec_id).replace("/", "_")
                 (out / folder / f"{name}.json").write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
         (out / "site.json").write_text(json.dumps({"website_id": website_id, "summary": summary}, indent=2), encoding="utf-8")
+        if binaries and include_files and webfile_records:
+            download_webfile_binaries(self, webfile_records, str(out))
         return str(out)
 
     def upload_site(self, website_id: str, src_dir: str) -> None:
