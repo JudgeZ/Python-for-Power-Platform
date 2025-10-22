@@ -47,9 +47,16 @@ jobs:
       - name: Verify checksums
         run: sha256sum -c sha256sum.txt
         working-directory: dist
-      - name: Publish to ${{ matrix.target }}
+      - name: Publish to TestPyPI
+        if: matrix.target == 'testpypi'
         uses: pypa/gh-action-pypi-publish@v1.8.11
         with:
           packages-dir: dist
-          repository-url: ${{ matrix.target == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
-          password: ${{ secrets[matrix.target == 'testpypi' && 'TEST_PYPI_TOKEN' || 'PYPI_TOKEN'] }}
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_TOKEN }}
+      - name: Publish to PyPI
+        if: matrix.target == 'pypi'
+        uses: pypa/gh-action-pypi-publish@v1.8.11
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_TOKEN }}
