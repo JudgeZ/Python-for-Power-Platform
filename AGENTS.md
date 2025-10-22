@@ -13,6 +13,8 @@
 - Use `HttpClient` for all HTTP calls; no direct httpx use
 - Add docstrings & examples for public functions
 - Mock external calls with `respx` in tests
+- Keep the pytest suite free from warnings; upgrade or silence via `pytest.mark.filterwarnings` only with documented rationale.
+- Treat any new pytest failure or warning as a blocking issue—fix the regression or add coverage in the same change.
 
 ## Style guides & best practices
 - Favor explicit imports over wildcard imports to keep namespaces predictable.
