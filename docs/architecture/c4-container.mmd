@@ -1,0 +1,15 @@
+
+```mermaid
+%%{init: {'theme':'default'}}%%
+graph TB
+  subgraph Local
+    CLI[Typer CLI] --> Library
+    Library[Library Modules]
+    Library --> Http[HTTP Client + Retry]
+    Library --> Auth[Auth Providers]
+    Library --> Batch[Batch Builder]
+    Library --> Pages[Power Pages Sync]
+  end
+  Http -->|JSON| APIs[Power Platform / Dataverse]
+  Auth --> Entra[Entra ID]
+```

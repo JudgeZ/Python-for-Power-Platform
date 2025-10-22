@@ -1,0 +1,16 @@
+
+```mermaid
+%%{init: {'theme':'default'}}%%
+graph TB
+  subgraph Library
+    C1[clients.power_platform] --> Http
+    C2[clients.dataverse] --> Http
+    C3[clients.connectors] --> Http
+    C4[clients.power_pages] --> C2
+    C5[batch] --> Http
+    C6[bulk_csv] --> C5
+    C7[solution_sp] --> Filesystem
+    C8[secrets] --> OS/Keyring/KeyVault
+  end
+  CLI -.-> C1 & C2 & C3 & C4 & C6 & C7
+```

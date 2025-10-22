@@ -1,0 +1,11 @@
+
+```mermaid
+%%{init: {'theme':'default'}}%%
+graph TB
+  user[Developer/User] -->|uses| PACX[Pacx CLI/Library]
+  PACX -->|calls| PP[Power Platform Admin API]
+  PACX -->|calls| DV[Dataverse Web API]
+  PACX -->|auth| Entra[Microsoft Entra ID]
+  PP -->|manages| Environments
+  DV -->|stores| Solutions & ADX Tables
+```

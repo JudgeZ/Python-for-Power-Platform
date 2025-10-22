@@ -1,0 +1,6 @@
+site_name: PACX
+
+
+plugins:
+  - search
+  - mermaid2

@@ -1,0 +1,102 @@
+
+[build-system]
+requires = ["hatchling>=1.22"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pacx"
+version = "0.6.0"
+description = "PACX: A Python library and CLI for Power Platform + Dataverse (PAC-like)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{ name = "PACX Authors" }]
+keywords = ["power platform", "dataverse", "pac", "cli", "microsoft", "automation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
+dependencies = [
+  "httpx>=0.27,<1",
+  "pydantic>=2.3",
+  "typer>=0.12",
+  "rich>=13.7",
+]
+
+[project.optional-dependencies]
+secrets = [
+  "keyring>=24",
+  "azure-identity>=1.16",
+  "azure-keyvault-secrets>=4.8"
+]
+auth = ["msal>=1.27"]
+dev = [
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "respx>=0.20",
+  "anyio>=4",
+  "nox>=2024.4.15",
+  "black>=24.8.0",
+  "ruff>=0.6.0",
+  "mypy>=1.10.0",
+  "types-requests",
+  "bandit>=1.7",
+  "pre-commit>=3.5",
+  "coverage[toml]>=7.6",
+  "pyyaml>=6.0.1",
+]
+
+[project.scripts]
+ppx = "pacx.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pacx"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E","F","I","B","UP","N","S","W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_calls = false
+no_implicit_optional = true
+check_untyped_defs = true
+strict_optional = true
+exclude = ["build/", "dist/"]
+
+[tool.coverage.run]
+branch = true
+source = ["pacx"]
+parallel = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+
+[project.optional-dependencies]
+docs = [
+  "mkdocs>=1.6",
+  "mkdocs-material>=9.5",
+  "mkdocs-mermaid2-plugin>=0.6.0",
+  "pymdown-extensions>=10.8"
+]
