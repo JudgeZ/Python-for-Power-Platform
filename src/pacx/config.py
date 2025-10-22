@@ -136,3 +136,36 @@ class ConfigStore:
             "profiles": {name: asdict(profile) for name, profile in cfg.profiles.items()},
         }
         self._write(data)
+
+    def add_or_update_profile(self, profile: Profile, *, set_default: bool = False) -> ConfigData:
+        """Persist ``profile`` and optionally set it as default.
+
+        Example:
+            >>> store = ConfigStore("/tmp/pacx.json")
+            >>> store.add_or_update_profile(Profile(name="dev"))
+
+        Returns the updated :class:`ConfigData` snapshot for further mutation by
+        callers (e.g. additional property edits before :meth:`save`).
+        """
+
+        cfg = self.load()
+        cfg.profiles[profile.name] = profile
+        if set_default or not cfg.default_profile:
+            cfg.default_profile = profile.name
+        self.save(cfg)
+        return cfg
+
+    def set_default_profile(self, name: str) -> ConfigData:
+        """Mark the profile ``name`` as the default profile.
+
+        Example:
+            >>> store = ConfigStore("/tmp/pacx.json")
+            >>> store.set_default_profile("dev")
+        """
+
+        cfg = self.load()
+        if name not in cfg.profiles:
+            raise KeyError(f"Profile '{name}' not found")
+        cfg.default_profile = name
+        self.save(cfg)
+        return cfg
