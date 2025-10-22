@@ -1,5 +1,5 @@
 
-# PACX — PAC-like Python Library & CLI (Extended, TDD-ready)
+# Python for Power Platform
 
 This repository provides a test-driven, extensible Python library and CLI targeting Microsoft Power Platform + Dataverse.
 
