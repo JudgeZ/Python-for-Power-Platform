@@ -109,7 +109,11 @@ def _resolve_token_getter() -> callable:
 
 @app.callback()
 def common(ctx: typer.Context):
-    ctx.obj = {"token_getter": _resolve_token_getter}
+    try:
+        token_getter = _resolve_token_getter()
+    except typer.BadParameter as exc:
+        raise exc
+    ctx.obj = {"token_getter": token_getter}
 
 
 # ---- Core: environments/apps/flows ----
