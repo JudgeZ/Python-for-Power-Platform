@@ -251,7 +251,15 @@ class PowerPagesClient:
                     key_segment = build_alternate_key_segment(key_values)
                     path = f"{entityset}({key_segment})"
                     if strategy == "create-only":
-                        self.dv.create_record(entityset, obj)
+                        try:
+                            self.dv.http.get(path)
+                        except HttpError as exc:
+                            if exc.status_code == 404:
+                                self.dv.create_record(entityset, obj)
+                            else:
+                                raise
+                        else:
+                            continue
                     elif strategy == "skip-existing":
                         try:
                             self.dv.http.get(path)
