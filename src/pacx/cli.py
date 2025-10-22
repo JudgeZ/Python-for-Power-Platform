@@ -464,6 +464,10 @@ def pages_upload(
     binaries: bool = typer.Option(False, help="Extract web file binaries to files_bin/"),
     src: str = typer.Option(..., help="Source directory created by pages download"),
     host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)"),
+    strategy: str = typer.Option(
+        "replace",
+        help="replace|merge|skip-existing|create-only",
+    ),
 ):
     token_getter = ctx.obj["token_getter"]
     cfg = ConfigStore().load()
@@ -472,7 +476,7 @@ def pages_upload(
         raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
     dv = DataverseClient(token_getter, host=host)
     pp = PowerPagesClient(dv)
-    pp.upload_site(website_id, src, strategy=merge_strategy)
+    pp.upload_site(website_id, src, strategy=strategy)
     print("Uploaded site content")
 
 
