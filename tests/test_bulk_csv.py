@@ -50,3 +50,43 @@ def test_bulk_csv_reports_retries(tmp_path, respx_mock, token_getter):
 
     result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=1)
     assert result.stats["retry_invocations"] == 1
+
+
+def test_bulk_csv_row_index_matches_csv_line_with_skipped_rows(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    csvp = tmp_path / "data.csv"
+    with open(csvp, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["id", "name"])
+        w.writerow(["", "Skipped"])
+        w.writerow(["42", "Valid"])
+
+    boundary = "batchresponse_rowindex"
+    body = (
+        f"--{boundary}\n"
+        "Content-Type: application/http\n"
+        "Content-Transfer-Encoding: binary\n"
+        "Content-ID: 1\n\n"
+        "HTTP/1.1 204 No Content\n\n\n"
+        f"--{boundary}--"
+    )
+
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(
+        return_value=httpx.Response(
+            200,
+            headers={"Content-Type": f"multipart/mixed; boundary={boundary}"},
+            content=body.encode("utf-8"),
+        )
+    )
+
+    result = bulk_csv_upsert(
+        dv,
+        "accounts",
+        str(csvp),
+        id_column="id",
+        chunk_size=10,
+        create_if_missing=False,
+    )
+
+    assert len(result.operations) == 1
+    assert result.operations[0]["row_index"] == 3
