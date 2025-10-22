@@ -127,23 +127,45 @@ class PowerPagesClient:
     @staticmethod
     def _select_sets(tables: str | Iterable[str] = "core") -> List[tuple[str, str, str, str]]:
         if isinstance(tables, str):
-            tv = tables.lower()
-            if tv == "core":
-                return list(CORE_TABLES)
-            if tv == "full":
-                return list(CORE_TABLES + EXTRA_TABLES)
-            wanted = {s.strip().lower() for s in tv.split(",") if s.strip()}
+            tokens = [token.strip().lower() for token in tables.split(",") if token.strip()]
         else:
-            wanted = {s.strip().lower() for s in tables}
-        out: List[tuple[str, str, str, str]] = []
-        for tup in CORE_TABLES + EXTRA_TABLES:
-            folder, entityset, _, _ = tup
-            if isinstance(tables, str):
-                if entityset.lower() in wanted or folder.lower() in wanted:
-                    out.append(tup)
+            tokens = [str(token).strip().lower() for token in tables if str(token).strip()]
+
+        include_core = False
+        include_full = False
+        wanted: set[str] = set()
+        for token in tokens:
+            if token == "full":
+                include_full = True
+            elif token == "core":
+                include_core = True
             else:
-                out.append(tup)
-        return out
+                wanted.add(token)
+
+        selected: List[tuple[str, str, str, str]] = []
+        seen: set[tuple[str, str, str, str]] = set()
+
+        def add_choice(choice: tuple[str, str, str, str]) -> None:
+            if choice not in seen:
+                selected.append(choice)
+                seen.add(choice)
+
+        all_tables = CORE_TABLES + EXTRA_TABLES
+
+        if include_full:
+            for entry in all_tables:
+                add_choice(entry)
+        elif include_core:
+            for entry in CORE_TABLES:
+                add_choice(entry)
+
+        if wanted:
+            for entry in all_tables:
+                folder, entityset, _, _ = entry
+                if folder.lower() in wanted or entityset.lower() in wanted:
+                    add_choice(entry)
+
+        return selected
 
     def download_site(
         self,
