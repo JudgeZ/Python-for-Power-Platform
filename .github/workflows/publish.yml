@@ -1,0 +1,55 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version being published"
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+      - name: Build distributions
+        run: python -m build
+      - name: Generate checksums
+        run: sha256sum dist/* > dist/sha256sum.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [testpypi, pypi]
+    environment:
+      name: ${{ matrix.target == 'pypi' && 'pypi' || 'testpypi' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist
+      - name: Verify checksums
+        run: sha256sum -c sha256sum.txt
+        working-directory: dist
+      - name: Publish to ${{ matrix.target }}
+        uses: pypa/gh-action-pypi-publish@v1.8.11
+        with:
+          packages-dir: dist
+          repository-url: ${{ matrix.target == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
+          password: ${{ secrets[matrix.target == 'testpypi' && 'TEST_PYPI_TOKEN' || 'PYPI_TOKEN'] }}

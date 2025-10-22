@@ -23,9 +23,19 @@ def test_bulk_csv_altkey_patch(tmp_path, respx_mock, token_getter):
     def callback(request):
         body = request.content.decode("utf-8", errors="replace")
         assert "PATCH /api/data/v9.2/accounts(accountnumber='A-1',name='Contoso') HTTP/1.1" in body
-        return httpx.Response(202, headers={"Content-Type": "multipart/mixed; boundary=batchresponse_1"}, text=f"--batchresponse_1--")
+        response_body = """--batchresponse_1
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+Content-ID: 1
+
+HTTP/1.1 204 No Content
+
+
+--batchresponse_1--
+"""
+        return httpx.Response(200, headers={"Content-Type": "multipart/mixed; boundary=batchresponse_1"}, content=response_body.encode("utf-8"))
 
     respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(side_effect=callback)
 
     res = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", key_columns=["accountnumber","name"], chunk_size=10)
-    assert isinstance(res, list)
+    assert res.operations

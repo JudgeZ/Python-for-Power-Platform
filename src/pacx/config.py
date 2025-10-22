@@ -1,7 +1,8 @@
 from __future__ import annotations
 import json, os
-from dataclasses import dataclass, asdict
-from typing import Dict, Optional, Any
+from dataclasses import dataclass, asdict, field
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 PACX_DIR = os.path.expanduser(os.getenv("PACX_HOME", "~/.pacx"))
 CONFIG_PATH = os.path.join(PACX_DIR, "config.json")
@@ -11,9 +12,14 @@ class Profile:
     name: str
     tenant_id: str | None = None
     client_id: str | None = None
+    scope: str | None = None
     dataverse_host: str | None = None
-    scopes: list[str] | None = None
+    environment_id: str | None = None
     access_token: str | None = None
+    client_secret_env: str | None = None
+    secret_backend: str | None = None
+    secret_ref: str | None = None
+    scopes: list[str] | None = None
 
 def _ensure_dir() -> None:
     os.makedirs(PACX_DIR, exist_ok=True)
@@ -78,3 +84,55 @@ def get_token_for_profile(name: Optional[str]) -> Optional[str]:
         return None
     prof = cfg.get("profiles", {}).get(name, {})
     return prof.get("access_token")
+
+
+@dataclass
+class ConfigData:
+    default_profile: Optional[str] = None
+    profiles: Dict[str, Profile] = field(default_factory=dict)
+    environment_id: Optional[str] = None
+    dataverse_host: Optional[str] = None
+
+
+class ConfigStore:
+    def __init__(self, path: Optional[str | os.PathLike[str]] = None) -> None:
+        self.path = Path(path) if path else Path(CONFIG_PATH)
+
+    def _ensure(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _read(self) -> Dict[str, Any]:
+        self._ensure()
+        if not self.path.exists():
+            return {"default": None, "profiles": {}}
+        with self.path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _write(self, data: Dict[str, Any]) -> None:
+        self._ensure()
+        tmp = self.path.with_suffix(".tmp")
+        with tmp.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        tmp.replace(self.path)
+
+    def load(self) -> ConfigData:
+        raw = self._read()
+        profs = {
+            name: Profile(name=name, **{k: v for k, v in data.items() if k != "name"})
+            for name, data in raw.get("profiles", {}).items()
+        }
+        return ConfigData(
+            default_profile=raw.get("default"),
+            profiles=profs,
+            environment_id=raw.get("environment_id"),
+            dataverse_host=raw.get("dataverse_host"),
+        )
+
+    def save(self, cfg: ConfigData) -> None:
+        data = {
+            "default": cfg.default_profile,
+            "environment_id": cfg.environment_id,
+            "dataverse_host": cfg.dataverse_host,
+            "profiles": {name: asdict(profile) for name, profile in cfg.profiles.items()},
+        }
+        self._write(data)

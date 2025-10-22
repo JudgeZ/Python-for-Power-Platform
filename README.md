@@ -32,3 +32,11 @@ See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 - **CSV upsert**: **alternate-key** PATCH via `--key-columns`, configurable `--create-if-missing`
 - **Upload strategies**: `replace|merge|skip-existing|create-only` for Pages
 - **Docs**: Agents guide, Plan, ADRs, and repo governance docs
+
+## New in v0.7.0
+- **Binary providers**: `ppx pages download` supports `--binary-provider annotations|azure` with provider manifests & checksums.
+- **Permissions diffing**: `ppx pages diff-permissions` builds create/update/delete plans comparing local exports vs Dataverse.
+- **Natural key upsert**: Pages uploads honor default/override key sets; manifest captures defaults for reuse.
+- **Batch resiliency**: `$batch` retries (429/5xx) with aggregated stats surfaced in `ppx dv bulk-csv` output.
+- **Solution parity**: `solution_sp` pack/unpack mirrors SolutionPackager folder mapping across component types.
+- **Operational tooling**: `ppx doctor` validates environment + Dataverse access; GitHub Actions `publish.yml` drives TestPyPI/PyPI releases.
