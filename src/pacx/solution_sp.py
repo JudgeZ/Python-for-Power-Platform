@@ -46,6 +46,9 @@ def unpack_to_source(solution_zip: str | os.PathLike[str], out_dir: str | os.Pat
     return str(src)
 
 
+ROOT_LEVEL_FILES = {"customizations.xml", "solution.xml", "solutionmanifest.xml"}
+
+
 def pack_from_source(src_dir: str | os.PathLike[str], out_zip: str | os.PathLike[str]) -> str:
     """Pack a SolutionPackager-like source tree back into a solution zip."""
 
@@ -64,6 +67,13 @@ def pack_from_source(src_dir: str | os.PathLike[str], out_zip: str | os.PathLike
                     component = rel.parts[0]
                     original = reverse_map.get(component, "Other")
                     remainder = Path(*rel.parts[1:]) if len(rel.parts) > 1 else Path(f)
-                    arc = str(Path(original) / remainder)
+                    if (
+                        component == "Other"
+                        and len(rel.parts) == 2
+                        and rel.parts[1].lower() in ROOT_LEVEL_FILES
+                    ):
+                        arc = rel.parts[1]
+                    else:
+                        arc = str(Path(original) / remainder)
                 z.write(full, arcname=arc)
     return str(outp)

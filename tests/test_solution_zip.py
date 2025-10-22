@@ -23,3 +23,5 @@ def test_unpack_and_pack_solution(tmp_path):
         names = set(z.namelist())
     assert "WebResources/new_/script.js" in names
     assert "Workflows/sample.xaml" in names
+    assert "customizations.xml" in names
+    assert "Other/customizations.xml" not in names
