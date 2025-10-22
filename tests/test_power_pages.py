@@ -7,7 +7,11 @@ import httpx
 import respx
 
 from pacx.clients.dataverse import DataverseClient
-from pacx.clients.power_pages import PowerPagesClient
+from pacx.clients.power_pages import (
+    CORE_TABLES,
+    EXTRA_TABLES,
+    PowerPagesClient,
+)
 
 
 def _mock_empty_tables(respx_mock: respx.Router) -> None:
@@ -130,3 +134,15 @@ def test_pages_upload_natural_keys_skip_existing(tmp_path, respx_mock, token_get
 
     assert get_route.called
     assert not patch_route.called
+
+
+def test_select_sets_iterable_subset():
+    selected = PowerPagesClient._select_sets(["pages"])
+    pages_tuple = next(item for item in CORE_TABLES if item[0] == "pages")
+    assert selected == [pages_tuple]
+
+
+def test_select_sets_core_alias_with_extra():
+    selected = PowerPagesClient._select_sets("core,weblinks")
+    weblinks_tuple = next(item for item in EXTRA_TABLES if item[0] == "weblinks")
+    assert selected == list(CORE_TABLES) + [weblinks_tuple]

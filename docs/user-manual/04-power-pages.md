@@ -36,4 +36,8 @@ Generates a plan grouped by entity (`adx_entitypermissions`, `adx_webpageaccessc
 ## Table sets
 
 - `core`: websites, webpages, webfiles, contentsnippets, pagetemplates, sitemarkers
-- `extra`: weblinksets, weblinks, webpageaccesscontrolrules, webroles, entitypermissions, redirects
+- `full`: `core` plus weblinksets, weblinks, webpageaccesscontrolrules, webroles, entitypermissions, redirects
+
+Individual folders or entitysets can be requested by name. Comma-separated values are additive, so
+`--tables core,weblinks` exports the `core` set plus `weblinks`. The Typer CLI also accepts
+multiple `--tables` options (e.g., `--tables pages --tables weblinks`) to achieve the same result.
