@@ -4,7 +4,7 @@ import httpx
 import respx
 from typer.testing import CliRunner
 
-from pacx.cli import app
+from pacx.cli import app, doctor
 
 runner = CliRunner()
 
@@ -25,3 +25,7 @@ def test_doctor_missing_token(monkeypatch):
     monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
     result = runner.invoke(app, ["doctor"], catch_exceptions=False)
     assert result.exit_code == 1
+
+
+def test_doctor_module_exposes_register():
+    assert callable(doctor.register)

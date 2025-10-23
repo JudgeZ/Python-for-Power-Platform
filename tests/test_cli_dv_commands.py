@@ -7,7 +7,7 @@ import httpx
 import respx
 from typer.testing import CliRunner
 
-from pacx.cli import app
+from pacx.cli import app, dataverse, power_platform
 
 runner = CliRunner()
 
@@ -25,6 +25,13 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
     auth_header = respx_mock.calls.last.request.headers.get("Authorization")
     assert auth_header == "Bearer dummy"
 
+
+def test_cli_command_tree_registration():
+    command_names = {command.name for command in app.registered_commands}
+    assert {"auth", "profile", "dv", "connector", "pages", "doctor", "env", "apps", "flows", "solution"}.issubset(command_names)
+    dv_commands = {command.name for command in dataverse.app.registered_commands}
+    assert {"whoami", "list", "get", "create", "update", "delete", "bulk-csv"}.issubset(dv_commands)
+    assert hasattr(power_platform, "list_envs")
 
 def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):
     monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
