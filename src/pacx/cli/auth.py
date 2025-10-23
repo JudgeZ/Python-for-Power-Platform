@@ -96,6 +96,8 @@ def auth_client(
 @app.command("use")
 @handle_cli_errors
 def auth_use(name: str = typer.Argument(..., help="Profile to activate")):
+    """Set a profile as the default for subsequent CLI commands."""
+
     store = ConfigStore()
     store.set_default_profile(name)
     print(f"Default profile set to [bold]{name}[/bold]")

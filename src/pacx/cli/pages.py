@@ -20,8 +20,11 @@ app = typer.Typer(help="Power Pages site ops")
 BINARY_PROVIDER_OPTION = typer.Option(
     None,
     "--binary-provider",
-    help="Explicit binary providers to run",
-    multiple=True,
+    help="Comma-separated binary provider IDs to run",
+    parser=lambda value: [
+        item.strip() for item in (value or "").split(",") if item.strip()
+    ]
+    or None,
 )
 
 
@@ -30,14 +33,24 @@ BINARY_PROVIDER_OPTION = typer.Option(
 def pages_download(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
-    tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
-    binaries: bool = typer.Option(False, help="Use default binary provider (annotations)"),
-    out: str = typer.Option("site_out", help="Output directory"),
-    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
-    include_files: bool = typer.Option(True, help="Include adx_webfiles"),
+    tables: str = typer.Option(
+        "core", help="Table selection: core|full|comma-separated logical names"
+    ),
+    binaries: bool = typer.Option(
+        False, help="Use default binary provider (annotations)"
+    ),
+    out: str = typer.Option("site_out", help="Output directory (default: site_out)"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
+    ),
+    include_files: bool = typer.Option(True, help="Include adx_webfiles (default: True)"),
     binary_provider: list[str] | None = BINARY_PROVIDER_OPTION,
-    provider_options: str | None = typer.Option(None, help="JSON string/path for provider options"),
+    provider_options: str | None = typer.Option(
+        None, help="JSON string/path configuring custom binary providers"
+    ),
 ):
+    """Download a Power Pages site to a local folder."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     if binary_provider and not include_files:
@@ -55,12 +68,7 @@ def pages_download(
     dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
     providers: list[str] | None
-    if not binary_provider:
-        providers = None
-    elif isinstance(binary_provider, str):
-        providers = [binary_provider]
-    else:
-        providers = list(binary_provider)
+    providers = list(binary_provider) if binary_provider else None
     result = pp.download_site(
         website_id,
         out,
@@ -81,12 +89,22 @@ def pages_download(
 def pages_upload(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
-    tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
+    tables: str = typer.Option(
+        "core", help="Table selection: core|full|comma-separated logical names"
+    ),
     src: str = typer.Option(..., help="Source directory created by pages download"),
-    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
-    strategy: str = typer.Option("replace", help="replace|merge|skip-existing|create-only"),
-    key_config: str | None = typer.Option(None, help="JSON string/path overriding natural keys"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
+    ),
+    strategy: str = typer.Option(
+        "replace", help="replace|merge|skip-existing|create-only (default: replace)"
+    ),
+    key_config: str | None = typer.Option(
+        None, help="JSON string/path overriding natural keys"
+    ),
 ):
+    """Upload a previously downloaded Power Pages site."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -121,9 +139,15 @@ def pages_diff_permissions(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID"),
     src: str = typer.Option(..., help="Local export directory"),
-    host: str | None = typer.Option(None, help="Dataverse host"),
-    key_config: str | None = typer.Option(None, help="JSON string/path overriding keys"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
+    ),
+    key_config: str | None = typer.Option(
+        None, help="JSON string/path overriding keys"
+    ),
 ):
+    """Compare web role permissions between Dataverse and a local export."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
