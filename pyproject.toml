@@ -37,6 +37,11 @@ secrets = [
   "azure-keyvault-secrets>=4.8"
 ]
 auth = ["msal>=1.27"]
+tests = [
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "respx>=0.20"
+]
 dev = [
   "pytest>=7.4",
   "pytest-cov>=4.1",
