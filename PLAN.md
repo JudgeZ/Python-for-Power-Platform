@@ -31,9 +31,9 @@ Each task includes: a clear goal, rationale, acceptance criteria, and a **well-s
 # Priority Roadmap
 
 - **P0 (Security & Stability):**
-  1. Secure token storage permissions (and optional encryption).
-  2. Improve CLI error handling (friendly messages, consistent exits).
-  3. Centralize repeated CLI config resolution logic.
+  1. ✅ Secure token storage permissions (and optional encryption).
+  2. ✅ Improve CLI error handling (friendly messages, consistent exits).
+  3. ✅ Centralize repeated CLI config resolution logic.
 
 - **P1 (Maintainability):**
   4. Modularize `cli.py` into subcommand modules.
@@ -123,6 +123,19 @@ Tests:
 
 Run formatters, type checks, and tests.
 ```
+---
+
+## 3) Centralize CLI Config Resolution Logic
+
+**Status:** ✅ Completed – Typer contexts now memoise configuration data and expose context-aware helpers so commands no longer reload profiles on every invocation.
+
+**Summary:**
+- Added `get_config_from_context`, `resolve_environment_id_from_context`, and `resolve_dataverse_host_from_context` helpers that cache `ConfigData` on the Typer context.
+- Updated CLI commands to reuse these helpers, eliminating repeated calls to `ConfigStore().load()` and ensuring consistent config resolution.
+- Extended unit coverage in `tests/test_cli_utils.py` to exercise the new helpers and confirm caching behaviour.
+
+**Next focus:** Continue with P1 maintainability work (CLI modularisation) now that shared context helpers are in place.
+
 ---
 
 ## 3) Centralize CLI Config Resolution
