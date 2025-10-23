@@ -169,6 +169,10 @@ def get_profile(name: str) -> Profile | None:
     data = cfg.get("profiles", {}).get(name)
     if not data:
         return None
+    if isinstance(data, dict):
+        access_token = data.get("access_token")
+        if isinstance(access_token, dict):
+            data = {**data, "access_token": None}
     return Profile(**data)
 
 
