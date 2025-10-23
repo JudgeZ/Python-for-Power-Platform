@@ -21,7 +21,7 @@ from .clients.connectors import ConnectorsClient
 from .clients.dataverse import DataverseClient
 from .clients.power_pages import PowerPagesClient
 from .clients.power_platform import PowerPlatformClient
-from .config import ConfigData, ConfigStore, Profile
+from .config import ConfigData, ConfigStore, EncryptedConfigError, Profile
 from .errors import AuthError, HttpError, PacxError
 from .models.dataverse import ExportSolutionRequest, ImportSolutionRequest
 from .power_pages.diff import diff_permissions
@@ -62,6 +62,15 @@ def handle_cli_errors(func):
             raise
         except HttpError as exc:
             _render_http_error(exc)
+            raise typer.Exit(1) from None
+        except EncryptedConfigError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            console.print(
+                "Restore the original key by exporting PACX_CONFIG_ENCRYPTION_KEY before rerunning the command."
+            )
+            console.print(
+                "If the key is lost, back up and remove the encrypted config (default ~/.pacx/config.json) then run `ppx auth device` to recreate credentials."
+            )
             raise typer.Exit(1) from None
         except AuthError as exc:
             console.print(f"[red]Error:[/red] Authentication failed: {exc}")
