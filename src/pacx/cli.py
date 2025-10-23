@@ -29,7 +29,10 @@ console = Console()
 logger = logging.getLogger(__name__)
 
 BINARY_PROVIDER_OPTION = typer.Option(
-    None, "--binary-provider", help="Explicit binary providers to run"
+    None,
+    "--binary-provider",
+    help="Explicit binary providers to run",
+    multiple=True,
 )
 KEYRING_BACKEND = "keyring"
 KEYVAULT_BACKEND = "keyvault"
@@ -569,7 +572,13 @@ def pages_download(
             raise typer.BadParameter(f"Invalid JSON for --provider-options: {exc}") from exc
     dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
-    providers = list(binary_provider) if binary_provider else None
+    providers: list[str] | None
+    if not binary_provider:
+        providers = None
+    elif isinstance(binary_provider, str):
+        providers = [binary_provider]
+    else:
+        providers = list(binary_provider)
     res = pp.download_site(
         website_id,
         out,
