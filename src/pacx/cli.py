@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import base64
@@ -13,12 +12,16 @@ from rich import print
 from rich.console import Console
 
 from .bulk_csv import bulk_csv_upsert
-from .cli_utils import resolve_dataverse_host, resolve_environment_id
+from .cli_utils import (
+    get_config_from_context,
+    resolve_dataverse_host_from_context,
+    resolve_environment_id_from_context,
+)
 from .clients.connectors import ConnectorsClient
 from .clients.dataverse import DataverseClient
 from .clients.power_pages import PowerPagesClient
 from .clients.power_platform import PowerPlatformClient
-from .config import ConfigStore, Profile
+from .config import ConfigData, ConfigStore, Profile
 from .errors import AuthError, HttpError, PacxError
 from .models.dataverse import ExportSolutionRequest, ImportSolutionRequest
 from .power_pages.diff import diff_permissions
@@ -99,17 +102,17 @@ def doctor(
 ):
     """Validate PACX environment configuration."""
 
-    cfg = ConfigStore().load()
+    cfg = get_config_from_context(ctx)
     ok = True
     if cfg.default_profile:
         print(f"[green]Default profile:[/green] {cfg.default_profile}")
     else:
         print("[yellow]No default profile configured.[/yellow]")
     try:
-        token_getter = _resolve_token_getter()
+        token_getter = _resolve_token_getter(config=cfg)
         token_preview = token_getter()
         print("[green]Token acquisition successful.[/green]")
-        ctx.obj = {"token_getter": lambda: token_preview}
+        ctx.obj["token_getter"] = lambda: token_preview
     except Exception as exc:  # pragma: no cover - error path tested separately
         print(f"[red]Token acquisition failed:[/red] {exc}")
         ok = False
@@ -131,25 +134,31 @@ def doctor(
     raise typer.Exit(code=0 if ok else 1)
 
 
-def _resolve_token_getter() -> callable:
+def _resolve_token_getter(config: ConfigData | None = None) -> callable:
     token = os.getenv("PACX_ACCESS_TOKEN")
     if token:
         return lambda: token
 
     # Attempt profile-based resolution (MSAL on-demand)
-    store = ConfigStore()
-    cfg = store.load()
+    cfg = config or ConfigStore().load()
     if cfg.default_profile and cfg.profiles and cfg.default_profile in cfg.profiles:
         try:
             from .auth.azure_ad import AzureADTokenProvider  # optional dependency
         except Exception as e:  # pragma: no cover
-            raise typer.BadParameter("msal not installed; install pacx[auth] or set PACX_ACCESS_TOKEN") from e
+            raise typer.BadParameter(
+                "msal not installed; install pacx[auth] or set PACX_ACCESS_TOKEN"
+            ) from e
         p = cfg.profiles[cfg.default_profile]
         from os import getenv
+
         client_secret = None
-        if getattr(p, 'client_secret_env', None):
+        if getattr(p, "client_secret_env", None):
             client_secret = getenv(p.client_secret_env)
-        if getattr(p, 'secret_backend', None) and getattr(p, 'secret_ref', None) and not client_secret:
+        if (
+            getattr(p, "secret_backend", None)
+            and getattr(p, "secret_ref", None)
+            and not client_secret
+        ):
             sec = get_secret(SecretSpec(backend=p.secret_backend, ref=p.secret_ref))
             if sec:
                 client_secret = sec
@@ -171,8 +180,11 @@ def _get_token_getter(ctx: typer.Context, *, required: bool = True):
         return token_getter
 
     if token_getter is None:
+        config: ConfigData | None = None
+        if not os.getenv("PACX_ACCESS_TOKEN"):
+            config = get_config_from_context(ctx)
         try:
-            token_getter = _resolve_token_getter()
+            token_getter = _resolve_token_getter(config=config)
         except typer.BadParameter:
             if not required:
                 return None
@@ -189,6 +201,7 @@ def common(ctx: typer.Context):
 
 
 # ---- Core: environments/apps/flows ----
+
 
 @app.command("env")
 @handle_cli_errors
@@ -212,7 +225,7 @@ def list_apps(
     top: int | None = typer.Option(None, help="$top"),
 ):
     token_getter = _get_token_getter(ctx)
-    environment_id = resolve_environment_id(environment_id)
+    environment_id = resolve_environment_id_from_context(ctx, environment_id)
     client = PowerPlatformClient(token_getter)
     apps = client.list_apps(environment_id, top=top)
     for a in apps:
@@ -226,7 +239,7 @@ def list_flows(
     environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
 ):
     token_getter = _get_token_getter(ctx)
-    environment_id = resolve_environment_id(environment_id)
+    environment_id = resolve_environment_id_from_context(ctx, environment_id)
     client = PowerPlatformClient(token_getter)
     flows = client.list_cloud_flows(environment_id)
     for f in flows:
@@ -235,11 +248,14 @@ def list_flows(
 
 # ---- Solutions ----
 
+
 @app.command("solution")
 @handle_cli_errors
 def solution_cmd(
     ctx: typer.Context,
-    action: str = typer.Argument(..., help="list|export|import|publish-all|pack|unpack|unpack-sp|pack-sp"),
+    action: str = typer.Argument(
+        ..., help="list|export|import|publish-all|pack|unpack|unpack-sp|pack-sp"
+    ),
     host: str | None = typer.Option(None, help="Dataverse host (e.g. org.crm.dynamics.com)"),
     name: str | None = typer.Option(None, help="Solution unique name (for export)"),
     managed: bool = typer.Option(False, help="Export as managed"),
@@ -251,9 +267,8 @@ def solution_cmd(
 ):
     from .solution_source import pack_solution_folder, unpack_solution_zip
 
-    cfg = ConfigStore().load()
     requires_dataverse = action in ("list", "export", "import", "publish-all")
-    resolved_host = resolve_dataverse_host(host, config=cfg) if requires_dataverse else None
+    resolved_host = resolve_dataverse_host_from_context(ctx, host) if requires_dataverse else None
     token_getter = _get_token_getter(ctx, required=requires_dataverse)
     if requires_dataverse:
         dv = DataverseClient(token_getter, host=resolved_host)
@@ -278,7 +293,7 @@ def solution_cmd(
             raise typer.BadParameter("--file is required for import")
         with open(file, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("ascii")
-        job_id = import_job_id or __import__('uuid').uuid4().hex
+        job_id = import_job_id or __import__("uuid").uuid4().hex
         req = ImportSolutionRequest(CustomizationFile=b64, ImportJobId=job_id)
         dv.import_solution(req)
         print(f"Import submitted (job: {job_id})")
@@ -318,18 +333,27 @@ def solution_cmd(
 
 # ---- AUTH & PROFILES ----
 
+
 @auth_app.command("device")
 @handle_cli_errors
 def auth_device(
     name: str = typer.Argument(..., help="Profile name"),
     tenant_id: str = typer.Option(..., help="Entra ID tenant"),
     client_id: str = typer.Option(..., help="App registration (client) ID"),
-    scope: str = typer.Option("https://api.powerplatform.com/.default", help="Scope (default: PP API)"),
+    scope: str = typer.Option(
+        "https://api.powerplatform.com/.default", help="Scope (default: PP API)"
+    ),
     dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
 ):
     """Create/update a device-code profile. Token acquisition happens on use."""
     store = ConfigStore()
-    p = Profile(name=name, tenant_id=tenant_id, client_id=client_id, scope=scope, dataverse_host=dataverse_host)
+    p = Profile(
+        name=name,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        scope=scope,
+        dataverse_host=dataverse_host,
+    )
     store.add_or_update_profile(p)
     store.set_default_profile(name)
     print(f"Profile [bold]{name}[/bold] configured. It will use device code on demand.")
@@ -341,16 +365,31 @@ def auth_client(
     name: str = typer.Argument(..., help="Profile name"),
     tenant_id: str = typer.Option(..., help="Entra ID tenant"),
     client_id: str = typer.Option(..., help="App registration (client) ID"),
-    client_secret_env: str | None = typer.Option(None, help="Name of env var holding the client secret (env backend)"),
+    client_secret_env: str | None = typer.Option(
+        None, help="Name of env var holding the client secret (env backend)"
+    ),
     secret_backend: str | None = typer.Option(None, help="Secret backend: env|keyring|keyvault"),
-    secret_ref: str | None = typer.Option(None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"),
-    prompt_secret: bool = typer.Option(False, help="For keyring: prompt and store a secret under service:username"),
-    scope: str = typer.Option("https://api.powerplatform.com/.default", help="Scope (default: PP API)"),
+    secret_ref: str | None = typer.Option(
+        None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"
+    ),
+    prompt_secret: bool = typer.Option(
+        False, help="For keyring: prompt and store a secret under service:username"
+    ),
+    scope: str = typer.Option(
+        "https://api.powerplatform.com/.default", help="Scope (default: PP API)"
+    ),
     dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
 ):
     """Create/update a client-credentials profile (secret read from env var on use)."""
     store = ConfigStore()
-    p = Profile(name=name, tenant_id=tenant_id, client_id=client_id, scope=scope, dataverse_host=dataverse_host, client_secret_env=client_secret_env)
+    p = Profile(
+        name=name,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        scope=scope,
+        dataverse_host=dataverse_host,
+        client_secret_env=client_secret_env,
+    )
     # persist secret backend settings
     backend = secret_backend
     if backend:
@@ -360,9 +399,10 @@ def auth_client(
         if backend == KEYRING_BACKEND and prompt_secret:
             try:
                 import keyring
-                if not secret_ref or ':' not in secret_ref:
+
+                if not secret_ref or ":" not in secret_ref:
                     raise typer.BadParameter("--secret-ref must be 'SERVICE:USERNAME' for keyring")
-                service, username = secret_ref.split(':', 1)
+                service, username = secret_ref.split(":", 1)
                 value = typer.prompt(f"Enter secret for {service}:{username}", hide_input=True)
                 keyring.set_password(service, username, value)
                 print("Stored secret in keyring.")
@@ -372,7 +412,7 @@ def auth_client(
             print("[yellow]Provide --secret-ref 'VAULT_URL:SECRET_NAME' for Key Vault[/yellow]")
     store.add_or_update_profile(p)
     store.set_default_profile(name)
-    where = backend or ('env' if client_secret_env else 'device')
+    where = backend or ("env" if client_secret_env else "device")
     print(f"Client-credentials profile [bold]{name}[/bold] configured. Backend: {where}")
 
 
@@ -428,42 +468,60 @@ def profile_set_host(dataverse_host: str = typer.Argument(..., help="Default Dat
 
 # ---- Dataverse group ----
 
+
 @dv_app.command("whoami")
 @handle_cli_errors
-def dv_whoami(ctx: typer.Context, host: str | None = typer.Option(None, help="Dataverse host (else config/env)")):
+def dv_whoami(
+    ctx: typer.Context,
+    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.whoami())
 
 
 @dv_app.command("list")
 @handle_cli_errors
-def dv_list(ctx: typer.Context, entityset: str = typer.Argument(...), select: str | None = None, filter: str | None = None, top: int | None = None, orderby: str | None = None, host: str | None = None):
+def dv_list(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(...),
+    select: str | None = None,
+    filter: str | None = None,
+    top: int | None = None,
+    orderby: str | None = None,
+    host: str | None = None,
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.list_records(entityset, select=select, filter=filter, top=top, orderby=orderby))
 
 
 @dv_app.command("get")
 @handle_cli_errors
-def dv_get(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: str | None = None):
+def dv_get(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(...),
+    record_id: str = typer.Argument(...),
+    host: str | None = None,
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.get_record(entityset, record_id))
 
 
 @dv_app.command("create")
 @handle_cli_errors
-def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: str | None = None):
+def dv_create(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(...),
+    data: str = typer.Option(..., help="JSON object string"),
+    host: str | None = None,
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     obj = json.loads(data)
     print(dv.create_record(entityset, obj))
@@ -471,10 +529,15 @@ def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: st
 
 @dv_app.command("update")
 @handle_cli_errors
-def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: str | None = None):
+def dv_update(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(...),
+    record_id: str = typer.Argument(...),
+    data: str = typer.Option(..., help="JSON object string"),
+    host: str | None = None,
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     obj = json.loads(data)
     dv.update_record(entityset, record_id, obj)
@@ -483,16 +546,21 @@ def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_i
 
 @dv_app.command("delete")
 @handle_cli_errors
-def dv_delete(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: str | None = None):
+def dv_delete(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(...),
+    record_id: str = typer.Argument(...),
+    host: str | None = None,
+):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     dv.delete_record(entityset, record_id)
     print("deleted")
 
 
 # ---- Connectors ----
+
 
 @connector_app.command("list")
 @handle_cli_errors
@@ -502,10 +570,10 @@ def connectors_list(
     top: int | None = typer.Option(None, help="$top"),
 ):
     token_getter = _get_token_getter(ctx)
-    environment_id = resolve_environment_id(environment_id)
+    environment_id = resolve_environment_id_from_context(ctx, environment_id)
     c = ConnectorsClient(token_getter)
     data = c.list_apis(environment_id, top=top)
-    for item in (data.get("value") or []):
+    for item in data.get("value") or []:
         name = item.get("name") or item.get("id")
         print(f"[bold]{name}[/bold]")
 
@@ -518,7 +586,7 @@ def connectors_get(
     api_name: str = typer.Argument(..., help="API (connector) name"),
 ):
     token_getter = _get_token_getter(ctx)
-    environment_id = resolve_environment_id(environment_id)
+    environment_id = resolve_environment_id_from_context(ctx, environment_id)
     c = ConnectorsClient(token_getter)
     data = c.get_api(environment_id, api_name)
     print(data)
@@ -530,11 +598,13 @@ def connector_push(
     ctx: typer.Context,
     environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
     name: str = typer.Option(..., "--name", help="Connector name"),
-    openapi_path: str = typer.Option(..., "--openapi", help="Path to OpenAPI/Swagger file (YAML/JSON)"),
+    openapi_path: str = typer.Option(
+        ..., "--openapi", help="Path to OpenAPI/Swagger file (YAML/JSON)"
+    ),
     display_name: str | None = typer.Option(None, help="Display name override"),
 ):
     token_getter = _get_token_getter(ctx)
-    environment_id = resolve_environment_id(environment_id)
+    environment_id = resolve_environment_id_from_context(ctx, environment_id)
     with open(openapi_path, encoding="utf-8") as f:
         text = f.read()
     c = ConnectorsClient(token_getter)
@@ -556,8 +626,7 @@ def pages_download(
     provider_options: str | None = typer.Option(None, help="JSON string/path for provider options"),
 ):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     if binary_provider and not include_files:
         raise typer.BadParameter("Binary providers require --include-files True")
     provider_opts: dict[str, dict[str, object]] = {}
@@ -606,8 +675,7 @@ def pages_upload(
     key_config: str | None = typer.Option(None, help="JSON string/path overriding natural keys"),
 ):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
     manifest_path = Path(src) / "manifest.json"
@@ -644,8 +712,7 @@ def pages_diff_permissions(
     key_config: str | None = typer.Option(None, help="JSON string/path overriding keys"),
 ):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     manifest_path = Path(src) / "manifest.json"
     manifest_keys: dict[str, list[str]] = {}
@@ -676,6 +743,7 @@ def pages_diff_permissions(
         key_repr = ",".join(entry.key)
         print(f"- {entry.entityset}: {entry.action} [{key_repr}]")
 
+
 @dv_app.command("bulk-csv")
 @handle_cli_errors
 def dv_bulk_csv(
@@ -683,17 +751,20 @@ def dv_bulk_csv(
     entityset: str = typer.Argument(...),
     csv_path: str = typer.Argument(...),
     id_column: str = typer.Option(..., help="Column containing record id for PATCH; blank -> POST"),
-    key_columns: str = typer.Option("", help="Comma-separated alternate key columns for PATCH when id is blank"),
-    create_if_missing: bool = typer.Option(True, help="POST when id and key columns are not present"),
+    key_columns: str = typer.Option(
+        "", help="Comma-separated alternate key columns for PATCH when id is blank"
+    ),
+    create_if_missing: bool = typer.Option(
+        True, help="POST when id and key columns are not present"
+    ),
     host: str | None = None,
     chunk_size: int = typer.Option(50, help="Records per $batch"),
     report: str | None = typer.Option(None, help="Write per-op results CSV to this path"),
 ):
     token_getter = _get_token_getter(ctx)
-    cfg = ConfigStore().load()
-    resolved_host = resolve_dataverse_host(host, config=cfg)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
-    keys = [s.strip() for s in (key_columns or '').split(',') if s.strip()]
+    keys = [s.strip() for s in (key_columns or "").split(",") if s.strip()]
     res = bulk_csv_upsert(
         dv,
         entityset,
@@ -705,11 +776,20 @@ def dv_bulk_csv(
     )
     if report:
         import csv as _csv
-        with open(report, 'w', newline='', encoding='utf-8') as f:
+
+        with open(report, "w", newline="", encoding="utf-8") as f:
             w = _csv.writer(f)
-            w.writerow(['row_index','content_id','status_code','reason','json'])
+            w.writerow(["row_index", "content_id", "status_code", "reason", "json"])
             for r in res.operations:
-                w.writerow([r.get('row_index'), r.get('content_id'), r.get('status_code'), r.get('reason'), (r.get('json') or '')])
+                w.writerow(
+                    [
+                        r.get("row_index"),
+                        r.get("content_id"),
+                        r.get("status_code"),
+                        r.get("reason"),
+                        (r.get("json") or ""),
+                    ]
+                )
         print(f"Wrote per-op report to {report}")
     stats = res.stats
     print(
