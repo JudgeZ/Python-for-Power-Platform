@@ -34,6 +34,18 @@
 - Conventional commits for features/fixes (feat:, fix:, docs:, refactor:, test:, ci:)
 - Include rationale for API changes in ADRs (docs/adr)
 
+## Pull Request Guidelines
+- Ensure CI-critical tools pass locally before opening a PR: `ruff check`, `black --check`, `mypy`, and `pytest`.
+- Include tests for new features and bug fixes, and update existing tests or fixtures when behavior changes.
+- Keep PRs focused and scoped; large refactors should be split or coordinated with maintainers via an ADR under `docs/adr/`.
+- Reference related issues or ADRs directly in the PR description to provide reviewers context.
+- Highlight any known limitations or follow-up work in the PR summary so maintainers can triage quickly.
+
+## Code of Conduct
+- All contributions must adhere to our [Code of Conduct](CODE_OF_CONDUCT.md); report incidents privately to the maintainers listed in `MAINTAINERS.md`.
+- Foster inclusive discussions in issues, PRs, and review comments, especially when proposing significant architecture changes.
+- When disagreements arise, default to documented decisions (ADRs, RFCs, or existing docs) and seek consensus respectfully.
+
 ## Branching
 - feature/<short-desc>
 - fix/<short-desc>
