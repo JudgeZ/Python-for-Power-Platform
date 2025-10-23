@@ -1,0 +1,18 @@
+replays:
+  - name: fuzz
+    description: Synthetic filesystem events used in unit tests.
+    events:
+      - operation: create
+        path: src/example.txt
+        timestamp: 2024-05-01T12:00:00Z
+        checksum: "abc123"
+      - operation: modify
+        path: src/example.txt
+        timestamp: 2024-05-01T12:00:05Z
+        checksum: "def456"
+      - operation: delete
+        path: src/example.txt
+        timestamp: 2024-05-01T12:01:00Z
+  - name: placeholder
+    description: Ensures empty replays still produce well-formed YAML.
+    events: []
