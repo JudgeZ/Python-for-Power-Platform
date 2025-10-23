@@ -42,5 +42,11 @@ config write will encrypt sensitive fields (currently access tokens) using
 
 When the key is set and `cryptography` is available, PACX encrypts tokens during
 saves and decrypts them transparently when loading. If the key is missing when
-an encrypted config is read, the CLI raises a descriptive error so you can
-provide the correct key.
+an encrypted config is read, the CLI now emits recovery guidance:
+
+1. Restore the original key (the one that was exported to
+   `PACX_CONFIG_ENCRYPTION_KEY`) and re-run the command. The CLI will decrypt
+   existing secrets automatically.
+2. If the key is irretrievable, back up and remove the encrypted config file
+   (`~/.pacx/config.json` unless `PACX_HOME` overrides it) and run
+   `ppx auth device` to bootstrap fresh credentials.

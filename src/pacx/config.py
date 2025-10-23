@@ -29,6 +29,10 @@ _cached_cipher: Fernet | None = None
 _cached_cipher_key: str | None = None
 
 
+class EncryptedConfigError(RuntimeError):
+    """Raised when encrypted configuration cannot be decrypted."""
+
+
 def _derive_fernet_key(raw: str) -> bytes | None:
     """Return a urlsafe base64 Fernet key derived from ``raw``."""
 
@@ -115,7 +119,7 @@ def decrypt_field(value: str | None) -> str | None:
 
     cipher = _get_cipher()
     if cipher is None:
-        raise RuntimeError(
+        raise EncryptedConfigError(
             "Encrypted PACX configuration detected but PACX_CONFIG_ENCRYPTION_KEY is not set."
         )
 
