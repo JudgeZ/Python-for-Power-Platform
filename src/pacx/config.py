@@ -319,10 +319,12 @@ class ConfigStore:
 
         stored_token: Any
         if token:
-            encrypted_value = self._encrypt(token) or encrypted_value
-            if encrypted_value:
+            encrypted_candidate = self._encrypt(token)
+            if encrypted_candidate:
+                encrypted_value = encrypted_candidate
                 stored_token = {"encrypted": "fernet", "value": encrypted_value}
             else:
+                encrypted_value = None
                 stored_token = token
         elif encrypted_value:
             stored_token = {"encrypted": "fernet", "value": encrypted_value}
@@ -331,6 +333,8 @@ class ConfigStore:
 
         if encrypted_value:
             profile.encrypted_access_token = encrypted_value
+        else:
+            profile.encrypted_access_token = None
         if stored_token is None and "access_token" in payload:
             payload["access_token"] = None
         else:

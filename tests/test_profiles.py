@@ -93,3 +93,39 @@ def test_config_store_encrypts_tokens(tmp_path: Path) -> None:
     loaded_profile = loaded.profiles["secure"]
     assert loaded_profile.access_token == "super-secret"
     assert loaded_profile.encrypted_access_token == stored["value"]
+
+
+def test_config_store_replaces_encrypted_token_when_encryption_disabled(
+    tmp_path: Path,
+) -> None:
+    fernet_mod = pytest.importorskip("cryptography.fernet")
+    key = fernet_mod.Fernet.generate_key()
+
+    cfg_path = tmp_path / "config.json"
+    encrypted_store = ConfigStore(path=cfg_path, encryption_key=key)
+    encrypted_store.add_or_update_profile(
+        Profile(name="secure", access_token="first-secret"),
+        set_default=True,
+    )
+
+    initial_raw = json.loads(cfg_path.read_text("utf-8"))
+    initial_payload = initial_raw["profiles"]["secure"]
+    initial_encrypted = initial_payload["access_token"]["value"]
+
+    plaintext_store = ConfigStore(path=cfg_path)
+    cfg = plaintext_store.load()
+    profile = cfg.profiles["secure"]
+    # Simulate user providing a replacement token while encryption is unavailable.
+    profile.access_token = "replacement-token"
+    plaintext_store.save(cfg)
+
+    updated_raw = json.loads(cfg_path.read_text("utf-8"))
+    updated_payload = updated_raw["profiles"]["secure"]
+    stored_token = updated_payload["access_token"]
+
+    assert isinstance(stored_token, str)
+    assert stored_token == "replacement-token"
+    assert stored_token != initial_encrypted
+    assert "encrypted_access_token" not in updated_payload
+    # ConfigData profile should no longer carry the stale encrypted token.
+    assert cfg.profiles["secure"].encrypted_access_token is None
