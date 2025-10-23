@@ -17,6 +17,8 @@ power_platform.register(app)
 
 @app.callback()
 def common(ctx: typer.Context) -> None:
+    """Initialize shared Typer context state."""
+
     ctx.ensure_object(dict)
     ctx.obj.setdefault("token_getter", None)
 

@@ -17,8 +17,12 @@ app = typer.Typer(help="Dataverse operations")
 @handle_cli_errors
 def dv_whoami(
     ctx: typer.Context,
-    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """Display the caller identity returned by Dataverse."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -29,13 +33,25 @@ def dv_whoami(
 @handle_cli_errors
 def dv_list(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    select: str | None = None,
-    filter: str | None = None,
-    top: int | None = None,
-    orderby: str | None = None,
-    host: str | None = None,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    select: str | None = typer.Option(
+        None, help="Comma-separated column logical names to return"
+    ),
+    filter: str | None = typer.Option(
+        None, help="OData $filter expression to constrain rows"
+    ),
+    top: int | None = typer.Option(
+        None, help="Maximum rows to return (OData $top, defaults to server limit)"
+    ),
+    orderby: str | None = typer.Option(
+        None, help="OData $orderby expression, e.g. createdon desc"
+    ),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """List table rows with optional OData query parameters."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -46,10 +62,14 @@ def dv_list(
 @handle_cli_errors
 def dv_get(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    record_id: str = typer.Argument(...),
-    host: str | None = None,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    record_id: str = typer.Argument(..., help="Record GUID (with or without braces)"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """Retrieve a single Dataverse record by ID."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -60,10 +80,16 @@ def dv_get(
 @handle_cli_errors
 def dv_create(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    data: str = typer.Option(..., help="JSON object string"),
-    host: str | None = None,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    data: str = typer.Option(
+        ..., help="JSON object string describing the record to create"
+    ),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """Create a Dataverse record from a JSON payload."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -75,11 +101,17 @@ def dv_create(
 @handle_cli_errors
 def dv_update(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    record_id: str = typer.Argument(...),
-    data: str = typer.Option(..., help="JSON object string"),
-    host: str | None = None,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    record_id: str = typer.Argument(..., help="Record GUID (with or without braces)"),
+    data: str = typer.Option(
+        ..., help="JSON object string containing the fields to update"
+    ),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """Update a Dataverse record using a JSON merge payload."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -92,10 +124,14 @@ def dv_update(
 @handle_cli_errors
 def dv_delete(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    record_id: str = typer.Argument(...),
-    host: str | None = None,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    record_id: str = typer.Argument(..., help="Record GUID (with or without braces)"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
 ):
+    """Delete a Dataverse record."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
@@ -107,19 +143,29 @@ def dv_delete(
 @handle_cli_errors
 def dv_bulk_csv(
     ctx: typer.Context,
-    entityset: str = typer.Argument(...),
-    csv_path: str = typer.Argument(...),
-    id_column: str = typer.Option(..., help="Column containing record id for PATCH; blank -> POST"),
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    csv_path: str = typer.Argument(..., help="Path to CSV file containing rows to upsert"),
+    id_column: str = typer.Option(
+        ..., help="Column containing record id for PATCH; leave blank to POST"
+    ),
     key_columns: str = typer.Option(
         "", help="Comma-separated alternate key columns for PATCH when id is blank"
     ),
     create_if_missing: bool = typer.Option(
         True, help="POST when id and key columns are not present"
     ),
-    host: str | None = None,
-    chunk_size: int = typer.Option(50, help="Records per $batch"),
-    report: str | None = typer.Option(None, help="Write per-op results CSV to this path"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
+    chunk_size: int = typer.Option(
+        50, help="Records per $batch request (default: 50)"
+    ),
+    report: str | None = typer.Option(
+        None, help="Write per-operation results CSV to this path"
+    ),
 ):
+    """Upsert Dataverse records in bulk from a CSV file."""
+
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)

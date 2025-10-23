@@ -12,6 +12,8 @@ app = typer.Typer(help="Profiles & configuration")
 @app.command("list")
 @handle_cli_errors
 def profile_list():
+    """Show all saved profiles, highlighting the default profile."""
+
     store = ConfigStore()
     cfg = store.load()
     names = sorted(list(cfg.profiles.keys())) if cfg.profiles else []
@@ -23,6 +25,8 @@ def profile_list():
 @app.command("show")
 @handle_cli_errors
 def profile_show(name: str = typer.Argument(..., help="Profile name")):
+    """Display the stored configuration for a profile."""
+
     store = ConfigStore()
     cfg = store.load()
     profile = cfg.profiles.get(name) if cfg.profiles else None
@@ -34,6 +38,8 @@ def profile_show(name: str = typer.Argument(..., help="Profile name")):
 @app.command("set-env")
 @handle_cli_errors
 def profile_set_env(environment_id: str = typer.Argument(..., help="Default Environment ID")):
+    """Persist a default environment ID for subsequent CLI commands."""
+
     store = ConfigStore()
     cfg = store.load()
     cfg.environment_id = environment_id
@@ -44,6 +50,8 @@ def profile_set_env(environment_id: str = typer.Argument(..., help="Default Envi
 @app.command("set-host")
 @handle_cli_errors
 def profile_set_host(dataverse_host: str = typer.Argument(..., help="Default Dataverse host")):
+    """Persist a default Dataverse host URL for CLI commands."""
+
     store = ConfigStore()
     cfg = store.load()
     cfg.dataverse_host = dataverse_host

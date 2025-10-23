@@ -36,9 +36,15 @@ def list_envs(
 @handle_cli_errors
 def list_apps(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
-    top: int | None = typer.Option(None, help="$top"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    top: int | None = typer.Option(
+        None, help="Maximum results to return via $top (default: server limit)"
+    ),
 ):
+    """List canvas apps in an environment."""
+
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = PowerPlatformClient(token_getter)
@@ -50,8 +56,12 @@ def list_apps(
 @handle_cli_errors
 def list_flows(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
 ):
+    """List cloud flows in an environment."""
+
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = PowerPlatformClient(token_getter)
@@ -66,15 +76,29 @@ def solution_cmd(
     action: str = typer.Argument(
         ..., help="list|export|import|publish-all|pack|unpack|unpack-sp|pack-sp"
     ),
-    host: str | None = typer.Option(None, help="Dataverse host (e.g. org.crm.dynamics.com)"),
-    name: str | None = typer.Option(None, help="Solution unique name (for export)"),
-    managed: bool = typer.Option(False, help="Export as managed"),
-    file: str | None = typer.Option(None, help="Path to solution zip (import/export/pack)"),
-    src: str | None = typer.Option(None, help="Folder to pack from (pack)"),
-    out: str | None = typer.Option(None, help="Output path (export/pack/unpack)"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
+    ),
+    name: str | None = typer.Option(
+        None, help="Solution unique name (required for export)"
+    ),
+    managed: bool = typer.Option(False, help="Export as managed (default: False)"),
+    file: str | None = typer.Option(
+        None, help="Path to solution zip for import/export/pack operations"
+    ),
+    src: str | None = typer.Option(
+        None, help="Folder to pack from (pack/pack-sp actions)"
+    ),
+    out: str | None = typer.Option(
+        None, help="Output path for export/pack/unpack actions"
+    ),
     wait: bool = typer.Option(False, help="Wait for long-running operations (import)"),
-    import_job_id: str | None = typer.Option(None, help="Provide/track ImportJobId for import"),
+    import_job_id: str | None = typer.Option(
+        None, help="Provide or reuse ImportJobId when importing"
+    ),
 ):
+    """Perform solution lifecycle operations such as list, export, and pack."""
+
     from ..solution_source import pack_solution_folder, unpack_solution_zip
 
     requires_dataverse = action in ("list", "export", "import", "publish-all")

@@ -14,9 +14,15 @@ app = typer.Typer(help="Connectors (APIs)")
 @handle_cli_errors
 def connectors_list(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
-    top: int | None = typer.Option(None, help="$top"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    top: int | None = typer.Option(
+        None, help="Maximum results to return via $top (default: server limit)"
+    ),
 ):
+    """List custom connector APIs available in an environment."""
+
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = ConnectorsClient(token_getter)
@@ -30,9 +36,13 @@ def connectors_list(
 @handle_cli_errors
 def connectors_get(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
-    api_name: str = typer.Argument(..., help="API (connector) name"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    api_name: str = typer.Argument(..., help="API (connector) internal name"),
 ):
+    """Retrieve the OpenAPI definition for a connector."""
+
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = ConnectorsClient(token_getter)
@@ -44,13 +54,19 @@ def connectors_get(
 @handle_cli_errors
 def connector_push(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
-    name: str = typer.Option(..., "--name", help="Connector name"),
-    openapi_path: str = typer.Option(
-        ..., "--openapi", help="Path to OpenAPI/Swagger file (YAML/JSON)"
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
     ),
-    display_name: str | None = typer.Option(None, help="Display name override"),
+    name: str = typer.Option(..., "--name", help="Connector internal name to create/update"),
+    openapi_path: str = typer.Option(
+        ..., "--openapi", help="Path to OpenAPI/Swagger file (YAML or JSON)"
+    ),
+    display_name: str | None = typer.Option(
+        None, help="Optional friendly name shown in Power Platform"
+    ),
 ):
+    """Create or update a connector from an OpenAPI document."""
+
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     with open(openapi_path, encoding="utf-8") as handle:
