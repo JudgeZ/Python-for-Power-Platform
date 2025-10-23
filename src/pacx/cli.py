@@ -3,23 +3,76 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
+from functools import wraps
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import typer
 from rich import print
+from rich.console import Console
 
-from .clients.power_platform import PowerPlatformClient
-from .clients.dataverse import DataverseClient
-from .clients.connectors import ConnectorsClient
-from .clients.power_pages import PowerPagesClient
-from .power_pages.diff import diff_permissions
 from .bulk_csv import bulk_csv_upsert
-from .solution_sp import unpack_to_source, pack_from_source
-from .models.dataverse import ExportSolutionRequest, ImportSolutionRequest
+from .cli_utils import resolve_dataverse_host, resolve_environment_id
+from .clients.connectors import ConnectorsClient
+from .clients.dataverse import DataverseClient
+from .clients.power_pages import PowerPagesClient
+from .clients.power_platform import PowerPlatformClient
 from .config import ConfigStore, Profile
+from .errors import AuthError, HttpError, PacxError
+from .models.dataverse import ExportSolutionRequest, ImportSolutionRequest
+from .power_pages.diff import diff_permissions
 from .secrets import SecretSpec, get_secret
+from .solution_sp import pack_from_source, unpack_to_source
+
+console = Console()
+logger = logging.getLogger(__name__)
+
+BINARY_PROVIDER_OPTION = typer.Option(
+    None, "--binary-provider", help="Explicit binary providers to run"
+)
+KEYRING_BACKEND = "keyring"
+KEYVAULT_BACKEND = "keyvault"
+
+
+def _render_http_error(exc: HttpError) -> None:
+    console.print(f"[red]Error:[/red] {exc}")
+    details = getattr(exc, "details", None)
+    if details:
+        snippet = details
+        if isinstance(details, dict):
+            snippet = json.dumps(details, indent=2)
+        console.print(str(snippet))
+
+
+def handle_cli_errors(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except typer.BadParameter:
+            raise
+        except typer.Exit:
+            raise
+        except HttpError as exc:
+            _render_http_error(exc)
+            raise typer.Exit(1) from None
+        except AuthError as exc:
+            console.print(f"[red]Error:[/red] Authentication failed: {exc}")
+            console.print("Run `ppx auth device` or `ppx auth secret` to refresh credentials.")
+            raise typer.Exit(1) from None
+        except PacxError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from None
+        except Exception as exc:
+            if os.getenv("PACX_DEBUG"):
+                raise
+            console.print(f"[red]Error:[/red] Unexpected failure: {exc}")
+            console.print("Set PACX_DEBUG=1 for a stack trace.")
+            raise typer.Exit(1) from exc
+
+    return wrapper
+
 
 app = typer.Typer(help="PACX CLI")
 auth_app = typer.Typer(help="Authentication and profiles")
@@ -35,9 +88,10 @@ app.add_typer(pages_app, name="pages")
 
 
 @app.command("doctor")
+@handle_cli_errors
 def doctor(
     ctx: typer.Context,
-    host: Optional[str] = typer.Option(None, help="Dataverse host to probe"),
+    host: str | None = typer.Option(None, help="Dataverse host to probe"),
     check_dataverse: bool = typer.Option(True, help="Attempt Dataverse connectivity test"),
 ):
     """Validate PACX environment configuration."""
@@ -134,6 +188,7 @@ def common(ctx: typer.Context):
 # ---- Core: environments/apps/flows ----
 
 @app.command("env")
+@handle_cli_errors
 def list_envs(
     ctx: typer.Context,
     api_version: str = typer.Option("2022-03-01-preview", help="Power Platform API version"),
@@ -147,17 +202,14 @@ def list_envs(
 
 
 @app.command("apps")
+@handle_cli_errors
 def list_apps(
     ctx: typer.Context,
-    environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
-    top: Optional[int] = typer.Option(None, help="$top"),
+    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
+    top: int | None = typer.Option(None, help="$top"),
 ):
     token_getter = _get_token_getter(ctx)
-    if not environment_id:
-        cfg = ConfigStore().load()
-        environment_id = cfg.environment_id
-    if not environment_id:
-        raise typer.BadParameter("Missing --environment-id and no default in config.")
+    environment_id = resolve_environment_id(environment_id)
     client = PowerPlatformClient(token_getter)
     apps = client.list_apps(environment_id, top=top)
     for a in apps:
@@ -165,16 +217,13 @@ def list_apps(
 
 
 @app.command("flows")
+@handle_cli_errors
 def list_flows(
     ctx: typer.Context,
-    environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
+    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
 ):
     token_getter = _get_token_getter(ctx)
-    if not environment_id:
-        cfg = ConfigStore().load()
-        environment_id = cfg.environment_id
-    if not environment_id:
-        raise typer.BadParameter("Missing --environment-id and no default in config.")
+    environment_id = resolve_environment_id(environment_id)
     client = PowerPlatformClient(token_getter)
     flows = client.list_cloud_flows(environment_id)
     for f in flows:
@@ -184,27 +233,26 @@ def list_flows(
 # ---- Solutions ----
 
 @app.command("solution")
+@handle_cli_errors
 def solution_cmd(
     ctx: typer.Context,
     action: str = typer.Argument(..., help="list|export|import|publish-all|pack|unpack|unpack-sp|pack-sp"),
-    host: Optional[str] = typer.Option(None, help="Dataverse host (e.g. org.crm.dynamics.com)"),
-    name: Optional[str] = typer.Option(None, help="Solution unique name (for export)"),
+    host: str | None = typer.Option(None, help="Dataverse host (e.g. org.crm.dynamics.com)"),
+    name: str | None = typer.Option(None, help="Solution unique name (for export)"),
     managed: bool = typer.Option(False, help="Export as managed"),
-    file: Optional[str] = typer.Option(None, help="Path to solution zip (import/export/pack)"),
-    src: Optional[str] = typer.Option(None, help="Folder to pack from (pack)"),
-    out: Optional[str] = typer.Option(None, help="Output path (export/pack/unpack)"),
+    file: str | None = typer.Option(None, help="Path to solution zip (import/export/pack)"),
+    src: str | None = typer.Option(None, help="Folder to pack from (pack)"),
+    out: str | None = typer.Option(None, help="Output path (export/pack/unpack)"),
     wait: bool = typer.Option(False, help="Wait for long-running operations (import)"),
-    import_job_id: Optional[str] = typer.Option(None, help="Provide/track ImportJobId for import"),
+    import_job_id: str | None = typer.Option(None, help="Provide/track ImportJobId for import"),
 ):
     from .solution_source import pack_solution_folder, unpack_solution_zip
 
     cfg = ConfigStore().load()
     requires_dataverse = action in ("list", "export", "import", "publish-all")
-    resolved_host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
+    resolved_host = resolve_dataverse_host(host, config=cfg) if requires_dataverse else None
     token_getter = _get_token_getter(ctx, required=requires_dataverse)
     if requires_dataverse:
-        if not resolved_host:
-            raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default dataverse_host")
         dv = DataverseClient(token_getter, host=resolved_host)
     else:
         dv = None
@@ -268,12 +316,13 @@ def solution_cmd(
 # ---- AUTH & PROFILES ----
 
 @auth_app.command("device")
+@handle_cli_errors
 def auth_device(
     name: str = typer.Argument(..., help="Profile name"),
     tenant_id: str = typer.Option(..., help="Entra ID tenant"),
     client_id: str = typer.Option(..., help="App registration (client) ID"),
     scope: str = typer.Option("https://api.powerplatform.com/.default", help="Scope (default: PP API)"),
-    dataverse_host: Optional[str] = typer.Option(None, help="Default DV host for this profile"),
+    dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
 ):
     """Create/update a device-code profile. Token acquisition happens on use."""
     store = ConfigStore()
@@ -284,26 +333,28 @@ def auth_device(
 
 
 @auth_app.command("client")
+@handle_cli_errors
 def auth_client(
     name: str = typer.Argument(..., help="Profile name"),
     tenant_id: str = typer.Option(..., help="Entra ID tenant"),
     client_id: str = typer.Option(..., help="App registration (client) ID"),
-    client_secret_env: Optional[str] = typer.Option(None, help="Name of env var holding the client secret (env backend)"),
-    secret_backend: Optional[str] = typer.Option(None, help="Secret backend: env|keyring|keyvault"),
-    secret_ref: Optional[str] = typer.Option(None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"),
+    client_secret_env: str | None = typer.Option(None, help="Name of env var holding the client secret (env backend)"),
+    secret_backend: str | None = typer.Option(None, help="Secret backend: env|keyring|keyvault"),
+    secret_ref: str | None = typer.Option(None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"),
     prompt_secret: bool = typer.Option(False, help="For keyring: prompt and store a secret under service:username"),
     scope: str = typer.Option("https://api.powerplatform.com/.default", help="Scope (default: PP API)"),
-    dataverse_host: Optional[str] = typer.Option(None, help="Default DV host for this profile"),
+    dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
 ):
     """Create/update a client-credentials profile (secret read from env var on use)."""
     store = ConfigStore()
     p = Profile(name=name, tenant_id=tenant_id, client_id=client_id, scope=scope, dataverse_host=dataverse_host, client_secret_env=client_secret_env)
     # persist secret backend settings
-    if secret_backend:
-        p.secret_backend = secret_backend
+    backend = secret_backend
+    if backend:
+        p.secret_backend = backend
         if secret_ref:
             p.secret_ref = secret_ref
-        if secret_backend == 'keyring' and prompt_secret:
+        if backend == KEYRING_BACKEND and prompt_secret:
             try:
                 import keyring
                 if not secret_ref or ':' not in secret_ref:
@@ -314,15 +365,16 @@ def auth_client(
                 print("Stored secret in keyring.")
             except Exception as e:
                 print(f"[yellow]Keyring not available or failed: {e}[/yellow]")
-        if secret_backend == 'keyvault' and not secret_ref:
+        if backend == KEYVAULT_BACKEND and not secret_ref:
             print("[yellow]Provide --secret-ref 'VAULT_URL:SECRET_NAME' for Key Vault[/yellow]")
     store.add_or_update_profile(p)
     store.set_default_profile(name)
-    where = secret_backend or ('env' if client_secret_env else 'device')
+    where = backend or ('env' if client_secret_env else 'device')
     print(f"Client-credentials profile [bold]{name}[/bold] configured. Backend: {where}")
 
 
 @auth_app.command("use")
+@handle_cli_errors
 def auth_use(name: str = typer.Argument(..., help="Profile to activate")):
     store = ConfigStore()
     store.set_default_profile(name)
@@ -330,6 +382,7 @@ def auth_use(name: str = typer.Argument(..., help="Profile to activate")):
 
 
 @profile_app.command("list")
+@handle_cli_errors
 def profile_list():
     store = ConfigStore()
     cfg = store.load()
@@ -340,6 +393,7 @@ def profile_list():
 
 
 @profile_app.command("show")
+@handle_cli_errors
 def profile_show(name: str = typer.Argument(..., help="Profile name")):
     store = ConfigStore()
     cfg = store.load()
@@ -350,6 +404,7 @@ def profile_show(name: str = typer.Argument(..., help="Profile name")):
 
 
 @profile_app.command("set-env")
+@handle_cli_errors
 def profile_set_env(environment_id: str = typer.Argument(..., help="Default Environment ID")):
     store = ConfigStore()
     cfg = store.load()
@@ -359,6 +414,7 @@ def profile_set_env(environment_id: str = typer.Argument(..., help="Default Envi
 
 
 @profile_app.command("set-host")
+@handle_cli_errors
 def profile_set_host(dataverse_host: str = typer.Argument(..., help="Default Dataverse host")):
     store = ConfigStore()
     cfg = store.load()
@@ -370,71 +426,65 @@ def profile_set_host(dataverse_host: str = typer.Argument(..., help="Default Dat
 # ---- Dataverse group ----
 
 @dv_app.command("whoami")
-def dv_whoami(ctx: typer.Context, host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)")):
+@handle_cli_errors
+def dv_whoami(ctx: typer.Context, host: str | None = typer.Option(None, help="Dataverse host (else config/env)")):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.whoami())
 
 
 @dv_app.command("list")
-def dv_list(ctx: typer.Context, entityset: str = typer.Argument(...), select: Optional[str] = None, filter: Optional[str] = None, top: Optional[int] = None, orderby: Optional[str] = None, host: Optional[str] = None):
+@handle_cli_errors
+def dv_list(ctx: typer.Context, entityset: str = typer.Argument(...), select: str | None = None, filter: str | None = None, top: int | None = None, orderby: str | None = None, host: str | None = None):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.list_records(entityset, select=select, filter=filter, top=top, orderby=orderby))
 
 
 @dv_app.command("get")
-def dv_get(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: Optional[str] = None):
+@handle_cli_errors
+def dv_get(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: str | None = None):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     print(dv.get_record(entityset, record_id))
 
 
 @dv_app.command("create")
-def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: Optional[str] = None):
+@handle_cli_errors
+def dv_create(ctx: typer.Context, entityset: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: str | None = None):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     obj = json.loads(data)
     print(dv.create_record(entityset, obj))
 
 
 @dv_app.command("update")
-def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: Optional[str] = None):
+@handle_cli_errors
+def dv_update(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), data: str = typer.Option(..., help="JSON object string"), host: str | None = None):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     obj = json.loads(data)
     dv.update_record(entityset, record_id, obj)
     print("updated")
 
 
 @dv_app.command("delete")
-def dv_delete(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: Optional[str] = None):
+@handle_cli_errors
+def dv_delete(ctx: typer.Context, entityset: str = typer.Argument(...), record_id: str = typer.Argument(...), host: str | None = None):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     dv.delete_record(entityset, record_id)
     print("deleted")
 
@@ -442,17 +492,14 @@ def dv_delete(ctx: typer.Context, entityset: str = typer.Argument(...), record_i
 # ---- Connectors ----
 
 @connector_app.command("list")
+@handle_cli_errors
 def connectors_list(
     ctx: typer.Context,
-    environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
-    top: Optional[int] = typer.Option(None, help="$top"),
+    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
+    top: int | None = typer.Option(None, help="$top"),
 ):
     token_getter = _get_token_getter(ctx)
-    if not environment_id:
-        cfg = ConfigStore().load()
-        environment_id = cfg.environment_id
-    if not environment_id:
-        raise typer.BadParameter("Missing --environment-id and no default in config.")
+    environment_id = resolve_environment_id(environment_id)
     c = ConnectorsClient(token_getter)
     data = c.list_apis(environment_id, top=top)
     for item in (data.get("value") or []):
@@ -461,37 +508,31 @@ def connectors_list(
 
 
 @connector_app.command("get")
+@handle_cli_errors
 def connectors_get(
     ctx: typer.Context,
-    environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
+    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
     api_name: str = typer.Argument(..., help="API (connector) name"),
 ):
     token_getter = _get_token_getter(ctx)
-    if not environment_id:
-        cfg = ConfigStore().load()
-        environment_id = cfg.environment_id
-    if not environment_id:
-        raise typer.BadParameter("Missing --environment-id and no default in config.")
+    environment_id = resolve_environment_id(environment_id)
     c = ConnectorsClient(token_getter)
     data = c.get_api(environment_id, api_name)
     print(data)
 
 
 @connector_app.command("push")
+@handle_cli_errors
 def connector_push(
     ctx: typer.Context,
-    environment_id: Optional[str] = typer.Option(None, help="Environment ID (else from config)"),
+    environment_id: str | None = typer.Option(None, help="Environment ID (else from config)"),
     name: str = typer.Option(..., "--name", help="Connector name"),
     openapi_path: str = typer.Option(..., "--openapi", help="Path to OpenAPI/Swagger file (YAML/JSON)"),
-    display_name: Optional[str] = typer.Option(None, help="Display name override"),
+    display_name: str | None = typer.Option(None, help="Display name override"),
 ):
     token_getter = _get_token_getter(ctx)
-    if not environment_id:
-        cfg = ConfigStore().load()
-        environment_id = cfg.environment_id
-    if not environment_id:
-        raise typer.BadParameter("Missing --environment-id and no default in config.")
-    with open(openapi_path, "r", encoding="utf-8") as f:
+    environment_id = resolve_environment_id(environment_id)
+    with open(openapi_path, encoding="utf-8") as f:
         text = f.read()
     c = ConnectorsClient(token_getter)
     out = c.put_api_from_openapi(environment_id, name, text, display_name=display_name)
@@ -499,25 +540,24 @@ def connector_push(
 
 
 @pages_app.command("download")
+@handle_cli_errors
 def pages_download(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
     binaries: bool = typer.Option(False, help="Use default binary provider (annotations)"),
     out: str = typer.Option("site_out", help="Output directory"),
-    host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)"),
+    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
     include_files: bool = typer.Option(True, help="Include adx_webfiles"),
-    binary_provider: List[str] = typer.Option([], "--binary-provider", help="Explicit binary providers to run"),
-    provider_options: Optional[str] = typer.Option(None, help="JSON string/path for provider options"),
+    binary_provider: list[str] | None = BINARY_PROVIDER_OPTION,
+    provider_options: str | None = typer.Option(None, help="JSON string/path for provider options"),
 ):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
+    resolved_host = resolve_dataverse_host(host, config=cfg)
     if binary_provider and not include_files:
         raise typer.BadParameter("Binary providers require --include-files True")
-    provider_opts: Dict[str, Dict[str, object]] = {}
+    provider_opts: dict[str, dict[str, object]] = {}
     if provider_options:
         try:
             path = Path(provider_options)
@@ -527,9 +567,9 @@ def pages_download(
                 provider_opts = json.loads(provider_options)
         except json.JSONDecodeError as exc:
             raise typer.BadParameter(f"Invalid JSON for --provider-options: {exc}") from exc
-    dv = DataverseClient(token_getter, host=host)
+    dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
-    providers = binary_provider or None
+    providers = list(binary_provider) if binary_provider else None
     res = pp.download_site(
         website_id,
         out,
@@ -546,31 +586,30 @@ def pages_download(
 
 
 @pages_app.command("upload")
+@handle_cli_errors
 def pages_upload(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option("core", help="Which tables: core|full|csv list of entity names"),
     src: str = typer.Option(..., help="Source directory created by pages download"),
-    host: Optional[str] = typer.Option(None, help="Dataverse host (else config/env)"),
+    host: str | None = typer.Option(None, help="Dataverse host (else config/env)"),
     strategy: str = typer.Option("replace", help="replace|merge|skip-existing|create-only"),
-    key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding natural keys"),
+    key_config: str | None = typer.Option(None, help="JSON string/path overriding natural keys"),
 ):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
     manifest_path = Path(src) / "manifest.json"
-    manifest_keys: Dict[str, List[str]] = {}
+    manifest_keys: dict[str, list[str]] = {}
     if manifest_path.exists():
         try:
             data = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
-        except Exception:
-            pass
-    cli_keys: Dict[str, List[str]] = {}
+        except Exception as exc:  # pragma: no cover - defensive logging only
+            logger.debug("Failed to load manifest keys from %s: %s", manifest_path, exc)
+    cli_keys: dict[str, list[str]] = {}
     if key_config:
         try:
             path = Path(key_config)
@@ -587,28 +626,27 @@ def pages_upload(
 
 
 @pages_app.command("diff-permissions")
+@handle_cli_errors
 def pages_diff_permissions(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID"),
     src: str = typer.Option(..., help="Local export directory"),
-    host: Optional[str] = typer.Option(None, help="Dataverse host"),
-    key_config: Optional[str] = typer.Option(None, help="JSON string/path overriding keys"),
+    host: str | None = typer.Option(None, help="Dataverse host"),
+    key_config: str | None = typer.Option(None, help="JSON string/path overriding keys"),
 ):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     manifest_path = Path(src) / "manifest.json"
-    manifest_keys: Dict[str, List[str]] = {}
+    manifest_keys: dict[str, list[str]] = {}
     if manifest_path.exists():
         try:
             data = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
-        except Exception:
-            pass
-    cli_keys: Dict[str, List[str]] = {}
+        except Exception as exc:  # pragma: no cover - defensive logging only
+            logger.debug("Failed to load manifest keys from %s: %s", manifest_path, exc)
+    cli_keys: dict[str, list[str]] = {}
     if key_config:
         try:
             path = Path(key_config)
@@ -630,6 +668,7 @@ def pages_diff_permissions(
         print(f"- {entry.entityset}: {entry.action} [{key_repr}]")
 
 @dv_app.command("bulk-csv")
+@handle_cli_errors
 def dv_bulk_csv(
     ctx: typer.Context,
     entityset: str = typer.Argument(...),
@@ -637,16 +676,14 @@ def dv_bulk_csv(
     id_column: str = typer.Option(..., help="Column containing record id for PATCH; blank -> POST"),
     key_columns: str = typer.Option("", help="Comma-separated alternate key columns for PATCH when id is blank"),
     create_if_missing: bool = typer.Option(True, help="POST when id and key columns are not present"),
-    host: Optional[str] = None,
+    host: str | None = None,
     chunk_size: int = typer.Option(50, help="Records per $batch"),
-    report: Optional[str] = typer.Option(None, help="Write per-op results CSV to this path"),
+    report: str | None = typer.Option(None, help="Write per-op results CSV to this path"),
 ):
     token_getter = _get_token_getter(ctx)
     cfg = ConfigStore().load()
-    host = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
-    if not host:
-        raise typer.BadParameter("Missing --host, DATAVERSE_HOST, or config default")
-    dv = DataverseClient(token_getter, host=host)
+    resolved_host = resolve_dataverse_host(host, config=cfg)
+    dv = DataverseClient(token_getter, host=resolved_host)
     keys = [s.strip() for s in (key_columns or '').split(',') if s.strip()]
     res = bulk_csv_upsert(
         dv,
