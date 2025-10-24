@@ -5,7 +5,7 @@ import uuid
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import click
 
@@ -150,15 +150,12 @@ app = typer.Typer(
 @app.callback()
 def handle_legacy_invocation(
     ctx: typer.Context,
-    action: Annotated[
-        str | None,
-        typer.Option(
-            None,
-            "--action",
-            help="Deprecated action selector (use subcommands instead)",
-            hidden=True,
-        ),
-    ],
+    action: str | None = typer.Option(
+        None,
+        "--action",
+        help="Deprecated action selector (use subcommands instead)",
+        hidden=True,
+    ),
 ) -> None:
     if action:
         if action not in LEGACY_ACTIONS:
@@ -186,10 +183,9 @@ def handle_legacy_invocation(
 @handle_cli_errors
 def list_solutions(
     ctx: typer.Context,
-    host: Annotated[
-        str | None,
-        typer.Option(None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"),
-    ],
+    host: str | None = typer.Option(
+        None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
+    ),
 ) -> None:
     """List installed Dataverse solutions."""
 
@@ -203,31 +199,22 @@ def list_solutions(
 @handle_cli_errors
 def export_solution(
     ctx: typer.Context,
-    name: Annotated[
-        str,
-        typer.Option(..., "--name", "-n", help="Solution unique name to export"),
-    ],
-    host: Annotated[
-        str | None,
-        typer.Option(None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"),
-    ],
-    managed: Annotated[
-        bool,
-        typer.Option(False, "--managed", help="Export managed solution (default: unmanaged)"),
-    ],
-    out: Annotated[
-        Path | None,
-        typer.Option(None, "--out", help="Output path for the exported solution zip"),
-    ],
-    file: Annotated[
-        Path | None,
-        typer.Option(
-            None,
-            "--file",
-            help="Legacy alias for --out",
-            hidden=True,
-        ),
-    ],
+    name: str = typer.Option(..., "--name", "-n", help="Solution unique name to export"),
+    host: str | None = typer.Option(
+        None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
+    ),
+    managed: bool = typer.Option(
+        False, "--managed", help="Export managed solution (default: unmanaged)"
+    ),
+    out: Path | None = typer.Option(
+        None, "--out", help="Output path for the exported solution zip"
+    ),
+    file: Path | None = typer.Option(
+        None,
+        "--file",
+        help="Legacy alias for --out",
+        hidden=True,
+    ),
 ) -> None:
     """Export a solution to a zip archive."""
 
@@ -243,27 +230,18 @@ def export_solution(
 @handle_cli_errors
 def import_solution(
     ctx: typer.Context,
-    file: Annotated[Path, typer.Option(..., "--file", help="Solution zip to import")],
-    host: Annotated[
-        str | None,
-        typer.Option(None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"),
-    ],
-    wait: Annotated[
-        bool,
-        typer.Option(
-            False,
-            "--wait",
-            help="Wait for import completion (default: return immediately)",
-        ),
-    ],
-    import_job_id: Annotated[
-        str | None,
-        typer.Option(
-            None,
-            "--import-job-id",
-            help="Reuse or provide ImportJobId (default: generated server-side)",
-        ),
-    ],
+    file: Path = typer.Option(..., "--file", help="Solution zip to import"),
+    host: str | None = typer.Option(
+        None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
+    ),
+    wait: bool = typer.Option(
+        False, "--wait", help="Wait for import completion (default: return immediately)"
+    ),
+    import_job_id: str | None = typer.Option(
+        None,
+        "--import-job-id",
+        help="Reuse or provide ImportJobId (default: generated server-side)",
+    ),
 ) -> None:
     """Import a solution zip into Dataverse."""
 
@@ -282,10 +260,9 @@ def import_solution(
 @handle_cli_errors
 def publish_all(
     ctx: typer.Context,
-    host: Annotated[
-        str | None,
-        typer.Option(None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"),
-    ],
+    host: str | None = typer.Option(
+        None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
+    ),
 ) -> None:
     """Publish all Dataverse customizations."""
 
@@ -297,15 +274,16 @@ def publish_all(
 @app.command("pack")
 @handle_cli_errors
 def pack_solution(
-    src: Annotated[Path, typer.Option(..., "--src", help="Folder containing unpacked solution")],
-    out: Annotated[
-        Path | None,
-        typer.Option(None, "--out", help="Destination zip path (default: solution.zip)"),
-    ],
-    file: Annotated[
-        Path | None,
-        typer.Option(None, "--file", help="Legacy alias for --out", hidden=True),
-    ],
+    src: Path = typer.Option(..., "--src", help="Folder containing unpacked solution"),
+    out: Path | None = typer.Option(
+        None, "--out", help="Destination zip path (default: solution.zip)"
+    ),
+    file: Path | None = typer.Option(
+        None,
+        "--file",
+        help="Legacy alias for --out",
+        hidden=True,
+    ),
 ) -> None:
     """Pack an unpacked solution folder into a zip archive."""
 
@@ -317,11 +295,10 @@ def pack_solution(
 @app.command("unpack")
 @handle_cli_errors
 def unpack_solution(
-    file: Annotated[Path, typer.Option(..., "--file", help="Solution zip to unpack")],
-    out: Annotated[
-        Path | None,
-        typer.Option(None, "--out", help="Destination folder (default: solution_unpacked)"),
-    ],
+    file: Path = typer.Option(..., "--file", help="Solution zip to unpack"),
+    out: Path | None = typer.Option(
+        None, "--out", help="Destination folder (default: solution_unpacked)"
+    ),
 ) -> None:
     """Unpack a Dataverse solution zip into a folder."""
 
@@ -333,15 +310,16 @@ def unpack_solution(
 @app.command("pack-sp")
 @handle_cli_errors
 def pack_solution_packager(
-    src: Annotated[Path, typer.Option(..., "--src", help="SolutionPackager source folder")],
-    out: Annotated[
-        Path | None,
-        typer.Option(None, "--out", help="Destination zip path (default: solution.zip)"),
-    ],
-    file: Annotated[
-        Path | None,
-        typer.Option(None, "--file", help="Legacy alias for --out", hidden=True),
-    ],
+    src: Path = typer.Option(..., "--src", help="SolutionPackager source folder"),
+    out: Path | None = typer.Option(
+        None, "--out", help="Destination zip path (default: solution.zip)"
+    ),
+    file: Path | None = typer.Option(
+        None,
+        "--file",
+        help="Legacy alias for --out",
+        hidden=True,
+    ),
 ) -> None:
     """Pack a SolutionPackager-style tree into a solution zip."""
 
@@ -353,11 +331,10 @@ def pack_solution_packager(
 @app.command("unpack-sp")
 @handle_cli_errors
 def unpack_solution_packager(
-    file: Annotated[Path, typer.Option(..., "--file", help="Solution zip to unpack")],
-    out: Annotated[
-        Path | None,
-        typer.Option(None, "--out", help="Destination folder (default: solution_src)"),
-    ],
+    file: Path = typer.Option(..., "--file", help="Solution zip to unpack"),
+    out: Path | None = typer.Option(
+        None, "--out", help="Destination folder (default: solution_src)"
+    ),
 ) -> None:
     """Unpack a solution zip into a SolutionPackager-compatible tree."""
 

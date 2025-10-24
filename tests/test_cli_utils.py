@@ -19,7 +19,13 @@ from pacx.cli_utils import (
 def build_typer_context() -> typer.Context:
     """Return a minimal :class:`typer.Context` instance for CLI helpers."""
 
-    command = get_command(typer.Typer())
+    app = typer.Typer()
+
+    @app.command()
+    def _noop() -> None:  # pragma: no cover - used only to satisfy Typer internals
+        """No-op command that enables constructing a Typer context for tests."""
+
+    command = get_command(app)
     return typer.Context(command)
 
 

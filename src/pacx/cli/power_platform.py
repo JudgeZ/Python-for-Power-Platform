@@ -3,7 +3,7 @@ from __future__ import annotations
 """Typer commands for interacting with the Power Platform REST APIs."""
 
 from importlib import import_module
-from typing import Annotated, Type, cast
+from typing import Type, cast
 
 import typer
 from rich import print
@@ -34,13 +34,10 @@ def register(app: typer.Typer) -> None:
 @handle_cli_errors
 def list_envs(
     ctx: typer.Context,
-    api_version: Annotated[
-        str,
-        typer.Option(
-            "2022-03-01-preview",
-            help="Power Platform API version (defaults to 2022-03-01-preview)",
-        ),
-    ],
+    api_version: str = typer.Option(
+        "2022-03-01-preview",
+        help="Power Platform API version (defaults to 2022-03-01-preview)",
+    ),
 ) -> None:
     """List Power Platform environments.
 
@@ -59,14 +56,12 @@ def list_envs(
 @handle_cli_errors
 def list_apps(
     ctx: typer.Context,
-    environment_id: Annotated[
-        str | None,
-        typer.Option(None, help="Environment ID to target (defaults to profile configuration)"),
-    ],
-    top: Annotated[
-        int | None,
-        typer.Option(None, help="Maximum results to return via $top (default: server limit)"),
-    ],
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    top: int | None = typer.Option(
+        None, help="Maximum results to return via $top (default: server limit)"
+    ),
 ) -> None:
     """List canvas apps in an environment.
 
@@ -88,10 +83,9 @@ def list_apps(
 @handle_cli_errors
 def list_flows(
     ctx: typer.Context,
-    environment_id: Annotated[
-        str | None,
-        typer.Option(None, help="Environment ID to target (defaults to profile configuration)"),
-    ],
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
 ) -> None:
     """List cloud flows in an environment.
 
