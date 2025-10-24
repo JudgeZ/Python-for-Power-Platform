@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 from typer.testing import CliRunner
 
+from pacx.bulk_csv import BulkCsvResult, BulkCsvStats
 from pacx.cli import app, dataverse, power_platform
 
 runner = CliRunner()
@@ -20,6 +21,47 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
     assert respx_mock.calls, "expected Dataverse request"
     auth_header = respx_mock.calls.last.request.headers.get("Authorization")
     assert auth_header == "Bearer dummy"
+
+
+def test_cli_dv_bulk_csv_exits_cleanly(monkeypatch, tmp_path):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
+    monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
+    csv_path = tmp_path / "payload.csv"
+    csv_path.write_text("accountid,name\n1,Example\n", encoding="utf-8")
+
+    fake_result = BulkCsvResult(
+        operations=[],
+        stats=BulkCsvStats(
+            total_rows=1,
+            attempts=1,
+            successes=1,
+            failures=0,
+            retry_invocations=0,
+            retry_histogram={},
+            grouped_errors={},
+        ),
+    )
+
+    def fake_bulk_csv_upsert(*args, **kwargs):
+        return fake_result
+
+    monkeypatch.setattr(dataverse, "bulk_csv_upsert", fake_bulk_csv_upsert)
+
+    result = runner.invoke(
+        app,
+        [
+            "dv",
+            "bulk-csv",
+            "accounts",
+            str(csv_path),
+            "--id-column",
+            "accountid",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Bulk upsert completed" in result.stdout
+    assert result.stderr == ""
 
 
 def test_cli_command_tree_registration():

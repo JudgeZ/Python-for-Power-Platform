@@ -7,7 +7,7 @@ import json
 import typer
 from rich import print
 
-from ..bulk_csv import BulkCsvResult, bulk_csv_upsert
+from ..bulk_csv import bulk_csv_upsert
 from ..cli_utils import resolve_dataverse_host_from_context
 from ..clients.dataverse import DataverseClient
 from .common import get_token_getter, handle_cli_errors
@@ -205,7 +205,7 @@ def dv_bulk_csv(
     report: str | None = typer.Option(
         None, help="Write per-operation results CSV to this path (default: disabled)"
     ),
-) -> BulkCsvResult:
+) -> None:
     """Upsert Dataverse records in bulk from a CSV file.
 
     Args:
@@ -219,8 +219,8 @@ def dv_bulk_csv(
         chunk_size: Number of records to batch together per request.
         report: Optional path for writing a CSV report of the operations.
 
-    Returns:
-        :class:`BulkCsvResult` with per-record details and aggregate statistics.
+    The command prints a summary of the operation and optionally writes a per-operation
+    CSV report when ``report`` is provided.
     """
 
     token_getter = get_token_getter(ctx)
@@ -259,7 +259,7 @@ def dv_bulk_csv(
         f"{stats.successes} succeeded, {stats.failures} failed, "
         f"retries={stats.retry_invocations}"
     )
-    return result
+    return None
 
 
 __all__ = [
