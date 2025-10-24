@@ -4,8 +4,16 @@ import typer
 from rich import print
 
 from ..cli_utils import resolve_environment_id_from_context
-from ..clients.power_platform import PowerPlatformClient
+from ..clients.power_platform import PowerPlatformClient as _DefaultPowerPlatformClient
 from .common import get_token_getter, handle_cli_errors
+
+
+def _resolve_client_class():
+    try:
+        from pacx.cli import PowerPlatformClient as client_cls  # type: ignore circular
+    except Exception:  # pragma: no cover - defensive fallback
+        return _DefaultPowerPlatformClient
+    return client_cls or _DefaultPowerPlatformClient
 
 
 def register(app: typer.Typer) -> None:
@@ -21,7 +29,8 @@ def list_envs(
 ):
     """List Power Platform environments."""
     token_getter = get_token_getter(ctx)
-    client = PowerPlatformClient(token_getter, api_version=api_version)
+    client_cls = _resolve_client_class()
+    client = client_cls(token_getter, api_version=api_version)
     envs = client.list_environments()
     for env in envs:
         print(f"[bold]{env.name or env.id}[/bold]  type={env.type}  location={env.location}")
@@ -41,7 +50,8 @@ def list_apps(
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
-    client = PowerPlatformClient(token_getter)
+    client_cls = _resolve_client_class()
+    client = client_cls(token_getter)
     apps = client.list_apps(environment, top=top)
     for app_summary in apps:
         print(f"[bold]{app_summary.name or app_summary.id}[/bold]")
@@ -58,7 +68,8 @@ def list_flows(
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
-    client = PowerPlatformClient(token_getter)
+    client_cls = _resolve_client_class()
+    client = client_cls(token_getter)
     flows = client.list_cloud_flows(environment)
     for flow in flows:
         print(f"[bold]{flow.name or flow.id}[/bold]")
@@ -70,3 +81,5 @@ __all__ = [
     "list_apps",
     "list_flows",
 ]
+
+PowerPlatformClient = _DefaultPowerPlatformClient

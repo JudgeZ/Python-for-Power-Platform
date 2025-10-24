@@ -33,6 +33,18 @@ ppx pages diff-permissions --website-id <GUID> --src site_dump --host <DV>
 
 Generates a plan grouped by entity (`adx_entitypermissions`, `adx_webpageaccesscontrolrules`, `adx_webroles`) identifying `create`, `update`, and `delete` operations needed to align Dataverse with the local export.
 
+### Provider options & key overrides
+
+Binary provider configuration is normalized by the Power Pages client before downloads. The CLI accepts a JSON string or file for `--provider-options`; the client canonicalizes provider names, validates that each option is a JSON object, and feeds those values to the providers that execute. When custom providers are requested, `--include-files` must stay enabled because providers operate over the exported `adx_webfiles`.
+
+For uploads and permission diffs, the client composes the natural key map by layering three sources:
+
+1. Built-in defaults for each entity.
+2. Natural keys stored in the export's `manifest.json`.
+3. Optional overrides supplied via `--key-config`.
+
+This means a new override only needs to mention the entity it modifies; the rest of the manifest defaults continue to apply.
+
 ## Table sets
 
 - `core`: websites, webpages, webfiles, contentsnippets, pagetemplates, sitemarkers

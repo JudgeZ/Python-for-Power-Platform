@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import Dict, Iterable, List, Mapping, Sequence
 
 from ..errors import HttpError
 from ..odata import build_alternate_key_segment
+from ..power_pages.constants import DEFAULT_NATURAL_KEYS
+from ..power_pages.diff import diff_permissions
 from ..power_pages.providers import (
     ProviderResult,
     normalize_provider_name,
@@ -93,21 +96,6 @@ EXTRA_TABLES: List[tuple[str, str, str, str]] = [
 ]
 
 
-DEFAULT_NATURAL_KEYS: Dict[str, List[str]] = {
-    "adx_webpages": ["adx_partialurl", "_adx_websiteid_value"],
-    "adx_webfiles": ["adx_partialurl", "_adx_websiteid_value"],
-    "adx_contentsnippets": ["adx_name", "_adx_websiteid_value"],
-    "adx_pagetemplates": ["adx_name", "_adx_websiteid_value"],
-    "adx_sitemarkers": ["adx_name", "_adx_websiteid_value"],
-    "adx_weblinksets": ["adx_name", "_adx_websiteid_value"],
-    "adx_weblinks": ["adx_name", "_adx_weblinksetid_value"],
-    "adx_webpageaccesscontrolrules": ["adx_name", "_adx_websiteid_value"],
-    "adx_webroles": ["adx_name", "_adx_websiteid_value"],
-    "adx_entitypermissions": ["adx_name", "_adx_websiteid_value"],
-    "adx_redirects": ["adx_sourceurl", "_adx_websiteid_value"],
-}
-
-
 @dataclass
 class DownloadResult:
     """Details about a site download."""
@@ -116,6 +104,9 @@ class DownloadResult:
     summary: Dict[str, int]
     manifest_path: Path
     providers: Dict[str, ProviderResult] = field(default_factory=dict)
+
+
+logger = logging.getLogger(__name__)
 
 
 class PowerPagesClient:
@@ -167,6 +158,67 @@ class PowerPagesClient:
 
         return selected
 
+    def normalize_provider_inputs(
+        self,
+        *,
+        binaries: bool,
+        binary_providers: Iterable[str] | None,
+        include_files: bool,
+        provider_options: Mapping[str, Mapping[str, object]] | None = None,
+    ) -> tuple[List[str], Dict[str, Mapping[str, object]]]:
+        """Normalize provider inputs coming from the CLI layer."""
+
+        providers: List[str] = []
+        if binary_providers:
+            providers = [str(name) for name in binary_providers]
+        elif binaries:
+            providers = ["annotations"]
+
+        if providers and not include_files:
+            raise ValueError("Binary providers require include_files=True")
+
+        normalized_options: Dict[str, Mapping[str, object]] = {}
+        if provider_options:
+            for key, value in provider_options.items():
+                if not isinstance(value, Mapping):
+                    raise ValueError(
+                        f"Provider options for {key!s} must be a mapping"
+                    )
+                normalized_options[str(key)] = dict(value)
+
+        return providers, normalized_options
+
+    def key_config_from_manifest(
+        self,
+        src_dir: str,
+        overrides: Mapping[str, Sequence[str]] | None = None,
+    ) -> Dict[str, List[str]]:
+        """Compose natural key configuration using defaults and overrides."""
+
+        base = Path(src_dir)
+        merged: Dict[str, List[str]] = {
+            key.lower(): list(values) for key, values in DEFAULT_NATURAL_KEYS.items()
+        }
+        manifest_path = base / "manifest.json"
+        if manifest_path.exists():
+            try:
+                data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception as exc:  # pragma: no cover - defensive logging only
+                logger.debug("Failed to load manifest keys from %s: %s", manifest_path, exc)
+            else:
+                natural_keys = data.get("natural_keys", {})
+                if isinstance(natural_keys, Mapping):
+                    for entity, columns in natural_keys.items():
+                        if isinstance(columns, Sequence) and not isinstance(columns, (str, bytes)):
+                            merged[str(entity).lower()] = [str(col) for col in columns]
+
+        if overrides:
+            for entity, columns in overrides.items():
+                if isinstance(columns, Sequence) and not isinstance(columns, (str, bytes)):
+                    merged[str(entity).lower()] = [str(col) for col in columns]
+
+        return merged
+
     def download_site(
         self,
         website_id: str,
@@ -201,23 +253,22 @@ class PowerPagesClient:
                 name = str(rec_id).replace("/", "_")
                 (out / folder / f"{name}.json").write_text(json.dumps(obj, indent=2), encoding="utf-8")
 
-        provider_names: Sequence[str]
-        if binary_providers is not None:
-            provider_names = list(binary_providers)
-        elif binaries:
-            provider_names = ["annotations"]
-        else:
-            provider_names = []
+        provider_names, normalized_options = self.normalize_provider_inputs(
+            binaries=binaries,
+            binary_providers=binary_providers,
+            include_files=include_files,
+            provider_options=provider_options,
+        )
 
         providers: Dict[str, ProviderResult] = {}
-        raw_options = provider_options or {}
         resolved_options: Dict[str, Mapping[str, object]] = {}
-        for opt_key, opt_value in raw_options.items():
+        for opt_key, opt_value in normalized_options.items():
             try:
                 canonical_key = normalize_provider_name(opt_key)
             except ValueError:
                 canonical_key = opt_key
             resolved_options[canonical_key] = opt_value
+
         resolved_names: List[str] = list(provider_names)
         if provider_names and include_files:
             resolved = resolve_providers(provider_names, options=resolved_options)
@@ -227,7 +278,7 @@ class PowerPagesClient:
                 opts = resolved_options.get(prov.name)
                 providers[prov.name] = prov.export(ctx, options=opts)
 
-        manifest = {
+        manifest: Dict[str, object] = {
             "website_id": website_id,
             "tables": summary,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -251,10 +302,10 @@ class PowerPagesClient:
     ) -> None:
         base = Path(src_dir)
         sets = self._select_sets(tables)
-        key_map: Dict[str, Sequence[str]] = dict(DEFAULT_NATURAL_KEYS)
-        if key_config:
-            for k, v in key_config.items():
-                key_map[k.lower()] = list(v)
+        if key_config is None:
+            key_map: Dict[str, List[str]] = self.key_config_from_manifest(src_dir)
+        else:
+            key_map = {str(k).lower(): list(v) for k, v in key_config.items()}
 
         for folder, entityset, key, _ in sets:
             p = base / folder
@@ -322,6 +373,19 @@ class PowerPagesClient:
             self.dv.update_record(entityset, record_id, merged)
             return
         self.dv.update_record(entityset, record_id, body)
+
+    def diff_permissions(
+        self,
+        website_id: str,
+        base_dir: str,
+        *,
+        key_config: Mapping[str, Sequence[str]] | None = None,
+    ):
+        if key_config is None:
+            merged_keys = self.key_config_from_manifest(base_dir)
+        else:
+            merged_keys = {str(k).lower(): list(v) for k, v in key_config.items()}
+        return diff_permissions(self.dv, website_id, base_dir, key_config=merged_keys)
 
 
 @dataclass(slots=True)

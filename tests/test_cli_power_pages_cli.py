@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -23,6 +24,7 @@ class StubPowerPagesClient:
         self.download_kwargs: dict[str, object] | None = None
         self.upload_args: tuple[str, str] | None = None
         self.upload_kwargs: dict[str, object] | None = None
+        self.diff_args: dict[str, object] | None = None
         StubPowerPagesClient.last_instance = self
 
     def download_site(
@@ -63,6 +65,38 @@ class StubPowerPagesClient:
             "strategy": strategy,
             "key_config": key_config,
         }
+
+    def key_config_from_manifest(
+        self,
+        src_dir: str,
+        overrides: dict[str, list[str]] | None = None,
+    ) -> dict[str, list[str]]:
+        path = Path(src_dir) / "manifest.json"
+        merged: dict[str, list[str]] = {}
+        if path.exists():
+            data = json.loads(path.read_text())
+            merged.update({k.lower(): list(v) for k, v in data.get("natural_keys", {}).items()})
+        if overrides:
+            for key, value in overrides.items():
+                merged[key.lower()] = list(value)
+        return merged
+
+    def diff_permissions(
+        self,
+        website_id: str,
+        base_dir: str,
+        *,
+        key_config: dict[str, list[str]] | None = None,
+    ):
+        self.diff_args = {
+            "website_id": website_id,
+            "base_dir": base_dir,
+            "key_config": key_config,
+        }
+        return [
+            SimpleNamespace(entityset="adx_webroles", action="add", key=("role", "site")),
+            SimpleNamespace(entityset="adx_webrolepermissions", action="remove", key=("perm",)),
+        ]
 
 def load_cli_app(monkeypatch):
     original_option = typer.Option
@@ -122,6 +156,34 @@ def test_pages_download_reports_providers(monkeypatch, cli_runner, tmp_path):
     assert stub.download_kwargs["binary_providers"] == ["annotations"]
     assert stub.download_kwargs["provider_options"] == {"annotations": {"foo": "bar"}}
 
+
+def test_load_json_or_path_reads_file(tmp_path):
+    from pacx.cli._pages_utils import load_json_or_path
+
+    payload = {"a": 1}
+    path = tmp_path / "opts.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert load_json_or_path(str(path)) == payload
+
+
+def test_merge_manifest_keys_uses_client(tmp_path):
+    from pacx.cli._pages_utils import merge_manifest_keys
+
+    class DummyClient:
+        def key_config_from_manifest(self, src_dir, overrides=None):
+            merged = {"adx_webpages": ["adx_partialurl"]}
+            if overrides:
+                merged.update(overrides)
+            return merged
+
+    site_dir = tmp_path / "site"
+    site_dir.mkdir()
+    client = DummyClient()
+    result = merge_manifest_keys(client, str(site_dir), {"adx_webfiles": ["filename"]})
+    assert result["adx_webpages"] == ["adx_partialurl"]
+    assert result["adx_webfiles"] == ["filename"]
+
 def test_pages_upload_merges_key_configuration(monkeypatch, cli_runner, tmp_path):
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
@@ -170,25 +232,12 @@ def test_pages_upload_merges_key_configuration(monkeypatch, cli_runner, tmp_path
 def test_pages_diff_permissions_lists_plan(monkeypatch, cli_runner, tmp_path):
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
+    monkeypatch.setattr("pacx.cli.pages.PowerPagesClient", StubPowerPagesClient)
 
     site_dir = tmp_path / "site"
     site_dir.mkdir()
     manifest = {"natural_keys": {"adx_webpages": ["adx_name"]}}
     (site_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-
-    def fake_diff_permissions(dv, website_id, src, *, key_config):
-        fake_diff_permissions.called_with = {
-            "website_id": website_id,
-            "src": src,
-            "key_config": key_config,
-        }
-        return [
-            SimpleNamespace(entityset="adx_webroles", action="add", key=("role", "site")),
-            SimpleNamespace(entityset="adx_webrolepermissions", action="remove", key=("perm",)),
-        ]
-
-    fake_diff_permissions.called_with = {}
-    monkeypatch.setattr("pacx.cli.pages.diff_permissions", fake_diff_permissions)
 
     result = cli_runner.invoke(
         app,
@@ -213,8 +262,11 @@ def test_pages_diff_permissions_lists_plan(monkeypatch, cli_runner, tmp_path):
     assert lines[0] == "Permission diff plan:"
     assert lines[1].startswith("- adx_webroles: add")
     assert lines[2].startswith("- adx_webrolepermissions: remove")
-    assert fake_diff_permissions.called_with["website_id"] == "site123"
-    assert fake_diff_permissions.called_with["key_config"] == {
+    stub = StubPowerPagesClient.last_instance
+    assert stub is not None
+    assert stub.diff_args is not None
+    assert stub.diff_args["website_id"] == "site123"
+    assert stub.diff_args["key_config"] == {
         "adx_webpages": ["adx_name"],
         "adx_webfiles": ["filename"],
     }
