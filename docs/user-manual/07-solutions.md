@@ -6,6 +6,11 @@ Power Platform API. Commands that talk to Dataverse require:
 * An access token exposed via `PACX_ACCESS_TOKEN` or a configured profile (`ppx auth use`).
 * A Dataverse host supplied with `--host` or through the `DATAVERSE_HOST` environment variable.
 
+> **Note:** `ppx solution --action <command>` and positional invocations are
+> still supported for backward compatibility, but the CLI prints a single deprecation
+> warning per process. Prefer the explicit subcommand form (`ppx solution <command>`) in
+> scripts so the shim can be removed in a future release.
+
 ## List installed solutions
 
 ```bash

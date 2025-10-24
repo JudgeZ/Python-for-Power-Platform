@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import typer
 
-from . import auth, connectors, dataverse, doctor, pages, power_platform, profile
+from . import (
+    auth,
+    connectors,
+    dataverse,
+    doctor,
+    pages,
+    power_platform,
+    profile,
+    solution,
+)
 
 app = typer.Typer(help="PACX CLI")
 app.add_typer(auth.app, name="auth")
@@ -10,6 +19,7 @@ app.add_typer(profile.app, name="profile")
 app.add_typer(dataverse.app, name="dv")
 app.add_typer(connectors.app, name="connector")
 app.add_typer(pages.app, name="pages")
+app.add_typer(solution.app, name="solution")
 
 doctor.register(app)
 power_platform.register(app)
@@ -32,4 +42,5 @@ __all__ = [
     "pages",
     "power_platform",
     "profile",
+    "solution",
 ]

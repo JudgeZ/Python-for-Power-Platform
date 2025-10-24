@@ -12,11 +12,15 @@ The PACX command line interface is exposed through the `ppx` executable. Command
 | `dv` | Dataverse data access helpers (whoami, CRUD, bulk CSV). | `ppx dv list accounts --top 5` |
 | `connector` | Manage custom connector APIs within an environment. | `ppx connector list --environment-id ENV-ID` |
 | `pages` | Download, upload, and diff Power Pages site content. | `ppx pages download --website-id <GUID>` |
-| `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --file core.zip` |
+| `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --out core.zip` |
 | `env`/`apps`/`flows` | List environments, canvas apps, and cloud flows. | `ppx apps --environment-id ENV-ID` |
 | `doctor` | Run environment diagnostics including token acquisition. | `ppx doctor` |
 
 Run `ppx --help` to see all registered groups and global options.
+
+> **Note:** Legacy invocations such as `ppx solution --action list` (or positional `ppx solution list`)
+> still forward to the matching subcommand, but the CLI now emits a one-time deprecation warning.
+> Update automation to call explicit subcommands (`ppx solution <command>`) to avoid the shim.
 
 ## Common flags and defaults
 
