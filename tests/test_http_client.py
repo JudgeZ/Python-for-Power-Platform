@@ -13,6 +13,7 @@ class StubClient:
     def __init__(self, responses: Iterable[object]) -> None:
         self._responses = list(responses)
         self.calls: list[tuple[str, str, dict[str, object]]] = []
+        self.closed = False
 
     def request(self, method: str, url: str, **kwargs: object) -> httpx.Response:
         index = len(self.calls)
@@ -21,6 +22,9 @@ class StubClient:
         if isinstance(response, Exception):
             raise response
         return response
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def make_response(
@@ -90,3 +94,31 @@ def test_retries_transport_and_retry_after(monkeypatch: pytest.MonkeyPatch) -> N
     assert result is success_response
     assert len(stub.calls) == 3
     assert sleep_calls == [0.5, 1.0]
+
+
+def test_client_close_closes_underlying(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, stub = setup_client(monkeypatch, [make_response(200)])
+
+    client.close()
+
+    assert stub.closed is True
+
+
+def test_context_manager_closes(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = [make_response(200)]
+    stub = StubClient(responses)
+    monkeypatch.setattr("pacx.http_client.httpx.Client", lambda *_, **__: stub)
+
+    with HttpClient("https://example.test", token_getter=lambda: "token") as client:
+        client.get("/items")
+
+    assert stub.closed is True
+    assert stub.calls
+
+
+def test_request_allows_absolute_urls(monkeypatch: pytest.MonkeyPatch) -> None:
+    client, stub = setup_client(monkeypatch, [make_response(200)])
+
+    client.get("https://api.external.test/data")
+
+    assert stub.calls[0][1] == "https://api.external.test/data"

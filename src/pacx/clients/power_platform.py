@@ -20,6 +20,17 @@ class PowerPlatformClient:
         self.http = HttpClient(base_url, token_getter=token_getter)
         self.api_version = api_version
 
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+
+        self.http.close()
+
+    def __enter__(self) -> PowerPlatformClient:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def list_environments(self) -> list[EnvironmentSummary]:
         resp = self.http.get(
             "environmentmanagement/environments", params={"api-version": self.api_version}

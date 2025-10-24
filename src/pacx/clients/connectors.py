@@ -27,6 +27,17 @@ class ConnectorsClient:
         self.http = HttpClient(base_url, token_getter=token_getter)
         self.api_version = api_version
 
+    def close(self) -> None:
+        """Close the underlying HTTP client."""
+
+        self.http.close()
+
+    def __enter__(self) -> ConnectorsClient:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     def list_apis(
         self, environment_id: str, top: int | None = None, skiptoken: str | None = None
     ) -> dict[str, Any]:

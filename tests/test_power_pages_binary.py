@@ -97,3 +97,55 @@ def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
 
     assert blob.called
     assert (res.output_path / "files_virtual" / "logo.png").read_bytes() == b"blob"
+
+
+def test_download_with_azure_provider_and_sas_query(monkeypatch, tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles",
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_webfileid": "wf1",
+                        "adx_name": "logo.png",
+                        "adx_partialurl": "logo.png",
+                        "_adx_websiteid_value": "site",
+                        "adx_virtualfilestorepath": "https://storage/f/logo.png?foo=1",
+                    }
+                ]
+            },
+        )
+    )
+    for entity in (
+        "adx_websites",
+        "adx_webpages",
+        "adx_contentsnippets",
+        "adx_pagetemplates",
+        "adx_sitemarkers",
+    ):
+        respx_mock.get(
+            f"https://example.crm.dynamics.com/api/data/v9.2/{entity}",
+        ).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    monkeypatch.setenv("BLOB_SAS", "sv=1&sig=xyz")
+
+    blob = respx_mock.get("https://storage/f/logo.png?foo=1&sv=1&sig=xyz").mock(
+        return_value=httpx.Response(200, content=b"blob")
+    )
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=False,
+        binary_providers=["azure"],
+        provider_options={"azure": {"sas_env": "BLOB_SAS"}},
+    )
+
+    assert blob.called
+    assert (res.output_path / "files_virtual" / "logo.png").read_bytes() == b"blob"

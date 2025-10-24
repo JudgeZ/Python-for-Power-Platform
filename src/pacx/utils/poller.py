@@ -5,6 +5,15 @@ from collections.abc import Callable
 from typing import Any
 
 
+class PollTimeoutError(TimeoutError):
+    """Timeout raised by :func:`poll_until` with last status metadata."""
+
+    def __init__(self, timeout: float, last_status: dict[str, Any] | None) -> None:
+        super().__init__(f"Operation did not complete within {timeout} seconds")
+        self.timeout = timeout
+        self.last_status = last_status
+
+
 def poll_until(
     get_status: Callable[[], dict[str, Any]],
     is_done: Callable[[dict[str, Any]], bool],
@@ -27,5 +36,8 @@ def poll_until(
         if is_done(status):
             return status
         if time.time() - start > timeout:
-            return status
+            raise PollTimeoutError(timeout, status)
         time.sleep(interval)
+
+
+__all__ = ["PollTimeoutError", "poll_until"]

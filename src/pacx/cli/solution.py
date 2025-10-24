@@ -18,6 +18,7 @@ from ..clients.dataverse import DataverseClient
 from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest
 from ..solution_source import pack_solution_folder, unpack_solution_zip
 from ..solution_sp import pack_from_source, unpack_to_source
+from ..errors import PacxError
 from .common import get_token_getter, handle_cli_errors
 
 __all__ = [
@@ -252,7 +253,14 @@ def import_solution(
     client.import_solution(request)
     print(f"Import submitted (job: {job_id})")
     if wait:
-        status = client.wait_for_import_job(job_id, interval=1.0, timeout=600.0)
+        try:
+            status = client.wait_for_import_job(job_id, interval=1.0, timeout=600.0)
+        except TimeoutError as exc:
+            message = f"Import job {job_id} did not complete within 600 seconds"
+            last_status = getattr(exc, "last_status", None)
+            if last_status:
+                message = f"{message}; last status: {last_status}"
+            raise PacxError(message) from exc
         print(status)
 
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from pacx.solution_source import pack_solution_folder, unpack_solution_zip
 from pacx.solution_sp import pack_from_source, unpack_to_source
 
@@ -40,3 +42,12 @@ def test_pack_and_unpack_helpers(tmp_path):
     unpacked = Path(dest_dir) / "nested" / "file.txt"
     assert unpacked.exists()
     assert unpacked.read_text(encoding="utf-8") == "hello"
+
+
+def test_unpack_rejects_traversal(tmp_path):
+    archive = tmp_path / "evil.zip"
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("../evil.txt", "bad")
+
+    with pytest.raises(ValueError):
+        unpack_solution_zip(archive, tmp_path / "out")

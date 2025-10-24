@@ -8,6 +8,8 @@ from types import SimpleNamespace
 import pytest
 import typer
 
+from pacx.utils.poller import PollTimeoutError
+
 
 class StubDataverseClient:
     last_instance: StubDataverseClient | None = None
@@ -150,6 +152,35 @@ def test_import_solution_waits_and_reports(monkeypatch, cli_runner, cli_app, tmp
     request = stub.import_requests[0]
     assert getattr(request, "ImportJobId", None) == "job123"
     assert stub.wait_calls == [("job123", 1.0, 600.0)]
+
+
+def test_import_solution_wait_timeout(monkeypatch, cli_runner, cli_app, tmp_path):
+    monkeypatch.setattr("pacx.cli.solution.DataverseClient", StubDataverseClient)
+    solution_zip = tmp_path / "solution.zip"
+    solution_zip.write_bytes(b"zip-bytes")
+
+    def raising_wait(self, job_id: str, *, interval: float, timeout: float):
+        raise PollTimeoutError(timeout, {"status": "InProgress"})
+
+    monkeypatch.setattr(StubDataverseClient, "wait_for_import_job", raising_wait)
+
+    result = cli_runner.invoke(
+        cli_app,
+        [
+            "solution",
+            "import",
+            "--host",
+            "example.crm.dynamics.com",
+            "--file",
+            str(solution_zip),
+            "--import-job-id",
+            "job123",
+            "--wait",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Import job job123 did not complete" in result.stdout
 
 
 def test_publish_all(monkeypatch, cli_runner, cli_app):

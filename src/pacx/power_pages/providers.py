@@ -158,8 +158,11 @@ class AzureBlobVirtualFileProvider:
                     result.skipped += 1
                     continue
                 url = str(blob_url)
-                if sas_token and "?" not in url:
-                    url = f"{url}?{sas_token}"
+                if sas_token:
+                    token = sas_token.lstrip("?")
+                    if token:
+                        separator = "&" if "?" in url else "?"
+                        url = f"{url}{separator}{token}"
                 try:
                     resp = client.get(url)
                     resp.raise_for_status()

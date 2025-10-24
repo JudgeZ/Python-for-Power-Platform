@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from importlib import import_module
 from typing import Any, Protocol, cast
 
 from ..errors import AuthError
+
+
+logger = logging.getLogger(__name__)
 
 
 class _ConfidentialClient(Protocol):
@@ -46,8 +50,11 @@ class _MsalModule(Protocol):
 def _load_msal() -> _MsalModule | None:
     try:
         module = import_module("msal")
-    except Exception:  # pragma: no cover - optional dependency not installed
+    except ImportError:  # pragma: no cover - optional dependency not installed
         return None
+    except Exception:  # pragma: no cover - unexpected import failure
+        logger.exception("Failed to import msal module")
+        raise
     return cast(_MsalModule, module)
 
 
