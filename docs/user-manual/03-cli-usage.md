@@ -3,6 +3,8 @@
 
 The PACX command line interface is exposed through the `ppx` executable. Commands are grouped by workload so that you can quickly jump between authentication, Dataverse, Power Pages, or solution lifecycle tasks.
 
+Need a guided tour? Walk through the [end-to-end quick start](01-installation.md#end-to-end-quick-start-scenario) before diving into individual command groups.
+
 ## Command groups at a glance
 
 | Group | Description | Example |
