@@ -4,6 +4,7 @@ import json
 import os
 from collections.abc import Callable
 from functools import wraps
+from typing import ParamSpec, TypeVar
 
 import typer
 from rich.console import Console
@@ -26,9 +27,15 @@ def _render_http_error(exc: HttpError) -> None:
         console.print(str(snippet))
 
 
-def handle_cli_errors(func):
+CommandParams = ParamSpec("CommandParams")
+CommandReturn = TypeVar("CommandReturn")
+
+
+def handle_cli_errors(
+    func: Callable[CommandParams, CommandReturn]
+) -> Callable[CommandParams, CommandReturn]:
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: CommandParams.args, **kwargs: CommandParams.kwargs) -> CommandReturn:
         try:
             return func(*args, **kwargs)
         except typer.BadParameter:

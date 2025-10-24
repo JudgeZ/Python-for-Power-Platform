@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Authentication-related Typer commands and their signatures."""
+
 import typer
 from rich import print
 
@@ -22,8 +24,16 @@ def auth_device(
         "https://api.powerplatform.com/.default", help="Scope (default: PP API)"
     ),
     dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
-):
-    """Create/update a device-code profile. Token acquisition happens on use."""
+) -> None:
+    """Create/update a device-code profile.
+
+    Args:
+        name: Profile identifier stored in the config file.
+        tenant_id: Entra ID tenant used for device code flow.
+        client_id: Application (client) ID for the device code flow.
+        scope: Resource scope requested during authentication.
+        dataverse_host: Optional default Dataverse host for the profile.
+    """
     store = ConfigStore()
     profile = Profile(
         name=name,
@@ -57,8 +67,11 @@ def auth_client(
         "https://api.powerplatform.com/.default", help="Scope (default: PP API)"
     ),
     dataverse_host: str | None = typer.Option(None, help="Default DV host for this profile"),
-):
-    """Create/update a client-credentials profile (secret read from env var on use)."""
+) -> None:
+    """Create/update a client-credentials profile.
+
+    Args mirror :func:`auth_device` but allow configuring secret storage.
+    """
     store = ConfigStore()
     profile = Profile(
         name=name,
@@ -95,7 +108,7 @@ def auth_client(
 
 @app.command("use")
 @handle_cli_errors
-def auth_use(name: str = typer.Argument(..., help="Profile to activate")):
+def auth_use(name: str = typer.Argument(..., help="Profile to activate")) -> None:
     """Set a profile as the default for subsequent CLI commands."""
 
     store = ConfigStore()

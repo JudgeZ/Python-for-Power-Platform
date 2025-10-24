@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Diagnostic commands for verifying PACX configuration."""
+
 import os
 
 import typer
@@ -25,8 +27,14 @@ def doctor(
         True,
         help="Attempt Dataverse connectivity test (disable with --no-check-dataverse)",
     ),
-):
-    """Validate PACX environment configuration."""
+) -> None:
+    """Validate PACX environment configuration.
+
+    Args:
+        ctx: Active Typer context containing user configuration state.
+        host: Optional Dataverse host override for the connectivity probe.
+        check_dataverse: When ``True`` performs a Dataverse whoami call.
+    """
 
     cfg = get_config_from_context(ctx)
     ok = True
