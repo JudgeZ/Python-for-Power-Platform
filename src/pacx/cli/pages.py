@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
+from typing import Sequence
 
 import typer
 from rich import print
@@ -10,8 +9,8 @@ from rich import print
 from ..clients.dataverse import DataverseClient
 from ..clients.power_pages import PowerPagesClient
 from ..cli_utils import resolve_dataverse_host_from_context
-from ..power_pages.diff import diff_permissions
 from .common import get_token_getter, handle_cli_errors
+from ._pages_utils import ensure_mapping, load_json_or_path, merge_manifest_keys
 
 logger = logging.getLogger(__name__)
 
@@ -53,31 +52,41 @@ def pages_download(
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
-    if binary_provider and not include_files:
-        raise typer.BadParameter("Binary providers require --include-files True")
     provider_opts: dict[str, dict[str, object]] = {}
     if provider_options:
         try:
-            path = Path(provider_options)
-            if path.exists():
-                provider_opts = json.loads(path.read_text(encoding="utf-8"))
-            else:
-                provider_opts = json.loads(provider_options)
-        except json.JSONDecodeError as exc:
+            raw_options = load_json_or_path(provider_options)
+            mapping = ensure_mapping(raw_options, option_name="--provider-options")
+            provider_opts = {
+                key: dict(
+                    ensure_mapping(value, option_name=f"--provider-options[{key}]")
+                )
+                for key, value in mapping.items()
+            }
+        except ValueError as exc:
             raise typer.BadParameter(f"Invalid JSON for --provider-options: {exc}") from exc
     dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
-    providers: list[str] | None
-    providers = list(binary_provider) if binary_provider else None
-    result = pp.download_site(
-        website_id,
-        out,
-        tables=tables,
-        include_files=include_files,
-        binaries=binaries,
-        binary_providers=providers,
-        provider_options=provider_opts,
-    )
+    provider_names: list[str] | None = None
+    if binary_provider:
+        provider_names = []
+        for entry in binary_provider:
+            if isinstance(entry, str):
+                provider_names.append(entry)
+            else:
+                provider_names.extend(str(item) for item in entry)
+    try:
+        result = pp.download_site(
+            website_id,
+            out,
+            tables=tables,
+            include_files=include_files,
+            binaries=binaries,
+            binary_providers=provider_names,
+            provider_options=provider_opts,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     print(f"Downloaded site to {result.output_path}")
     if result.providers:
         for name, provider in result.providers.items():
@@ -109,27 +118,35 @@ def pages_upload(
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
     pp = PowerPagesClient(dv)
-    manifest_path = Path(src) / "manifest.json"
-    manifest_keys: dict[str, list[str]] = {}
-    if manifest_path.exists():
-        try:
-            data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
-        except Exception as exc:  # pragma: no cover - defensive logging only
-            logger.debug("Failed to load manifest keys from %s: %s", manifest_path, exc)
-    cli_keys: dict[str, list[str]] = {}
+    cli_keys: dict[str, Sequence[str]] = {}
     if key_config:
         try:
-            path = Path(key_config)
-            if path.exists():
-                cli_keys = json.loads(path.read_text(encoding="utf-8"))
-            else:
-                cli_keys = json.loads(key_config)
-        except json.JSONDecodeError as exc:
+            raw_keys = load_json_or_path(key_config)
+            mapping = ensure_mapping(raw_keys, option_name="--key-config")
+            cli_keys = {
+                key: [str(col) for col in value]
+                for key, value in mapping.items()
+                if isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+            }
+            invalid = [
+                key
+                for key, value in mapping.items()
+                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+            ]
+            if invalid:
+                raise ValueError(
+                    "; ".join(f"{name} must map to an array of column names" for name in invalid)
+                )
+        except ValueError as exc:
             raise typer.BadParameter(f"Invalid JSON for --key-config: {exc}") from exc
-    key_map = manifest_keys
-    key_map.update(cli_keys)
-    pp.upload_site(website_id, src, tables=tables, strategy=strategy, key_config=key_map)
+    key_map = merge_manifest_keys(pp, src, cli_keys or None)
+    pp.upload_site(
+        website_id,
+        src,
+        tables=tables,
+        strategy=strategy,
+        key_config=key_map,
+    )
     print("Uploaded site content")
 
 
@@ -151,27 +168,30 @@ def pages_diff_permissions(
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
-    manifest_path = Path(src) / "manifest.json"
-    manifest_keys: dict[str, list[str]] = {}
-    if manifest_path.exists():
-        try:
-            data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            manifest_keys = {k: list(v) for k, v in data.get("natural_keys", {}).items()}
-        except Exception as exc:  # pragma: no cover - defensive logging only
-            logger.debug("Failed to load manifest keys from %s: %s", manifest_path, exc)
-    cli_keys: dict[str, list[str]] = {}
+    cli_keys: dict[str, Sequence[str]] = {}
     if key_config:
         try:
-            path = Path(key_config)
-            if path.exists():
-                cli_keys = json.loads(path.read_text(encoding="utf-8"))
-            else:
-                cli_keys = json.loads(key_config)
-        except json.JSONDecodeError as exc:
+            raw_keys = load_json_or_path(key_config)
+            mapping = ensure_mapping(raw_keys, option_name="--key-config")
+            cli_keys = {
+                key: [str(col) for col in value]
+                for key, value in mapping.items()
+                if isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+            }
+            invalid = [
+                key
+                for key, value in mapping.items()
+                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+            ]
+            if invalid:
+                raise ValueError(
+                    "; ".join(f"{name} must map to an array of column names" for name in invalid)
+                )
+        except ValueError as exc:
             raise typer.BadParameter(f"Invalid JSON for --key-config: {exc}") from exc
-    merged_keys = manifest_keys
-    merged_keys.update(cli_keys)
-    plan = diff_permissions(dv, website_id, src, key_config=merged_keys)
+    pp = PowerPagesClient(dv)
+    merged_keys = merge_manifest_keys(pp, src, cli_keys or None)
+    plan = pp.diff_permissions(website_id, src, key_config=merged_keys)
     if not plan:
         print("No permission differences detected.")
         return

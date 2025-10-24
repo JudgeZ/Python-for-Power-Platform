@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
 from ..clients.dataverse import DataverseClient
-from ..clients.power_pages import DEFAULT_NATURAL_KEYS
+from .constants import DEFAULT_NATURAL_KEYS
 
 
 PERMISSION_FOLDERS = {

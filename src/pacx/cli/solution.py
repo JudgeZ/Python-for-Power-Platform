@@ -127,7 +127,11 @@ def _get_dataverse_client(
 
 
 app = typer.Typer(
-    help="Manage Dataverse solutions.",
+    help=(
+        "Perform solution lifecycle operations.\n\n"
+        "All solution commands accept --host (defaults to profile or DATAVERSE_HOST). "
+        "Use `export` with --managed (default: False) to produce managed packages."
+    ),
     cls=SolutionCommandGroup,
     no_args_is_help=True,
     invoke_without_command=True,

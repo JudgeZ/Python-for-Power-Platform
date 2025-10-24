@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 import respx
 
 from pacx.clients.dataverse import DataverseClient
@@ -146,3 +147,47 @@ def test_select_sets_core_alias_with_extra():
     selected = PowerPagesClient._select_sets("core,weblinks")
     weblinks_tuple = next(item for item in EXTRA_TABLES if item[0] == "weblinks")
     assert selected == list(CORE_TABLES) + [weblinks_tuple]
+
+
+def test_normalize_provider_inputs_requires_files(token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    with pytest.raises(ValueError):
+        pp.normalize_provider_inputs(
+            binaries=True,
+            binary_providers=None,
+            include_files=False,
+        )
+
+
+def test_normalize_provider_inputs_roundtrip(token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    providers, options = pp.normalize_provider_inputs(
+        binaries=False,
+        binary_providers=["annotations"],
+        include_files=True,
+        provider_options={"annotations": {"foo": "bar"}},
+    )
+
+    assert providers == ["annotations"]
+    assert options == {"annotations": {"foo": "bar"}}
+
+
+def test_key_config_from_manifest_merges_overrides(tmp_path, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    site = Path(tmp_path) / "site"
+    site.mkdir()
+    manifest = {"natural_keys": {"adx_webpages": ["adx_name"]}}
+    (site / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    merged = pp.key_config_from_manifest(
+        str(site), overrides={"adx_webfiles": ["filename"]}
+    )
+
+    assert merged["adx_webpages"] == ["adx_name"]
+    assert merged["adx_webfiles"] == ["filename"]

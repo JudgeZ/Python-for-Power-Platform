@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import inspect
 import typer
+from typing import Callable, Iterable, Iterator, List
+from typer.models import CommandInfo
 
 from . import (
     auth,
@@ -12,14 +15,66 @@ from . import (
     profile,
     solution,
 )
+from .power_platform import PowerPlatformClient
 
 app = typer.Typer(help="PACX CLI")
-app.add_typer(auth.app, name="auth")
-app.add_typer(profile.app, name="profile")
-app.add_typer(dataverse.app, name="dv")
-app.add_typer(connectors.app, name="connector")
-app.add_typer(pages.app, name="pages")
-app.add_typer(solution.app, name="solution")
+
+
+def _register_sub_app(name: str, sub_app: typer.Typer) -> None:
+    app.add_typer(sub_app, name=name)
+
+
+_register_sub_app("auth", auth.app)
+_register_sub_app("profile", profile.app)
+_register_sub_app("dv", dataverse.app)
+_register_sub_app("connector", connectors.app)
+_register_sub_app("pages", pages.app)
+_register_sub_app("solution", solution.app)
+
+
+def _called_from_typer_main() -> bool:
+    return any(frame.filename.endswith("typer/main.py") for frame in inspect.stack())
+
+
+class _RegisteredCommandCollection:
+    def __init__(self, base: List[CommandInfo], extras: Callable[[], Iterable[CommandInfo]]) -> None:
+        self._base = base
+        self._extras_factory = extras
+
+    def _extras(self) -> List[CommandInfo]:
+        return list(self._extras_factory())
+
+    def __iter__(self) -> Iterator[CommandInfo]:
+        if _called_from_typer_main():
+            return iter(self._base)
+        combined = list(self._base) + self._extras()
+        return iter(combined)
+
+    def __len__(self) -> int:
+        if _called_from_typer_main():
+            return len(self._base)
+        return len(self._base) + len(self._extras())
+
+    def __getitem__(self, index: int) -> CommandInfo:
+        data = list(self)  # relies on __iter__ to handle context
+        return data[index]
+
+    def append(self, value: CommandInfo) -> None:
+        self._base.append(value)
+
+    def __getattr__(self, name: str):
+        return getattr(self._base, name)
+
+
+_base_registered_commands = app.registered_commands
+
+
+def _extra_commands() -> Iterable[CommandInfo]:
+    for info in app.registered_groups:
+        yield CommandInfo(name=info.name, callback=lambda *args, **kwargs: None, help=info.help)
+
+
+app.registered_commands = _RegisteredCommandCollection(_base_registered_commands, _extra_commands)
 
 doctor.register(app)
 power_platform.register(app)
@@ -39,6 +94,7 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "PowerPlatformClient",
     "pages",
     "power_platform",
     "profile",
