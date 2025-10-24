@@ -1,4 +1,4 @@
-.PHONY: install dev test lint format type coverage build
+.PHONY: install dev test lint format type coverage build security
 install: ; python -m pip install -U pip && pip install -e .
 dev: ; pip install -e .[dev,auth] && pre-commit install
 test: ; pytest -q
@@ -7,3 +7,4 @@ format: ; ruff check --fix . && black .
 type: ; mypy src
 coverage: ; pytest --cov=pacx --cov-report=term-missing
 build: ; python -m build
+security: ; pip-audit
