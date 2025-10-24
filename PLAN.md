@@ -84,26 +84,24 @@ Run toolchain when implementing enhancements.
 
 ## P0.3 Centralize config resolution in CLI
 **Goal**: DRY helpers that resolve `environment_id` and `dataverse_host`, cached in Typer context.
-**Files**: `src/pacx/cli/cli_utils.py` (new), `src/pacx/cli/*`, tests `tests/cli/`.
+**Status**: ✅ Complete — helpers live in `src/pacx/cli_utils.py` with coverage in `tests/test_cli_utils.py` and representative CLI flows.
+**Files**: `src/pacx/cli_utils.py`, `src/pacx/cli/*`, tests `tests/test_cli_utils.py`, `tests/cli/`.
 
 **Subtasks**
-1. Implement `get_config_from_context(ctx)` to load once and cache.
-2. Implement `resolve_environment_id_from_context(ctx, option)` and `resolve_dataverse_host_from_context(ctx, option)`.
-3. Replace ad-hoc lookups in all commands.
-4. Unit tests for helpers; one representative CLI test confirms unchanged behavior.
+1. **Ongoing refactor audits** — When introducing new CLI commands, replace any bespoke config lookups with the shared helpers.
+2. **Context caching review** — Expand helper docstrings/tests if multi-command sessions surface new caching expectations.
+3. **Contributor guidance** — Document `pacx.cli_utils` usage patterns in CLI contributor docs to steer future implementations.
 
 **Acceptance Criteria**
-- Single config load per CLI invocation; consistent error messages.
-- Tests pass; duplicate code removed.
+- `tests/test_cli_utils.py` (and related CLI coverage) continue to guard helper behavior as new scenarios are added.
+- Contributor docs explicitly point CLI authors to the shared helpers, preventing drift.
+- No new CLI command merges with redundant config resolution logic (verified during code review).
 
 **Codex Prompt**
 ```text
-Create shared config helpers and apply to CLI commands.
+Reference the shipped helpers in src/pacx/cli_utils.py when extending CLI behavior.
 
-New: src/pacx/cli/cli_utils.py with get_config_from_context(), resolve_* helpers.
-Refactor CLI modules to use helpers.
-
-Add tests: tests/cli/test_cli_utils.py + one command flow.
+Audit new commands for redundant config resolution and update docs/tests alongside any helper refinements.
 
 Run toolchain.
 ```
