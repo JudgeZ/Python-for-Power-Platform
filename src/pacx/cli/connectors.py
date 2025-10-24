@@ -5,6 +5,7 @@ from rich import print
 
 from ..clients.connectors import ConnectorsClient
 from ..cli_utils import resolve_environment_id_from_context
+from ..errors import HttpError
 from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Connectors (APIs)")
@@ -76,4 +77,49 @@ def connector_push(
     print(result)
 
 
-__all__ = ["app", "connectors_list", "connectors_get", "connector_push"]
+@app.command("delete")
+@handle_cli_errors
+def connector_delete(
+    ctx: typer.Context,
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    api_name: str = typer.Argument(..., help="API (connector) internal name"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Confirm deletion without prompting.",
+    ),
+):
+    """Delete a connector from the target environment."""
+
+    token_getter = get_token_getter(ctx)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    if not yes:
+        confirmed = typer.confirm(
+            f"Delete connector '{api_name}' from environment '{environment}'?",
+            default=False,
+        )
+        if not confirmed:
+            raise typer.Exit(0)
+    client = ConnectorsClient(token_getter)
+    try:
+        client.delete_api(environment, api_name)
+    except HttpError as exc:
+        if exc.status_code == 404:
+            print(
+                f"[red]Connector '{api_name}' was not found in environment '{environment}'.[/red]"
+            )
+            raise typer.Exit(1) from None
+        raise
+    print(f"[green]Deleted connector '{api_name}' from environment '{environment}'.[/green]")
+
+
+__all__ = [
+    "app",
+    "connectors_list",
+    "connectors_get",
+    "connector_push",
+    "connector_delete",
+]

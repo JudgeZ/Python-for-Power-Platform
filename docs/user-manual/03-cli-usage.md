@@ -72,6 +72,10 @@ $ ppx connector push --environment-id Default-123 --name sample-api --openapi op
 
 The command uploads the OpenAPI document and surfaces the connector name on success.
 
+When you need to retire a connector, run `ppx connector delete` (optionally with
+`--yes` for unattended scripts). The confirmation flow and exit codes are
+documented in [Custom Connectors](./06-connectors.md#delete-a-connector).
+
 ### Manage solutions
 
 ```shell

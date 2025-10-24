@@ -15,6 +15,7 @@ class StubConnectorsClient:
         self.list_args: tuple[str, int | None] | None = None
         self.get_args: tuple[str, str] | None = None
         self.put_args: tuple[str, str, str | None] | None = None
+        self.delete_args: tuple[str, str] | None = None
         StubConnectorsClient.last_instance = self
 
     def list_apis(self, environment: str, *, top: int | None = None):
@@ -40,6 +41,10 @@ class StubConnectorsClient:
     ):
         self.put_args = (environment, name, display_name)
         return {"name": name, "status": "updated"}
+
+    def delete_api(self, environment: str, api_name: str):
+        self.delete_args = (environment, api_name)
+        return True
 
 
 @pytest.fixture(autouse=True)
@@ -96,3 +101,54 @@ def test_connectors_get_prints_payload(monkeypatch, cli_runner):
     stub = StubConnectorsClient.last_instance
     assert stub is not None
     assert stub.get_args == ("ENV", "api-to-fetch")
+
+
+def test_connectors_delete_succeeds(monkeypatch, cli_runner):
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr("pacx.cli.connectors.ConnectorsClient", StubConnectorsClient)
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "connector",
+            "delete",
+            "--environment-id",
+            "ENV",
+            "--yes",
+            "api-to-remove",
+        ],
+        env={"PACX_ACCESS_TOKEN": "test-token"},
+    )
+
+    assert result.exit_code == 0
+    assert "Deleted connector 'api-to-remove'" in result.stdout
+    stub = StubConnectorsClient.last_instance
+    assert stub is not None
+    assert stub.delete_args == ("ENV", "api-to-remove")
+
+
+def test_connectors_delete_handles_404(monkeypatch, cli_runner):
+    from pacx.errors import HttpError
+
+    class FailingStub(StubConnectorsClient):
+        def delete_api(self, environment: str, api_name: str):  # type: ignore[override]
+            raise HttpError(404, "Not Found")
+
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr("pacx.cli.connectors.ConnectorsClient", FailingStub)
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "connector",
+            "delete",
+            "--environment-id",
+            "ENV",
+            "--yes",
+            "missing-api",
+        ],
+        env={"PACX_ACCESS_TOKEN": "test-token"},
+    )
+
+    assert result.exit_code == 1
+    assert "was not found" in result.stdout
