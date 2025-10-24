@@ -32,7 +32,7 @@ ppx, version 0.0.0
 
 ### 2. Configure profile defaults
 
-Profiles capture tenant-wide settings such as the Dataverse environment and host. Set them once to avoid repeating flags:
+Profiles capture reusable authentication context, while the Dataverse environment and host are stored as global defaults. Set the defaults once so every profile uses the same environment unless you override it with explicit flags:
 
 ```shell
 (.venv) $ ppx profile set-env Default-12345678-0000-0000-0000-000000000000
