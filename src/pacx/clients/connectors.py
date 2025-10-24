@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, cast
 
 from ..http_client import HttpClient
 
@@ -12,7 +12,7 @@ class ConnectorsClient:
 
     def __init__(
         self,
-        token_getter,
+        token_getter: Callable[[], str],
         base_url: str = "https://api.powerplatform.com",
         api_version: str = DEFAULT_API_VERSION,
     ) -> None:
@@ -46,7 +46,7 @@ class ConnectorsClient:
         if skiptoken:
             params["$skiptoken"] = skiptoken
         resp = self.http.get(f"powerapps/environments/{environment_id}/apis", params=params)
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def get_api(self, environment_id: str, api_name: str) -> dict[str, Any]:
         """Fetch a connector definition from an environment by logical name.
@@ -62,7 +62,7 @@ class ConnectorsClient:
         resp = self.http.get(
             f"powerapps/environments/{environment_id}/apis/{api_name}", params=params
         )
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def put_api(self, environment_id: str, api_name: str, body: dict[str, Any]) -> dict[str, Any]:
         """Create or update a connector definition with a raw request body.
@@ -80,7 +80,7 @@ class ConnectorsClient:
         resp = self.http.put(
             f"powerapps/environments/{environment_id}/apis/{api_name}", params=params, json=body
         )
-        return resp.json() if resp.text else {}
+        return cast(dict[str, Any], resp.json()) if resp.text else {}
 
     def put_api_from_openapi(
         self, environment_id: str, api_name: str, openapi_text: str, display_name: str | None = None

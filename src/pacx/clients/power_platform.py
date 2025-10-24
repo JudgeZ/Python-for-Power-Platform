@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, cast
 
 from ..http_client import HttpClient
 from ..models.power_platform import CloudFlow, EnvironmentSummary, FlowRun, PowerApp
@@ -13,7 +13,7 @@ class PowerPlatformClient:
 
     def __init__(
         self,
-        token_getter,
+        token_getter: Callable[[], str],
         base_url: str = "https://api.powerplatform.com",
         api_version: str = DEFAULT_API_VERSION,
     ) -> None:
@@ -24,7 +24,7 @@ class PowerPlatformClient:
         resp = self.http.get(
             "environmentmanagement/environments", params={"api-version": self.api_version}
         )
-        data = resp.json()
+        data = cast(dict[str, Any], resp.json())
         return [EnvironmentSummary.model_validate(obj) for obj in data.get("value", [])]
 
     def get_environment(self, environment_id: str) -> EnvironmentSummary:
@@ -45,7 +45,7 @@ class PowerPlatformClient:
             f"environmentmanagement/environments/{environment_id}/settings",
             params={"api-version": self.api_version},
         )
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def upsert_environment_setting(self, environment_id: str, body: dict[str, Any]) -> None:
         self.http.post(
@@ -63,7 +63,7 @@ class PowerPlatformClient:
         if skiptoken:
             params["$skiptoken"] = skiptoken
         resp = self.http.get(f"powerapps/environments/{environment_id}/apps", params=params)
-        data = resp.json()
+        data = cast(dict[str, Any], resp.json())
         return [PowerApp.model_validate(o) for o in data.get("value", [])]
 
     def list_cloud_flows(self, environment_id: str, **filters: Any) -> list[CloudFlow]:
@@ -72,11 +72,11 @@ class PowerPlatformClient:
         resp = self.http.get(
             f"powerautomate/environments/{environment_id}/cloudFlows", params=params
         )
-        data = resp.json() if resp.text else {"value": []}
+        data = cast(dict[str, Any], resp.json()) if resp.text else {"value": []}
         return [CloudFlow.model_validate(o) for o in data.get("value", [])]
 
     def list_flow_runs(self, environment_id: str, workflow_id: str) -> list[FlowRun]:
         params = {"api-version": self.api_version, "workflowId": workflow_id}
         resp = self.http.get(f"powerautomate/environments/{environment_id}/flowRuns", params=params)
-        data = resp.json() if resp.text else {"value": []}
+        data = cast(dict[str, Any], resp.json()) if resp.text else {"value": []}
         return [FlowRun.model_validate(o) for o in data.get("value", [])]

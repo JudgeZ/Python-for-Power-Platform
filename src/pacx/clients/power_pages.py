@@ -12,7 +12,7 @@ from pathlib import Path
 from ..errors import HttpError
 from ..odata import build_alternate_key_segment
 from ..power_pages.constants import DEFAULT_NATURAL_KEYS
-from ..power_pages.diff import diff_permissions
+from ..power_pages.diff import DiffEntry, diff_permissions
 from ..power_pages.providers import (
     ProviderResult,
     normalize_provider_name,
@@ -422,9 +422,9 @@ class PowerPagesClient:
             except Exception:
                 current = {}
             merged = {**current, **body}
-            self.dv.update_record(entityset, record_id, merged)
+            self.dv.update_record(entityset, record_id, dict(merged))
             return
-        self.dv.update_record(entityset, record_id, body)
+        self.dv.update_record(entityset, record_id, dict(body))
 
     def diff_permissions(
         self,
@@ -432,7 +432,7 @@ class PowerPagesClient:
         base_dir: str,
         *,
         key_config: Mapping[str, Sequence[str]] | None = None,
-    ):
+    ) -> list[DiffEntry]:
         """Compare Dataverse and local permission state for a website.
 
         Args:

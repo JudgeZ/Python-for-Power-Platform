@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable, Iterable, Iterator
+from typing import Any, cast
 
 import typer
 from typer.models import CommandInfo
@@ -65,7 +66,7 @@ class _RegisteredCommandCollection:
     def append(self, value: CommandInfo) -> None:
         self._base.append(value)
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self._base, name)
 
 
@@ -77,7 +78,10 @@ def _extra_commands() -> Iterable[CommandInfo]:
         yield CommandInfo(name=info.name, callback=lambda *args, **kwargs: None, help=info.help)
 
 
-app.registered_commands = _RegisteredCommandCollection(_base_registered_commands, _extra_commands)
+app.registered_commands = cast(
+    list[CommandInfo],
+    _RegisteredCommandCollection(_base_registered_commands, _extra_commands),
+)
 
 doctor.register(app)
 power_platform.register(app)

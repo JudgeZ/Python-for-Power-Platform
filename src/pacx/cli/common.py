@@ -4,7 +4,7 @@ import json
 import os
 from collections.abc import Callable
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import Any, Callable, Literal, ParamSpec, TypeVar, cast, overload
 
 import typer
 from rich.console import Console
@@ -77,7 +77,8 @@ TokenGetter = Callable[[], str]
 def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
     token = os.getenv("PACX_ACCESS_TOKEN")
     if token:
-        return lambda: token
+        value = token
+        return lambda: value
 
     cfg = config or ConfigStore().load()
     if cfg.default_profile and cfg.profiles and cfg.default_profile in cfg.profiles:
@@ -88,21 +89,38 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
                 "msal not installed; install pacx[auth] or set PACX_ACCESS_TOKEN"
             ) from exc
         profile = cfg.profiles[cfg.default_profile]
+        tenant_id = profile.tenant_id
+        client_id = profile.client_id
+        if not tenant_id or not client_id:
+            raise typer.BadParameter(
+                "Profile is missing tenant_id or client_id; run `ppx profile update` to fix."
+            )
+        scope = profile.scope
+        scopes = profile.scopes
+        scope_values: list[str]
+        if scope:
+            scope_values = [scope]
+        elif scopes:
+            scope_values = list(scopes)
+        else:
+            raise typer.BadParameter(
+                "Profile missing scopes; set scope or scopes on the default profile."
+            )
+
         client_secret = None
-        if getattr(profile, "client_secret_env", None):
-            client_secret = os.getenv(profile.client_secret_env)
-        if (
-            getattr(profile, "secret_backend", None)
-            and getattr(profile, "secret_ref", None)
-            and not client_secret
-        ):
-            secret = get_secret(SecretSpec(backend=profile.secret_backend, ref=profile.secret_ref))
+        client_secret_env = profile.client_secret_env
+        if client_secret_env:
+            client_secret = os.getenv(client_secret_env)
+        secret_backend = profile.secret_backend
+        secret_ref = profile.secret_ref
+        if secret_backend and secret_ref and not client_secret:
+            secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
             if secret:
                 client_secret = secret
         provider = AzureADTokenProvider(
-            tenant_id=profile.tenant_id,
-            client_id=profile.client_id,
-            scopes=[profile.scope],
+            tenant_id=tenant_id,
+            client_id=client_id,
+            scopes=scope_values,
             client_secret=client_secret,
             use_device_code=(client_secret is None),
         )
@@ -110,11 +128,21 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
     raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
 
 
+@overload
+def get_token_getter(ctx: typer.Context, *, required: Literal[True] = ...) -> TokenGetter:
+    ...
+
+
+@overload
+def get_token_getter(ctx: typer.Context, *, required: Literal[False]) -> TokenGetter | None:
+    ...
+
+
 def get_token_getter(ctx: typer.Context, *, required: bool = True) -> TokenGetter | None:
-    ctx.ensure_object(dict)
-    token_getter = ctx.obj.get("token_getter") if ctx.obj else None
+    ctx_obj = cast(dict[str, Any], ctx.ensure_object(dict))
+    token_getter = ctx_obj.get("token_getter")
     if callable(token_getter):
-        return token_getter
+        return cast(TokenGetter, token_getter)
 
     if token_getter is None:
         config: ConfigData | None = None
@@ -126,8 +154,12 @@ def get_token_getter(ctx: typer.Context, *, required: bool = True) -> TokenGette
             if not required:
                 return None
             raise
-        ctx.obj["token_getter"] = token_getter
-    return token_getter
+        ctx_obj["token_getter"] = token_getter
+    if token_getter is None:
+        if required:
+            raise typer.BadParameter("Token getter is required but could not be resolved.")
+        return None
+    return cast(TokenGetter, token_getter)
 
 
 __all__ = [

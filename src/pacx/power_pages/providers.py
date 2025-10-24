@@ -8,7 +8,7 @@ import os
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Protocol, cast
 
 import httpx
 
@@ -78,7 +78,11 @@ class AnnotationBinaryProvider:
     ) -> ProviderResult:
         out_dir = ctx.output_dir / "files_bin"
         out_dir.mkdir(parents=True, exist_ok=True)
-        top = int((options or {}).get("top", 50))
+        top_value = (options or {}).get("top", 50)
+        try:
+            top = int(cast(int | str, top_value))
+        except (TypeError, ValueError):
+            top = 50
         result = ProviderResult(name=self.name)
 
         for wf in ctx.webfiles:
@@ -98,7 +102,7 @@ class AnnotationBinaryProvider:
                 if not document:
                     result.skipped += 1
                     continue
-                raw = base64.b64decode(document)
+                raw = base64.b64decode(str(document))
                 target = out_dir / fname
                 target.write_bytes(raw)
                 checksum = hashlib.sha256(raw).hexdigest()
@@ -123,7 +127,7 @@ class AzureBlobVirtualFileProvider:
         self,
         *,
         credential: object | None = None,
-        http_factory: callable | None = None,
+        http_factory: Callable[[], httpx.Client] | None = None,
     ) -> None:
         self.credential = credential
         self._http_factory = http_factory
@@ -141,9 +145,11 @@ class AzureBlobVirtualFileProvider:
         root = ctx.output_dir / "files_virtual"
         root.mkdir(parents=True, exist_ok=True)
         opt = dict(options or {})
-        path_field = opt.get("path_field", "adx_virtualfilestorepath")
-        token_env = opt.get("sas_env")
-        sas_token = os.getenv(str(token_env)) if token_env else None
+        path_field_raw = opt.get("path_field", "adx_virtualfilestorepath")
+        path_field = str(path_field_raw)
+        token_env_raw = opt.get("sas_env")
+        token_env = str(token_env_raw) if token_env_raw else None
+        sas_token = os.getenv(token_env) if token_env else None
 
         with self._build_client() as client:
             for wf in ctx.webfiles:
@@ -160,12 +166,13 @@ class AzureBlobVirtualFileProvider:
                 except Exception as exc:  # pragma: no cover - logged for manifest consumers
                     result.errors.append(f"{url}: {exc}")
                     continue
-                fname = str(
+                name_source = (
                     wf.get("adx_name")
                     or wf.get("adx_partialurl")
                     or wf.get("adx_webfileid")
                     or "file.bin"
                 )
+                fname = str(name_source)
                 fname = fname.replace("/", "_")
                 target = root / fname
                 target.write_bytes(resp.content)
