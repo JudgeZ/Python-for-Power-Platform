@@ -64,6 +64,30 @@ def test_cli_dv_bulk_csv_exits_cleanly(monkeypatch, tmp_path):
     assert result.stderr == ""
 
 
+def test_cli_dv_bulk_csv_rejects_invalid_chunk_size(monkeypatch, tmp_path):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
+    monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
+    csv_path = tmp_path / "payload.csv"
+    csv_path.write_text("accountid,name\n1,Example\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "dv",
+            "bulk-csv",
+            "accounts",
+            str(csv_path),
+            "--id-column",
+            "accountid",
+            "--chunk-size",
+            "0",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Invalid value for '--chunk-size'" in result.stderr
+
+
 def test_cli_command_tree_registration():
     command_names = {command.name for command in app.registered_commands}
     assert {

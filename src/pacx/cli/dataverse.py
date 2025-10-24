@@ -201,7 +201,11 @@ def dv_bulk_csv(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-    chunk_size: int = typer.Option(50, help="Records per $batch request (default: 50)"),
+    chunk_size: int = typer.Option(
+        50,
+        min=1,
+        help="Records per $batch request (default: 50, minimum: 1)",
+    ),
     report: str | None = typer.Option(
         None, help="Write per-operation results CSV to this path (default: disabled)"
     ),

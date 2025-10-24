@@ -114,6 +114,9 @@ def bulk_csv_upsert(
         >>> result.stats.successes
         42
     """
+    if chunk_size < 1:
+        raise ValueError("chunk_size must be at least 1 to process CSV rows")
+
     rows: list[tuple[int, dict[str, Any]]] = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         r = csv.DictReader(f)

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import csv
 
+import pytest
+
 import httpx
 
 from pacx.bulk_csv import bulk_csv_upsert
@@ -22,6 +24,18 @@ def test_bulk_csv_posts_batch(tmp_path, respx_mock, token_getter):
     )
     result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=2)
     assert result.stats.total_rows == 2
+
+
+def test_bulk_csv_rejects_chunk_size_under_one(tmp_path, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    csvp = tmp_path / "data.csv"
+    with open(csvp, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["id", "name"])
+        writer.writerow(["123", "Alpha"])
+
+    with pytest.raises(ValueError, match="chunk_size must be at least 1"):
+        bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=0)
 
 
 def test_bulk_csv_reports_retries(tmp_path, respx_mock, token_getter):
