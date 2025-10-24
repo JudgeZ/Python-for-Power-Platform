@@ -35,15 +35,16 @@
 - Include rationale for API changes in ADRs (docs/adr)
 
 ## Pull Request Guidelines
-- Ensure CI-critical tools pass locally before opening a PR: `ruff check`, `black --check`, `mypy`, and `pytest`.
+- Ensure CI-critical tools pass locally before opening a PR: `ruff check`, `black --check`, `mypy`, `pytest --cov`, `pip-audit`, and `bandit`.
 - Include tests for new features and bug fixes, and update existing tests or fixtures when behavior changes.
 - Keep PRs focused and scoped; large refactors should be split or coordinated with maintainers via an ADR under `docs/adr/`.
 - Reference related issues or ADRs directly in the PR description to provide reviewers context.
 - Highlight any known limitations or follow-up work in the PR summary so maintainers can triage quickly.
 
 ### Pull Request Checklist
-- [ ] Tests cover the change set and pass (`pytest`).
+- [ ] Tests cover the change set and pass with coverage enforced (`pytest --cov`).
 - [ ] Lint and type checks pass (`ruff check`, `black --check`, `mypy`).
+- [ ] Security and dependency checks pass (`pip-audit`, `bandit`).
 - [ ] Documentation is updated (README, `docs/`, and ADRs as needed).
 - [ ] `CHANGELOG.md` includes an entry for user-visible changes.
 
