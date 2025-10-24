@@ -1,10 +1,8 @@
-
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from ..http_client import HttpClient
-
 
 DEFAULT_API_VERSION = "2022-03-01-preview"
 
@@ -29,7 +27,9 @@ class ConnectorsClient:
         self.http = HttpClient(base_url, token_getter=token_getter)
         self.api_version = api_version
 
-    def list_apis(self, environment_id: str, top: Optional[int] = None, skiptoken: Optional[str] = None) -> Dict[str, Any]:
+    def list_apis(
+        self, environment_id: str, top: int | None = None, skiptoken: str | None = None
+    ) -> dict[str, Any]:
         """Return a page of custom connectors available in an environment.
 
         Args:
@@ -40,7 +40,7 @@ class ConnectorsClient:
         Returns:
             Connector list payload from the Power Apps API response.
         """
-        params: Dict[str, Any] = {"api-version": self.api_version}
+        params: dict[str, Any] = {"api-version": self.api_version}
         if top is not None:
             params["$top"] = top
         if skiptoken:
@@ -48,7 +48,7 @@ class ConnectorsClient:
         resp = self.http.get(f"powerapps/environments/{environment_id}/apis", params=params)
         return resp.json()
 
-    def get_api(self, environment_id: str, api_name: str) -> Dict[str, Any]:
+    def get_api(self, environment_id: str, api_name: str) -> dict[str, Any]:
         """Fetch a connector definition from an environment by logical name.
 
         Args:
@@ -59,10 +59,12 @@ class ConnectorsClient:
             JSON metadata describing the requested connector.
         """
         params = {"api-version": self.api_version}
-        resp = self.http.get(f"powerapps/environments/{environment_id}/apis/{api_name}", params=params)
+        resp = self.http.get(
+            f"powerapps/environments/{environment_id}/apis/{api_name}", params=params
+        )
         return resp.json()
 
-    def put_api(self, environment_id: str, api_name: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    def put_api(self, environment_id: str, api_name: str, body: dict[str, Any]) -> dict[str, Any]:
         """Create or update a connector definition with a raw request body.
 
         Args:
@@ -75,10 +77,14 @@ class ConnectorsClient:
             response contains no JSON body.
         """
         params = {"api-version": self.api_version}
-        resp = self.http.put(f"powerapps/environments/{environment_id}/apis/{api_name}", params=params, json=body)
+        resp = self.http.put(
+            f"powerapps/environments/{environment_id}/apis/{api_name}", params=params, json=body
+        )
         return resp.json() if resp.text else {}
 
-    def put_api_from_openapi(self, environment_id: str, api_name: str, openapi_text: str, display_name: str | None = None) -> Dict[str, Any]:
+    def put_api_from_openapi(
+        self, environment_id: str, api_name: str, openapi_text: str, display_name: str | None = None
+    ) -> dict[str, Any]:
         """Provision a connector from an OpenAPI document.
 
         Args:

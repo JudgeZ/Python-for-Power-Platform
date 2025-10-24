@@ -1,10 +1,6 @@
-
 from __future__ import annotations
 
-import os
-
 import httpx
-import respx
 from typer.testing import CliRunner
 
 from pacx.cli import app, dataverse, power_platform
@@ -28,10 +24,22 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
 
 def test_cli_command_tree_registration():
     command_names = {command.name for command in app.registered_commands}
-    assert {"auth", "profile", "dv", "connector", "pages", "doctor", "env", "apps", "flows", "solution"}.issubset(command_names)
+    assert {
+        "auth",
+        "profile",
+        "dv",
+        "connector",
+        "pages",
+        "doctor",
+        "env",
+        "apps",
+        "flows",
+        "solution",
+    }.issubset(command_names)
     dv_commands = {command.name for command in dataverse.app.registered_commands}
     assert {"whoami", "list", "get", "create", "update", "delete", "bulk-csv"}.issubset(dv_commands)
     assert hasattr(power_platform, "list_envs")
+
 
 def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):
     monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
@@ -42,7 +50,10 @@ def test_cli_connector_push(monkeypatch, respx_mock, tmp_path):
         "https://api.powerplatform.com/powerapps/environments/ENV/apis/myapi",
         params={"api-version": "2022-03-01-preview"},
     ).mock(return_value=httpx.Response(200, json={"name": "myapi"}))
-    result = runner.invoke(app, ["connector", "push", "--environment-id", "ENV", "--name", "myapi", "--openapi", str(p)])
+    result = runner.invoke(
+        app,
+        ["connector", "push", "--environment-id", "ENV", "--name", "myapi", "--openapi", str(p)],
+    )
     assert result.exit_code == 0
     assert "myapi" in result.stdout
     assert respx_mock.calls, "expected connector request"

@@ -10,7 +10,7 @@ import typer
 
 
 class StubDataverseClient:
-    last_instance: "StubDataverseClient | None" = None
+    last_instance: StubDataverseClient | None = None
 
     def __init__(self, token_getter, host: str | None = None):
         self.token = token_getter() if callable(token_getter) else None

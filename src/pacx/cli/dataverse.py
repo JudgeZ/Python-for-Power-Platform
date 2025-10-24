@@ -6,8 +6,8 @@ import typer
 from rich import print
 
 from ..bulk_csv import bulk_csv_upsert
-from ..clients.dataverse import DataverseClient
 from ..cli_utils import resolve_dataverse_host_from_context
+from ..clients.dataverse import DataverseClient
 from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Dataverse operations")
@@ -34,18 +34,12 @@ def dv_whoami(
 def dv_list(
     ctx: typer.Context,
     entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
-    select: str | None = typer.Option(
-        None, help="Comma-separated column logical names to return"
-    ),
-    filter: str | None = typer.Option(
-        None, help="OData $filter expression to constrain rows"
-    ),
+    select: str | None = typer.Option(None, help="Comma-separated column logical names to return"),
+    filter: str | None = typer.Option(None, help="OData $filter expression to constrain rows"),
     top: int | None = typer.Option(
         None, help="Maximum rows to return (OData $top, defaults to server limit)"
     ),
-    orderby: str | None = typer.Option(
-        None, help="OData $orderby expression, e.g. createdon desc"
-    ),
+    orderby: str | None = typer.Option(None, help="OData $orderby expression, e.g. createdon desc"),
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
@@ -81,9 +75,7 @@ def dv_get(
 def dv_create(
     ctx: typer.Context,
     entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
-    data: str = typer.Option(
-        ..., help="JSON object string describing the record to create"
-    ),
+    data: str = typer.Option(..., help="JSON object string describing the record to create"),
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
@@ -103,9 +95,7 @@ def dv_update(
     ctx: typer.Context,
     entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
     record_id: str = typer.Argument(..., help="Record GUID (with or without braces)"),
-    data: str = typer.Option(
-        ..., help="JSON object string containing the fields to update"
-    ),
+    data: str = typer.Option(..., help="JSON object string containing the fields to update"),
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
@@ -155,8 +145,7 @@ def dv_bulk_csv(
     key_columns: str = typer.Option(
         "",
         help=(
-            "Comma-separated alternate key columns for PATCH when id is blank"
-            " (default: none)"
+            "Comma-separated alternate key columns for PATCH when id is blank" " (default: none)"
         ),
     ),
     create_if_missing: bool = typer.Option(
@@ -166,9 +155,7 @@ def dv_bulk_csv(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-    chunk_size: int = typer.Option(
-        50, help="Records per $batch request (default: 50)"
-    ),
+    chunk_size: int = typer.Option(50, help="Records per $batch request (default: 50)"),
     report: str | None = typer.Option(
         None, help="Write per-operation results CSV to this path (default: disabled)"
     ),

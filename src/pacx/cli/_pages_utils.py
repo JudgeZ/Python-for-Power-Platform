@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from typing import Mapping, MutableMapping, Sequence
 
 from ..clients.power_pages import PowerPagesClient
 

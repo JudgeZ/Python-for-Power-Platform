@@ -155,9 +155,7 @@ def _ensure_secure_permissions(path: Path) -> None:
     if os.name != "nt":
         mode = stat.S_IMODE(path.stat().st_mode)
         if mode & (stat.S_IRWXG | stat.S_IRWXO):
-            logger.warning(
-                "Config file %s is world-accessible; resetting to 0o600.", path
-            )
+            logger.warning("Config file %s is world-accessible; resetting to 0o600.", path)
             _secure_path(path)
     else:
         _secure_path(path)
@@ -211,8 +209,7 @@ def load_config() -> dict[str, Any]:
         raw = json.load(handle)
 
     raw["profiles"] = {
-        name: _decrypt_profile_dict(profile)
-        for name, profile in raw.get("profiles", {}).items()
+        name: _decrypt_profile_dict(profile) for name, profile in raw.get("profiles", {}).items()
     }
     return raw
 
@@ -224,7 +221,8 @@ def save_config(cfg: dict[str, Any]) -> None:
 
     payload = dict(cfg)
     payload["profiles"] = {
-        name: _encrypt_profile_dict(profile) for name, profile in payload.get("profiles", {}).items()
+        name: _encrypt_profile_dict(profile)
+        for name, profile in payload.get("profiles", {}).items()
     }
 
     with tmp.open("w", encoding="utf-8") as handle:

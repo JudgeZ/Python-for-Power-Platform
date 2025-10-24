@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
-DEFAULT_NATURAL_KEYS: Dict[str, List[str]] = {
+DEFAULT_NATURAL_KEYS: dict[str, list[str]] = {
     "adx_webpages": ["adx_partialurl", "_adx_websiteid_value"],
     "adx_webfiles": ["adx_partialurl", "_adx_websiteid_value"],
     "adx_contentsnippets": ["adx_name", "_adx_websiteid_value"],

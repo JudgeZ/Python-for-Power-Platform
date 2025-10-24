@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 from rich import print
 
@@ -10,10 +12,10 @@ from .common import get_token_getter, handle_cli_errors
 
 def _resolve_client_class():
     try:
-        from pacx.cli import PowerPlatformClient as client_cls  # type: ignore circular
+        from pacx.cli import PowerPlatformClient  # type: ignore circular
     except Exception:  # pragma: no cover - defensive fallback
         return _DefaultPowerPlatformClient
-    return client_cls or _DefaultPowerPlatformClient
+    return PowerPlatformClient or _DefaultPowerPlatformClient
 
 
 def register(app: typer.Typer) -> None:
@@ -25,10 +27,13 @@ def register(app: typer.Typer) -> None:
 @handle_cli_errors
 def list_envs(
     ctx: typer.Context,
-    api_version: str = typer.Option(
-        "2022-03-01-preview",
-        help="Power Platform API version (defaults to 2022-03-01-preview)",
-    ),
+    api_version: Annotated[
+        str,
+        typer.Option(
+            "2022-03-01-preview",
+            help="Power Platform API version (defaults to 2022-03-01-preview)",
+        ),
+    ],
 ):
     """List Power Platform environments."""
     token_getter = get_token_getter(ctx)
@@ -42,12 +47,14 @@ def list_envs(
 @handle_cli_errors
 def list_apps(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)"
-    ),
-    top: int | None = typer.Option(
-        None, help="Maximum results to return via $top (default: server limit)"
-    ),
+    environment_id: Annotated[
+        str | None,
+        typer.Option(None, help="Environment ID to target (defaults to profile configuration)"),
+    ],
+    top: Annotated[
+        int | None,
+        typer.Option(None, help="Maximum results to return via $top (default: server limit)"),
+    ],
 ):
     """List canvas apps in an environment."""
 
@@ -63,9 +70,10 @@ def list_apps(
 @handle_cli_errors
 def list_flows(
     ctx: typer.Context,
-    environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)"
-    ),
+    environment_id: Annotated[
+        str | None,
+        typer.Option(None, help="Environment ID to target (defaults to profile configuration)"),
+    ],
 ):
     """List cloud flows in an environment."""
 

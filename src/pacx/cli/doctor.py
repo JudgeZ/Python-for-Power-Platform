@@ -19,9 +19,7 @@ def doctor(
     ctx: typer.Context,
     host: str | None = typer.Option(
         None,
-        help=(
-            "Dataverse host to probe (defaults to profile, DATAVERSE_HOST, or skips if unset)"
-        ),
+        help=("Dataverse host to probe (defaults to profile, DATAVERSE_HOST, or skips if unset)"),
     ),
     check_dataverse: bool = typer.Option(
         True,

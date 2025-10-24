@@ -1,5 +1,5 @@
-
 from __future__ import annotations
+
 
 def _escape_odata_string(value: str) -> str:
     # Escape single quotes by doubling them per OData

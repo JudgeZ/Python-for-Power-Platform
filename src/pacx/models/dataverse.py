@@ -1,16 +1,19 @@
 from __future__ import annotations
+
 from pydantic import BaseModel
-from typing import Optional
+
 
 class Solution(BaseModel):
-    solutionid: Optional[str] = None
-    uniquename: Optional[str] = None
-    friendlyname: Optional[str] = None
-    version: Optional[str] = None
+    solutionid: str | None = None
+    uniquename: str | None = None
+    friendlyname: str | None = None
+    version: str | None = None
+
 
 class ExportSolutionRequest(BaseModel):
     SolutionName: str
     Managed: bool = False
+
 
 class ImportSolutionRequest(BaseModel):
     OverwriteUnmanagedCustomizations: bool = True

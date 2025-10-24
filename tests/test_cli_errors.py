@@ -31,9 +31,7 @@ def test_http_error_prints_friendly_message(monkeypatch):
 def test_missing_host_guidance(monkeypatch, tmp_path):
     monkeypatch.setenv("PACX_HOME", str(tmp_path))
     monkeypatch.setattr(config_module, "PACX_DIR", str(tmp_path), raising=False)
-    monkeypatch.setattr(
-        config_module, "CONFIG_PATH", str(tmp_path / "config.json"), raising=False
-    )
+    monkeypatch.setattr(config_module, "CONFIG_PATH", str(tmp_path / "config.json"), raising=False)
     monkeypatch.setenv("PACX_ACCESS_TOKEN", "token")
 
     result = runner.invoke(app, ["dv", "whoami"])
