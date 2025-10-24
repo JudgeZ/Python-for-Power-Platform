@@ -55,31 +55,29 @@ Use this section to inform related follow-up work; no further changes required a
 
 ## P0.2 CLI error handling: consistent, helpful messages
 **Goal**: No raw tracebacks for expected operational errors; standardized Rich-formatted error output; exit code 1 on failure.
-**Files**: `src/pacx/cli/common.py` (or helper), `src/pacx/cli/*`, tests `tests/cli/`.
+**Status**: ✅ Complete — `handle_cli_errors` decorator and messaging already live in `src/pacx/cli/common.py`.
+**Files**: `src/pacx/cli/common.py`, `src/pacx/cli/*`, tests `tests/cli/`.
 
 **Subtasks**
-1. Add decorator/helper to catch `HttpError`, auth/config errors, `EncryptedConfigError`.
-2. Print `[red]Error:[/red] <summary>` with guidance (e.g., “Run `ppx auth device` …”).
-3. Respect `--verbose` / `PACX_DEBUG=1` to enable tracebacks.
-4. Tests for 500s, missing env/host, encrypted config without key; assert message text and exit code.
+_None — milestone complete. Track future gaps here if new error types emerge._
 
 **Acceptance Criteria**
-- Friendly errors across commands; `ppx doctor` references debug flag.
-- Tests assert no traceback by default; traceback shown with `--verbose`/env.
+- Newly added CLI commands or error paths continue to use `handle_cli_errors` so messaging stays aligned with existing output.
+- Expand `tests/cli/test_errors.py` only when enhancing coverage for additional exceptions or debug scenarios.
 
 **Codex Prompt**
 ```text
-Implement unified CLI error handling.
+Scope: Reference existing `handle_cli_errors` implementation and extend messaging/tests only when new scenarios are discovered.
 
-Edit:
-- src/pacx/cli/common.py: handle_cli_errors decorator (uses Rich).
-- Wrap all command entrypoints with decorator.
-- Respect PACX_DEBUG or --verbose to show tracebacks.
+Review:
+- src/pacx/cli/common.py for the shipped decorator and messaging.
+- tests/cli/test_errors.py for baseline coverage.
 
-Tests:
-- tests/cli/test_errors.py: HttpError 500, missing config, encrypted config without key.
+Enhance:
+- Add guidance for new exception types or debug affordances as needed.
+- Ensure any new CLI command reuses the decorator.
 
-Run toolchain.
+Run toolchain when implementing enhancements.
 ```
 
 ---
