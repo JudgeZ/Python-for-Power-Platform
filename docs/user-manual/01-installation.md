@@ -11,67 +11,65 @@ pre-commit install
 
 > **Tip:** The optional extras install MSAL authentication helpers (`auth`), keyring/Key Vault integrations (`secrets`, `keyvault`), and documentation tooling (`docs`). Add the ones you need to the install command up front.
 
-## Quick start workflow
+## End-to-end quick start scenario
 
-Follow the sequence below to bootstrap a profile, sign in, and run your first Dataverse command.
+Work through the following scenario to go from a clean checkout to pushing an update across Dataverse, custom connectors, solutions, and Power Pages. Each step assumes the previous one succeeded.
 
-### 1. Create a profile shell
+### 1. Prepare the workspace
 
-Profiles capture your tenant defaults and live under `~/.pacx/config.json` (override with `PACX_HOME`). Environment and host settings are global defaults—`ppx` does not scope them per profile—so configure them first and then create or use your profile.
+Create and activate a virtual environment, install PACX with the authentication helpers, and verify that the CLI is on the `PATH`:
 
 ```shell
-$ ppx profile set-env Default-12345678-0000-0000-0000-000000000000
-Environment set.
+$ python -m venv .venv
+$ . .venv/bin/activate
+(.venv) $ pip install -e .[dev,auth]
+Obtaining file:///workspace/Python-for-Power-Platform
+...
+Successfully installed pacx 0.0.0
+(.venv) $ ppx --version
+ppx, version 0.0.0
 ```
 
-If your Dataverse host is different from the default, persist it as well:
+### 2. Configure profile defaults
+
+Profiles capture reusable authentication context, while the Dataverse environment and host are stored as global defaults. Set the defaults once so every profile uses the same environment unless you override it with explicit flags:
 
 ```shell
-$ ppx profile set-host org.crm.dynamics.com
+(.venv) $ ppx profile set-env Default-12345678-0000-0000-0000-000000000000
+Environment set.
+
+(.venv) $ ppx profile set-host org.crm.dynamics.com
 Host set.
 ```
 
-Run `ppx profile show` at any time to review the active defaults and existing profiles.
+Use `ppx profile show` to review stored profiles at any time.
 
-### 2. Authenticate with device code
+### 3. Authenticate the primary profile
 
-Use device code flow when an interactive user can complete sign in via https://microsoft.com/devicelogin:
+Run the device code flow to bootstrap a reusable profile named `demo` and mark it as active once the browser challenge finishes:
 
 ```shell
-$ ppx auth device demo --tenant-id 00000000-0000-0000-0000-000000000000 --client-id 11111111-1111-1111-1111-111111111111
+(.venv) $ ppx auth device demo \
+    --tenant-id 00000000-0000-0000-0000-000000000000 \
+    --client-id 11111111-1111-1111-1111-111111111111
 Open https://microsoft.com/devicelogin and enter ABCD-EFGH to authenticate.
 Profile demo configured. It will use device code on demand.
-```
 
-Once the device challenge completes, make the profile active:
-
-```shell
-$ ppx auth use demo
+(.venv) $ ppx auth use demo
 Default profile set to demo.
 ```
 
-### 3. Authenticate with a client secret (automation)
+Need service principals or non-interactive automation? Continue to [Authentication](02-authentication.md#choose-your-flow) for client credentials, certificates, and secret storage guidance.
 
-Headless jobs can rely on client credentials with an application secret stored in an environment variable, keyring, or Azure Key Vault. The example below uses an environment variable called `PACX__CLIENT_SECRET`:
+### 4. Validate Dataverse connectivity
 
-```shell
-$ export PACX__CLIENT_SECRET="super-secret-value"
-$ ppx auth client automation --tenant-id 00000000-0000-0000-0000-000000000000 --client-id 22222222-2222-2222-2222-222222222222 \
-    --secret-backend env --secret-ref PACX__CLIENT_SECRET
-Profile automation configured for client credentials.
-```
-
-Switch between interactive and automation profiles at any time with `ppx auth use <profile>`.
-
-### 4. Run basic commands
-
-With authentication in place, verify connectivity and list some Dataverse data:
+Confirm token acquisition and list a few account records to make sure the environment defaults are wired correctly:
 
 ```shell
-$ ppx dv whoami
+(.venv) $ ppx dv whoami
 {"UserId": "00000000-0000-0000-0000-000000000000"}
 
-$ ppx dv list accounts --select name,accountnumber --top 3
+(.venv) $ ppx dv list accounts --select name,accountnumber --top 3
 {"value": [
   {"name": "Fourth Coffee", "accountnumber": "ACC-001"},
   {"name": "Adventure Works", "accountnumber": "ACC-002"},
@@ -79,7 +77,54 @@ $ ppx dv list accounts --select name,accountnumber --top 3
 ]}
 ```
 
-When you need richer diagnostics, run `ppx doctor` to check both authentication and Dataverse access.
+When you need richer diagnostics, run `ppx doctor` to check both authentication and Dataverse API access.
+
+### 5. Publish an updated custom connector
+
+Package updates with the same profile context to keep environments consistent:
+
+```shell
+(.venv) $ ppx connector push \
+    --environment-id Default-12345678-0000-0000-0000-000000000000 \
+    --name sample-api \
+    --openapi connectors/sample-api.yaml
+{"name": "sample-api", "displayName": "Sample API"}
+```
+
+The `connector push` command uploads the OpenAPI definition and immediately reports the connector metadata. For advanced operations—such as rotating policies or deleting unused connectors—head to [Custom Connectors](06-connectors.md).
+
+### 6. Export a managed solution snapshot
+
+With the same authenticated session, export a solution so that downstream environments can ingest the package:
+
+```shell
+(.venv) $ ppx solution export \
+    --name contoso_core \
+    --managed \
+    --out dist/contoso_core_managed.zip
+Exported to dist/contoso_core_managed.zip
+```
+
+Add `--wait` to `ppx solution import` to follow the job until it completes. See [Solution lifecycle](07-solutions.md) for packing, unpacking, and deployment automation patterns.
+
+### 7. Round-trip Power Pages content
+
+Finally, pull the latest portal assets, make a change, and push it back to Dataverse:
+
+```shell
+(.venv) $ ppx pages download \
+    --website-id 33333333-3333-3333-3333-333333333333 \
+    --out site_out
+Downloaded site to site_out
+
+(.venv) $ ppx pages upload \
+    --website-id 33333333-3333-3333-3333-333333333333 \
+    --src site_out \
+    --strategy merge
+Uploaded site content
+```
+
+Run `ppx pages diff-permissions` before deployment to spot role changes. Continue in [Power Pages](04-power-pages.md) for more automation-friendly workflows and content packaging tips.
 
 ## Troubleshooting
 
