@@ -41,7 +41,7 @@ def test_solution_command_help_lists_lifecycle_summary() -> None:
     output = result.stdout
     assert "Perform solution lifecycle operations" in output
     assert "--host" in output and "defaults to profile or DATAVERSE_HOST" in output
-    assert "--managed" in output and "default: False" in output
+    assert "--managed" in output and "default: unmanaged" in output
 
 
 def test_profile_list_help_mentions_default_highlight() -> None:

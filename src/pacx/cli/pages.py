@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import Sequence
 
 import typer
@@ -12,19 +11,7 @@ from ..cli_utils import resolve_dataverse_host_from_context
 from .common import get_token_getter, handle_cli_errors
 from ._pages_utils import ensure_mapping, load_json_or_path, merge_manifest_keys
 
-logger = logging.getLogger(__name__)
-
 app = typer.Typer(help="Power Pages site ops")
-
-BINARY_PROVIDER_OPTION = typer.Option(
-    None,
-    "--binary-provider",
-    help="Comma-separated binary provider IDs to run",
-    parser=lambda value: [
-        item.strip() for item in (value or "").split(",") if item.strip()
-    ]
-    or None,
-)
 
 
 @app.command("download")
@@ -33,19 +20,33 @@ def pages_download(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option(
-        "core", help="Table selection: core|full|comma-separated logical names"
+        "core",
+        help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
     ),
     binaries: bool = typer.Option(
-        False, help="Use default binary provider (annotations)"
+        False,
+        help="Enable default binary provider (annotations); disabled unless specified",
     ),
     out: str = typer.Option("site_out", help="Output directory (default: site_out)"),
     host: str | None = typer.Option(
         None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
     ),
     include_files: bool = typer.Option(True, help="Include adx_webfiles (default: True)"),
-    binary_provider: list[str] | None = BINARY_PROVIDER_OPTION,
+    binary_provider: list[str] | None = typer.Option(
+        None,
+        "--binary-provider",
+        help=(
+            "Comma-separated binary provider IDs to run (overrides --binaries and"
+            " requires files to be included)"
+        ),
+        parser=lambda value: [
+            item.strip() for item in (value or "").split(",") if item.strip()
+        ]
+        or None,
+    ),
     provider_options: str | None = typer.Option(
-        None, help="JSON string/path configuring custom binary providers"
+        None,
+        help="JSON string/path configuring custom binary providers (default: none)",
     ),
 ):
     """Download a Power Pages site to a local folder."""
@@ -99,7 +100,8 @@ def pages_upload(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
     tables: str = typer.Option(
-        "core", help="Table selection: core|full|comma-separated logical names"
+        "core",
+        help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
     ),
     src: str = typer.Option(..., help="Source directory created by pages download"),
     host: str | None = typer.Option(
@@ -109,7 +111,8 @@ def pages_upload(
         "replace", help="replace|merge|skip-existing|create-only (default: replace)"
     ),
     key_config: str | None = typer.Option(
-        None, help="JSON string/path overriding natural keys"
+        None,
+        help="JSON string/path overriding natural keys (merged with manifest data)",
     ),
 ):
     """Upload a previously downloaded Power Pages site."""
@@ -160,7 +163,8 @@ def pages_diff_permissions(
         None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
     ),
     key_config: str | None = typer.Option(
-        None, help="JSON string/path overriding keys"
+        None,
+        help="JSON string/path overriding keys (merged with manifest defaults)",
     ),
 ):
     """Compare web role permissions between Dataverse and a local export."""
@@ -206,5 +210,4 @@ __all__ = [
     "pages_download",
     "pages_upload",
     "pages_diff_permissions",
-    "BINARY_PROVIDER_OPTION",
 ]

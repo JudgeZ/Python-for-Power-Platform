@@ -17,8 +17,16 @@ def register(app: typer.Typer) -> None:
 @handle_cli_errors
 def doctor(
     ctx: typer.Context,
-    host: str | None = typer.Option(None, help="Dataverse host to probe"),
-    check_dataverse: bool = typer.Option(True, help="Attempt Dataverse connectivity test"),
+    host: str | None = typer.Option(
+        None,
+        help=(
+            "Dataverse host to probe (defaults to profile, DATAVERSE_HOST, or skips if unset)"
+        ),
+    ),
+    check_dataverse: bool = typer.Option(
+        True,
+        help="Attempt Dataverse connectivity test (disable with --no-check-dataverse)",
+    ),
 ):
     """Validate PACX environment configuration."""
 
