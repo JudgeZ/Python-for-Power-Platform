@@ -146,13 +146,22 @@ def dv_bulk_csv(
     entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
     csv_path: str = typer.Argument(..., help="Path to CSV file containing rows to upsert"),
     id_column: str = typer.Option(
-        ..., help="Column containing record id for PATCH; leave blank to POST"
+        ...,
+        help=(
+            "Column containing record id for PATCH; rows with empty values fall back to"
+            " POST when create-if-missing is enabled"
+        ),
     ),
     key_columns: str = typer.Option(
-        "", help="Comma-separated alternate key columns for PATCH when id is blank"
+        "",
+        help=(
+            "Comma-separated alternate key columns for PATCH when id is blank"
+            " (default: none)"
+        ),
     ),
     create_if_missing: bool = typer.Option(
-        True, help="POST when id and key columns are not present"
+        True,
+        help="POST when id and key columns are missing (disable to only PATCH existing rows)",
     ),
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
@@ -161,7 +170,7 @@ def dv_bulk_csv(
         50, help="Records per $batch request (default: 50)"
     ),
     report: str | None = typer.Option(
-        None, help="Write per-operation results CSV to this path"
+        None, help="Write per-operation results CSV to this path (default: disabled)"
     ),
 ):
     """Upsert Dataverse records in bulk from a CSV file."""

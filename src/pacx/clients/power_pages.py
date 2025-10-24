@@ -113,6 +113,11 @@ class PowerPagesClient:
     """Sync selected adx_* tables to/from filesystem as JSON files per record."""
 
     def __init__(self, dv: DataverseClient) -> None:
+        """Create a Power Pages helper bound to an existing Dataverse client.
+
+        Args:
+            dv: Configured :class:`DataverseClient` used for all data access.
+        """
         self.dv = dv
 
     @staticmethod
@@ -166,7 +171,18 @@ class PowerPagesClient:
         include_files: bool,
         provider_options: Mapping[str, Mapping[str, object]] | None = None,
     ) -> tuple[List[str], Dict[str, Mapping[str, object]]]:
-        """Normalize provider inputs coming from the CLI layer."""
+        """Normalize provider inputs coming from the CLI layer.
+
+        Args:
+            binaries: ``True`` when the ``--binaries`` flag is set.
+            binary_providers: Explicit provider names from ``--binary-provider``.
+            include_files: Indicates whether file downloads are allowed.
+            provider_options: Raw options mapping provided on the CLI.
+
+        Returns:
+            Tuple containing the resolved provider names and per-provider option
+            mappings suitable for :func:`resolve_providers`.
+        """
 
         providers: List[str] = []
         if binary_providers:
@@ -193,7 +209,15 @@ class PowerPagesClient:
         src_dir: str,
         overrides: Mapping[str, Sequence[str]] | None = None,
     ) -> Dict[str, List[str]]:
-        """Compose natural key configuration using defaults and overrides."""
+        """Compose natural key configuration using defaults and overrides.
+
+        Args:
+            src_dir: Source directory containing ``manifest.json``.
+            overrides: Caller-supplied natural key configuration.
+
+        Returns:
+            Mapping from entity logical name to natural key column list.
+        """
 
         base = Path(src_dir)
         merged: Dict[str, List[str]] = {
@@ -230,6 +254,20 @@ class PowerPagesClient:
         binary_providers: Iterable[str] | None = None,
         provider_options: Mapping[str, Mapping[str, object]] | None = None,
     ) -> DownloadResult:
+        """Download site tables and binary assets into a directory structure.
+
+        Args:
+            website_id: Dataverse website identifier.
+            out_dir: Destination directory for the export.
+            tables: Table selection preset (``core``/``full``) or CSV list.
+            include_files: Whether to download file records and binaries.
+            binaries: When ``True``, export default binary providers.
+            binary_providers: Explicit binary providers to execute.
+            provider_options: Optional per-provider configuration mapping.
+
+        Returns:
+            :class:`DownloadResult` describing generated content and providers.
+        """
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
 
@@ -300,6 +338,15 @@ class PowerPagesClient:
         strategy: str = "replace",
         key_config: Mapping[str, Sequence[str]] | None = None,
     ) -> None:
+        """Push local JSON records back into Dataverse tables.
+
+        Args:
+            website_id: Dataverse website identifier.
+            src_dir: Directory containing exported JSON files.
+            tables: Table selection preset (``core``/``full``) or CSV list.
+            strategy: Conflict handling strategy (``replace``, ``merge``, etc.).
+            key_config: Natural key overrides keyed by entity logical name.
+        """
         base = Path(src_dir)
         sets = self._select_sets(tables)
         if key_config is None:
@@ -381,6 +428,16 @@ class PowerPagesClient:
         *,
         key_config: Mapping[str, Sequence[str]] | None = None,
     ):
+        """Compare Dataverse and local permission state for a website.
+
+        Args:
+            website_id: Dataverse website identifier.
+            base_dir: Directory containing exported JSON records.
+            key_config: Natural key overrides keyed by entity logical name.
+
+        Returns:
+            Provider diff structure produced by :func:`diff_permissions`.
+        """
         if key_config is None:
             merged_keys = self.key_config_from_manifest(base_dir)
         else:

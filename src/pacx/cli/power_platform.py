@@ -25,7 +25,10 @@ def register(app: typer.Typer) -> None:
 @handle_cli_errors
 def list_envs(
     ctx: typer.Context,
-    api_version: str = typer.Option("2022-03-01-preview", help="Power Platform API version"),
+    api_version: str = typer.Option(
+        "2022-03-01-preview",
+        help="Power Platform API version (defaults to 2022-03-01-preview)",
+    ),
 ):
     """List Power Platform environments."""
     token_getter = get_token_getter(ctx)

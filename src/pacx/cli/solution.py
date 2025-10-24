@@ -130,7 +130,7 @@ app = typer.Typer(
     help=(
         "Perform solution lifecycle operations.\n\n"
         "All solution commands accept --host (defaults to profile or DATAVERSE_HOST). "
-        "Use `export` with --managed (default: False) to produce managed packages."
+        "Use `export` with --managed (default: unmanaged) to produce managed packages."
     ),
     cls=SolutionCommandGroup,
     no_args_is_help=True,
@@ -201,7 +201,9 @@ def export_solution(
     host: str | None = typer.Option(
         None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
     ),
-    managed: bool = typer.Option(False, "--managed", help="Export managed solution"),
+    managed: bool = typer.Option(
+        False, "--managed", help="Export managed solution (default: unmanaged)"
+    ),
     out: Path | None = typer.Option(
         None, "--out", help="Output path for the exported solution zip"
     ),
@@ -230,9 +232,15 @@ def import_solution(
     host: str | None = typer.Option(
         None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
     ),
-    wait: bool = typer.Option(False, "--wait", help="Wait for import completion"),
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Wait for import completion (default: return immediately)",
+    ),
     import_job_id: str | None = typer.Option(
-        None, "--import-job-id", help="Reuse or provide ImportJobId"
+        None,
+        "--import-job-id",
+        help="Reuse or provide ImportJobId (default: generated server-side)",
     ),
 ) -> None:
     """Import a solution zip into Dataverse."""
