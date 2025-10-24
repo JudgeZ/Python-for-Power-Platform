@@ -1,360 +1,377 @@
-# PLAN.md — Automation-Ready Implementation Plan
+# PLAN.md — Codex Implementation Plan (Tasks & Subtasks)
 
-This plan converts the prior repository review into **actionable, copy/paste-ready prompts** for a code-generation assistant (“Codex/agent”).  
-Each task includes: a clear goal, rationale, acceptance criteria, and a **well-scoped prompt** that tells the agent exactly what to change, where, and how to validate.
-
-> **Scope:** Repository “JudgeZ/Python-for-Power-Platform”.  
-> **Primary language:** Python 3.10+ (Typer, httpx, Pydantic).  
-> **CLI entry:** `src/pacx/cli.py` (to be modularized).  
-> **Docs site:** `docs/` (MkDocs).  
-> **Config:** `src/pacx/config/*.py` (may include ConfigStore).
+This plan is designed for a code-generation assistant ("Codex/agent") to **implement** and **finish** repository improvements end-to-end.
+It includes **granular tasks**, **subtasks**, **explicit file paths**, **acceptance criteria**, and **copy/paste-ready prompts**.
+Adjust paths if your repo layout differs (defaults assume: `src/pacx/...`, tests under `tests/...`, docs under `docs/...`).
 
 ---
 
-## Conventions for All Prompts
+## Global Conventions for All Tasks
 
-- **Safety & consistency**
-  - Do not remove public APIs or change semantics without explicit justification.
-  - Prefer small, focused commits; preserve history; keep changes localized.
-  - Keep retries, auth, and HTTP error handling centralized via the existing `HttpClient` / shared utilities.
-- **Style & tooling**
-  - Run: `ruff --fix . && black . && mypy .` and ensure no new warnings.
-  - Tests must pass: `pytest -q` (add/adjust tests as needed).
-  - Follow existing patterns (dataclasses/Pydantic; Typer for CLI; Rich for output).
-- **Docs**
-  - When adding or changing behavior surfaced in CLI, update relevant docs and `--help` text.
-- **Commits**
-  - Use Conventional Commit prefixes (e.g., `feat:`, `fix:`, `docs:`, `refactor:`).
+- **Tooling**: Keep green `ruff`, `black`, `mypy`, `pytest`. Do not introduce new warnings.
+- **Safety**: Maintain backward compatibility for public APIs unless explicitly marked `BREAKING`. Provide deprecation shims/messages.
+- **Commits**: Use Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. One logical change per commit.
+- **Docs**: Update CLI `--help` and pages under `docs/user-manual/` whenever user-visible behavior changes.
+- **Tests**: Add/adjust tests with each change. Prefer deterministic, isolated tests (tmp dirs, mocks, snapshot filtering).
+- **Validation** (per task): Run `ruff --fix . && black . && mypy . && pytest -q`, then verify `ppx --help` and relevant subcommand help.
 
 ---
 
-# Priority Roadmap
+# P0 — Security, Stability & Core UX
 
-- **P0 (Security & Stability):**
-  1. ✅ Secure token storage permissions (and optional encryption).
-  2. ✅ Improve CLI error handling (friendly messages, consistent exits).
-  3. ✅ Centralize repeated CLI config resolution logic.
+## P0.1 Secure token storage: permissions + optional encryption
+**Goal**: Ensure `~/.pacx/config.json` is user-only readable and tokens can be encrypted with `PACX_CONFIG_ENCRYPTION_KEY`.
+**Files**: `src/pacx/config/*.py`, `docs/user-manual/08-config-profiles.md`, tests in `tests/config/`.
 
-- **P1 (Maintainability):**
-  4. Modularize `cli.py` into subcommand modules.
-  5. Clean up duplicate/mis-scoped functions (Power Pages helpers, etc.).
-  6. Add/complete docstrings & help text.
+**Subtasks**
+1. **Permissions**
+   - On save, set POSIX mode `0o600` (Unix). On Windows, apply best-effort user-only ACL via `os.chmod` fallback.
+   - On load, detect overly broad perms; auto-tighten and log a warning.
+2. **Encryption**
+   - Support `PACX_CONFIG_ENCRYPTION_KEY` (Fernet or PBKDF2-derived). Prefix encrypted fields with `enc:`.
+   - On load, decrypt transparently; if key missing/wrong, raise `EncryptedConfigError` with recovery guidance.
+3. **Docs & Tests**
+   - Document key generation, storage, and “missing key” recovery behavior.
+   - Tests: permission setting (skip/assert on Windows), encrypt/decrypt round-trip, error path when key absent.
 
-- **P2 (Adoption & Docs):**
-  7. Expand “Quick Start” and walkthroughs.
-  8. Flesh out feature docs (Connectors, Solutions).
-  9. Sync tests with current CLI & behaviors.
-  10. Update `Agents.md` with PR review & Code of Conduct notes.
+**Acceptance Criteria**
+- New configs are `0600` (POSIX); warning and fix if too open.
+- Tokens encrypted when key present; friendly error when missing/wrong.
+- Docs include clear “Security & Encryption” section.
+- Tests cover permission + encryption paths.
 
----
-
-## 1) Secure Token Storage (permissions + optional encryption)
-
-**Goal**: Restrict `config.json` to user-only access and optionally encrypt sensitive token fields.  
-**Rationale**: Tokens in plaintext in a world-readable file are a risk; permissions + optional encryption mitigate it.  
-**Acceptance**:
-- `config.json` written with `0600` (Unix) or user-only ACL (Windows).
-- Optional encryption gate (env-var key or passphrase) to encrypt token fields.
-- Clear docs + warnings if permissions are too open.
-- Tests covering permission setting; encryption path smoke-tested.
-
-**Prompt (copy/paste to agent):**
+**Codex Prompt**
 ```text
-Act as a senior Python engineer. Implement secure token storage for the PACX config.
+Scope: Harden config security and finalize encryption UX.
 
-Repository context:
-- Config store lives under `src/pacx/config/` (e.g., ConfigStore). Tokens may be persisted in `~/.pacx/config.json`.
-- Cross-platform support (Linux/macOS/Windows).
+Edit:
+- src/pacx/config/*.py: finalize _secure_path(), encrypt_field()/decrypt_field(), EncryptedConfigError.
+- docs/user-manual/08-config-profiles.md: add ‘Security & Encryption’ with key generation & recovery.
+- tests/config/test_config_security.py: permission + encryption round-trip + missing-key scenario.
 
-Tasks:
-1) File permissions
-   - After writing `config.json`, set restrictive permissions:
-     - Unix: `chmod 0o600` on the file (owner read/write only).
-     - Windows: apply user-only ACL (use `os.chmod` to remove group/other bits; if needed, wrap in platform guard and document limitations).
-   - On startup or after save, verify permissions; if too open, fix them and log a warning.
-
-2) Optional encryption
-   - Add optional encryption of sensitive fields (e.g., access/refresh tokens) controlled by env var `PACX_CONFIG_ENCRYPTION_KEY` or a CLI flag.
-   - Use `cryptography` Fernet if available; fail open (plaintext) if key absent, but emit a one-line notice in verbose mode.
-   - Keep rest of config plaintext for diffability; only wrap sensitive fields.
-   - Provide small helper `encrypt_field()/decrypt_field()` and integrate in load/save paths.
-   - Add unit tests: permission setting (skip or adapt on Windows CI), encryption round-trip (encrypt->persist->load->decrypt).
-
-3) Documentation
-   - Update docs (`docs/user-manual/01-getting-started.md` or a new “Security” page): explain permissions, optional encryption, how to set `PACX_CONFIG_ENCRYPTION_KEY`, and trade-offs.
-
-Validation:
-- Run `ruff --fix . && black . && mypy . && pytest -q`.
-- Manually inspect file permissions locally (best-effort on CI).
+Ensure: POSIX 0600; Windows best-effort; ‘enc:’ prefix; helpful errors.
+Run: ruff/black/mypy/pytest.
 ```
+
 ---
 
-## 2) Improve CLI Error Handling (friendly messages)
+## P0.2 CLI error handling: consistent, helpful messages
+**Goal**: No raw tracebacks for expected operational errors; standardized Rich-formatted error output; exit code 1 on failure.
+**Files**: `src/pacx/cli/common.py` (or helper), `src/pacx/cli/*`, tests `tests/cli/`.
 
-**Goal**: Replace raw tracebacks with concise, actionable error messages; standardize exit codes.  
-**Rationale**: Better UX for operational CLI; errors should guide the user.  
-**Acceptance**:
-- Known errors (`HttpError`, auth/config errors) are caught and displayed with Rich-formatted messages.
-- Exit with code `1` on failures; no tracebacks for expected errors.
-- Tests cover error messaging + exit codes.
+**Subtasks**
+1. Add decorator/helper to catch `HttpError`, auth/config errors, `EncryptedConfigError`.
+2. Print `[red]Error:[/red] <summary>` with guidance (e.g., “Run `ppx auth device` …”).
+3. Respect `--verbose` / `PACX_DEBUG=1` to enable tracebacks.
+4. Tests for 500s, missing env/host, encrypted config without key; assert message text and exit code.
 
-**Prompt:**
+**Acceptance Criteria**
+- Friendly errors across commands; `ppx doctor` references debug flag.
+- Tests assert no traceback by default; traceback shown with `--verbose`/env.
+
+**Codex Prompt**
 ```text
-Enhance CLI error handling for PACX.
+Implement unified CLI error handling.
 
-Scope:
-- Commands in `src/pacx/cli.py` (and, after modularization, in submodules).
-
-Requirements:
-- Wrap command bodies to catch:
-  - `HttpError` (include status + concise message response snippet).
-  - Auth errors (e.g., MSAL) -> suggest re-auth (`ppx auth device` / `ppx auth secret`).
-  - Missing config (use `typer.BadParameter` with actionable guidance).
-- Print user-friendly message using Rich (prefix with “[red]Error:[/red]”).
-- Exit via `raise typer.Exit(1)` for failure paths.
-- Do not print stack traces for expected operational errors; keep debug logging behind a `--verbose` or `PACX_DEBUG` flag.
-- Standardize messages across commands.
+Edit:
+- src/pacx/cli/common.py: handle_cli_errors decorator (uses Rich).
+- Wrap all command entrypoints with decorator.
+- Respect PACX_DEBUG or --verbose to show tracebacks.
 
 Tests:
-- Add CLI tests using `CliRunner` that simulate:
-  - 500 `HttpError` (mock httpx) -> message + exit code 1.
-  - Missing env/host -> helpful `BadParameter` guidance.
-  - Auth failure -> clear suggestion to re-auth.
+- tests/cli/test_errors.py: HttpError 500, missing config, encrypted config without key.
 
-Run formatters, type checks, and tests.
+Run toolchain.
 ```
----
-
-## 3) Centralize CLI Config Resolution Logic
-
-**Status:** ✅ Completed – Typer contexts now memoise configuration data and expose context-aware helpers so commands no longer reload profiles on every invocation.
-
-**Summary:**
-- Added `get_config_from_context`, `resolve_environment_id_from_context`, and `resolve_dataverse_host_from_context` helpers that cache `ConfigData` on the Typer context.
-- Updated CLI commands to reuse these helpers, eliminating repeated calls to `ConfigStore().load()` and ensuring consistent config resolution.
-- Extended unit coverage in `tests/test_cli_utils.py` to exercise the new helpers and confirm caching behaviour.
-
-**Next focus:** Continue with P1 maintainability work (CLI modularisation) now that shared context helpers are in place.
 
 ---
 
-## 3) Centralize CLI Config Resolution
+## P0.3 Centralize config resolution in CLI
+**Goal**: DRY helpers that resolve `environment_id` and `dataverse_host`, cached in Typer context.
+**Files**: `src/pacx/cli/cli_utils.py` (new), `src/pacx/cli/*`, tests `tests/cli/`.
 
-**Goal**: DRY helper(s) to resolve `environment_id`, `dataverse_host`, etc.  
-**Rationale**: Many commands reimplement the same config lookup; centralizing improves consistency.  
-**Acceptance**:
-- Helpers created (`src/pacx/cli_utils.py` or similar).
-- All commands call into helpers; duplicate logic removed.
-- Tests for helpers and one or two representative commands.
+**Subtasks**
+1. Implement `get_config_from_context(ctx)` to load once and cache.
+2. Implement `resolve_environment_id_from_context(ctx, option)` and `resolve_dataverse_host_from_context(ctx, option)`.
+3. Replace ad-hoc lookups in all commands.
+4. Unit tests for helpers; one representative CLI test confirms unchanged behavior.
 
-**Prompt:**
+**Acceptance Criteria**
+- Single config load per CLI invocation; consistent error messages.
+- Tests pass; duplicate code removed.
+
+**Codex Prompt**
 ```text
-Create shared CLI config-resolution helpers and apply them across commands.
+Create shared config helpers and apply to CLI commands.
 
-Steps:
-1) New module `src/pacx/cli_utils.py` with functions:
-   - `resolve_environment_id(opt: str|None) -> str`
-   - `resolve_dataverse_host(opt: str|None) -> str`
-   - Each loads config once (ConfigStore), prefers explicit option, falls back to default; otherwise raises `typer.BadParameter` with advice to run `ppx profile set-env` / set host.
-2) Replace ad-hoc resolution in CLI commands with these helpers.
-3) Tests:
-   - Unit tests for helpers (configured default vs. missing).
-   - One CLI command test to ensure behavior unchanged (success and error cases).
+New: src/pacx/cli/cli_utils.py with get_config_from_context(), resolve_* helpers.
+Refactor CLI modules to use helpers.
 
-Run lint/type/tests.
+Add tests: tests/cli/test_cli_utils.py + one command flow.
+
+Run toolchain.
 ```
+
 ---
 
-## 4) Modularize `cli.py` into Subcommand Modules
+# P1 — Maintainability & Feature Parity
 
-**Goal**: Split large CLI into `cli_auth.py`, `cli_profile.py`, `cli_dv.py`, `cli_connector.py`, `cli_pages.py`, etc.  
-**Rationale**: Smaller files by domain improve readability and reduce merge conflicts.  
-**Acceptance**:
-- `src/pacx/cli.py` becomes a thin orchestrator.
-- Sub-apps moved with identical behavior + help text.
-- Tests unaffected (or minimally updated).
+## P1.1 Modularize Solutions commands into subcommands
+**Goal**: Replace single `solution --action <op>` with explicit subcommands:
+`solution list|export|import|publish-all|pack|unpack|pack-sp|unpack-sp`.
+**Files**: `src/pacx/cli/solution.py` (new) or split by op; `src/pacx/cli/__init__.py`; docs `docs/user-manual/07-solutions.md`; tests `tests/solution/`.
 
-**Prompt:**
+**Subtasks**
+1. Create `cli/solution.py` Typer app with dedicated functions per op.
+2. Keep backward-compatible alias (support `--action` path; print one-time deprecation warning).
+3. Move logic out of monolithic function; keep signatures/output stable.
+4. Update docs examples to subcommand style.
+5. Tests: each subcommand, including `--wait` behavior and raw vs SP pack/unpack.
+
+**Acceptance Criteria**
+- `ppx solution <subcmd>` help is clear; old `--action` still works (with deprecation notice).
+- All solution flows function and are tested.
+
+**Codex Prompt**
 ```text
-Modularize the Typer CLI.
+Refactor Solutions CLI into explicit subcommands with backward compatibility.
 
-Actions:
-1) Create modules:
-   - `src/pacx/cli_auth.py` (auth-related commands)
-   - `src/pacx/cli_profile.py`
-   - `src/pacx/cli_dv.py` (Dataverse)
-   - `src/pacx/cli_connector.py`
-   - `src/pacx/cli_pages.py` (Power Pages)
-2) Move each sub-app’s commands verbatim, preserving decorators, options, and help.
-3) In `src/pacx/cli.py`, keep `app = typer.Typer(...)` and `add_typer(...)` per sub-app.
-4) Ensure shared utilities (`cli_utils`) are imported where needed.
-5) Verify `ppx --help` and subcommand `--help` display as before.
+Edit:
+- src/pacx/cli/__init__.py: add_typer(solution_app, name="solution").
+- src/pacx/cli/solution.py: implement list/export/import/publish-all/pack/unpack/pack-sp/unpack-sp.
+- Add shim handling `--action` -> call subcommands; warn once.
 
-Run tests and linting.
+Docs: update 07-solutions.md examples.
+Tests: tests/solution/test_solution_cli.py for each subcmd.
+
+Run toolchain.
 ```
+
 ---
 
-## 5) Clean Up Duplicate / Mis‑Scoped Functions (Power Pages)
+## P1.2 Finish Power Pages helpers cleanup
+**Goal**: Single canonical path for webfile binary download and site upload strategies.
+**Files**: `src/pacx/clients/power_pages*.py`, `src/pacx/power_pages/providers/*.py`, tests `tests/pages/`.
 
-**Goal**: Unify Power Pages helpers (e.g., binary download, upload flows) into a single canonical implementation with proper scope.  
-**Rationale**: Duplicated or misplaced functions cause drift and bugs.  
-**Acceptance**:
-- Single, well-scoped implementation for webfile binary download.
-- One `upload_site` path used throughout.
-- Tests updated/added for these flows.
+**Subtasks**
+1. Ensure no duplicate `upload_site`/binary download functions exist; consolidate into client + provider layer.
+2. Guarantee file naming safety (no traversal), deterministic output tree.
+3. Tests: download with/without binaries; upload merge/replace; diff-permissions path.
 
-**Prompt:**
+**Acceptance Criteria**
+- One implementation per concern; CLI calls client methods only.
+- Tests cover flows and verify filesystem outputs.
+
+**Codex Prompt**
 ```text
-Refactor Power Pages helpers to remove duplication.
+Unify Power Pages binary/transfer logic.
 
-Scope:
-- `src/pacx/clients/power_pages*.py` and any related provider/helpers modules.
+Search and remove duplicates; route through PowerPagesClient and providers.
+Add tests for binary download, upload strategies, and permissions diff.
 
-Tasks:
-- If a `download_webfile_binaries` free function exists, convert it to:
-  - a private method on `PowerPagesClient` **or**
-  - a single provider helper used by the client (choose the pattern already dominant).
-- Ensure `upload_site` is uniquely implemented and all callers route through it; remove stale/duplicate variants.
-- Keep unit tests green; add a focused test that exercises webfile binary download to a temp directory and verifies expected files are created (mock remote).
-
-Run formatters, type checks, and tests.
+Run toolchain.
 ```
+
 ---
 
-## 6) Add/Improve Docstrings & CLI Help Text
+## P1.3 Implement `ppx connector delete`
+**Goal**: Provide a first-class deletion command for custom connectors to avoid manual REST.
+**Files**: `src/pacx/clients/connectors.py`, `src/pacx/cli/connectors.py`, docs `docs/user-manual/06-connectors.md`, tests `tests/connectors/`.
 
-**Goal**: Ensure all public methods/classes have docstrings; CLI commands have helpful `--help` text.  
-**Rationale**: Improves maintainability and user discoverability.  
-**Acceptance**:
-- Docstrings added where missing, especially in `clients/` and `models/`.
-- CLI commands show clear descriptions and option help.
-- No functional changes.
+**Subtasks**
+1. Client: add `delete_api(environment_id: str, name: str)` calling correct endpoint.
+2. CLI: `ppx connector delete --environment-id <ENV> --name <NAME> --yes` (confirm unless `--yes`).
+3. Docs: usage, warnings (irreversible), exit codes.
+4. Tests: successful delete (mock), 404 returns friendly message.
 
-**Prompt:**
+**Acceptance Criteria**
+- Command exists, documented, and tested.
+- Follows error handling standards and config helpers.
+
+**Codex Prompt**
 ```text
-Add missing docstrings and refine CLI help text.
+Add connector deletion support.
 
-Tasks:
-- For `src/pacx/clients/*.py`, ensure public methods (e.g., Dataverse, Connectors, Power Pages) have concise docstrings (purpose, key params/returns).
-- For CLI commands, add/expand function docstrings (Typer shows these in `--help`).
-- Improve option help where vague (e.g., clarify `--openapi` path semantics).
+Client: implement delete_api().
+CLI: new command ‘connector delete’ with confirmation flag.
+Docs: update connectors guide.
+Tests: deletion happy path + 404 case.
 
-Verify with `ppx <group> --help` and `ruff/mypy`.
+Run toolchain.
 ```
+
 ---
 
-## 7) Expand “Quick Start” & Walkthroughs
+## P1.4 Docstrings & CLI help coverage
+**Goal**: Ensure all public client methods and CLI commands have concise docstrings/help.
+**Files**: `src/pacx/clients/*.py`, `src/pacx/cli/*.py`.
 
-**Goal**: Add a hands-on Quick Start that gets users from install → profile → auth → first command.  
-**Rationale**: Current docs are light; examples accelerate adoption.  
-**Acceptance**:
-- New/updated “Getting Started” page with runnable examples and expected outputs.
-- Coverage for auth flows and basic DV/connector operations.
+**Subtasks**
+1. Add one-line docstrings + concise param/return notes where missing.
+2. Review Typer option help; expand where ambiguous.
+3. Verify `ppx --help` and `ppx <group> --help` are clear and complete.
 
-**Prompt:**
+**Acceptance Criteria**
+- Docstring coverage ~100% for public surface.
+- Help text is unambiguous.
+
+**Codex Prompt**
 ```text
-Author a Quick Start in docs.
+Add missing docstrings and improve CLI help.
 
-Where:
-- `docs/user-manual/01-getting-started.md` (or create if missing).
+Sweep clients and CLI modules; add concise docstrings and clearer option help.
+Verify via help output.
 
-Include:
-- Installation (pip install; optional extras).
-- Create profile; set default env/host.
-- Authenticate via device code and via client secret (both paths).
-- Run first commands: `ppx env`, `ppx dv whoami`, `ppx connector list`.
-- Show example outputs (anonymized).
-
-Ensure cross-links to deeper docs (Connectors, Solutions).
+Run toolchain.
 ```
+
 ---
 
-## 8) Flesh Out Feature Docs (Connectors, Solutions)
+# P2 — Documentation, CI/CD & Governance
 
-**Goal**: Complete guides for Custom Connectors and Solutions.  
-**Rationale**: Stubs exist; users need end‑to‑end guidance.  
-**Acceptance**:
-- Connectors page explains list/push/update with examples.
-- Solutions page covers list/export/import and pack/unpack (if supported).
-- Screenshots or example outputs where helpful.
+## P2.1 Quick Start & walkthroughs (polish/extend)
+**Goal**: A runnable mini-journey: install → profile → auth → first DV/connector/pages commands.
+**Files**: `docs/user-manual/01-getting-started.md`, `docs/user-manual/03-cli-usage.md`.
 
-**Prompt:**
+**Subtasks**
+1. Add sanitized example outputs and “what to expect” notes.
+2. Cross-link to Authentication, Connectors, Solutions, Pages.
+3. Add Troubleshooting (permissions, missing deps, timeouts, rate limits).
+
+**Acceptance Criteria**
+- New users can perform end-to-end flow with copy/paste commands.
+- Screenshots or ASCII trees where helpful.
+
+**Codex Prompt**
 ```text
-Complete docs for Connectors and Solutions.
-
-Connectors (`docs/user-manual/06-connectors.md`):
-- Intro: What are custom connectors, when to use PACX.
-- Commands: list, push (from OpenAPI), get/delete if available.
-- Examples: CLI invocations + outputs; common pitfalls.
-
-Solutions (e.g., `docs/user-manual/05-solutions.md`):
-- Intro: Dataverse Solutions overview.
-- Commands: list, export (managed/unmanaged), import (notes on async), unpack/pack from source (if implemented).
-- Examples: real command lines; file layout after unpack.
-
-Add navigation links; run MkDocs locally if configured.
+Expand Quick Start with runnable end-to-end flow and troubleshooting.
+Edit 01-getting-started.md, 03-cli-usage.md; add links and example outputs.
 ```
+
 ---
 
-## 9) Sync Tests with Current CLI & Logic
+## P2.2 Flesh out feature docs: Connectors, Solutions, Pages
+**Goal**: Complete, example-rich chapters for each major capability.
+**Files**: `docs/user-manual/04-power-pages.md`, `docs/user-manual/06-connectors.md`, `docs/user-manual/07-solutions.md`.
 
-**Goal**: Update tests to reflect latest CLI flags, messages, and flows; add tests for new features.  
-**Rationale**: Tests are the guardrail; they must match reality.  
-**Acceptance**:
-- Existing tests updated for new error messages/flows.
-- New tests for Pages, Solutions pack/unpack, retries where applicable.
-- `pytest -q` green locally and in CI.
+**Subtasks**
+1. Ensure each command has at least one example with flags and output.
+2. Add limitations/notes (long-running ops, quotas, retry semantics).
+3. Add “Verification” tips for each workflow.
 
-**Prompt:**
+**Acceptance Criteria**
+- Docs are task-oriented and self-contained.
+- No TODO placeholders remain.
+
+**Codex Prompt**
 ```text
-Align and extend the test suite.
-
-Tasks:
-- Review CLI tests (use `CliRunner`) and update for current flags and messages (e.g., standardized error prefix, new helpers).
-- Add tests for new pages flows (binary download), `doctor` command if present, and solution pack/unpack (fixture zip or minimal fake).
-- Add a retry test for transient HTTP (mock 429/5xx with respx).
-
-Ensure tests are deterministic and pass on CI.
+Finish feature docs with practical examples and notes.
+Edit 04-power-pages.md, 06-connectors.md, 07-solutions.md accordingly.
 ```
+
 ---
 
-## 10) Update `Agents.md` (PR Review & Code of Conduct)
+## P2.3 CI hardening: static analysis, safety, coverage
+**Goal**: Keep repo healthy by default.
+**Files**: `.github/workflows/*.yml`, `pyproject.toml` (if needed).
 
-**Goal**: Equip contributors/agents with explicit PR process and community standards.  
-**Rationale**: The guide is strong but missing PR review steps & CoC callout.  
-**Acceptance**:
-- New “Pull Request Guidelines” section.
-- New “Code of Conduct” reminder (link to `CODE_OF_CONDUCT.md` if present).
+**Subtasks**
+1. Add `pip-audit` (or `uv pip audit`) step; fail on high severity CVEs.
+2. Run `bandit -q -r src`; fail on high severity findings.
+3. Enforce coverage floor (e.g., 85%) with `pytest --cov`.
+4. Optional: Dependabot for Python and GitHub Actions updates.
 
-**Prompt:**
+**Acceptance Criteria**
+- CI fails on critical security issues or coverage regression.
+- Workflow documented in README/CONTRIBUTING.
+
+**Codex Prompt**
 ```text
-Amend `Agents.md` with collaboration guidelines.
-
-Add sections:
-1) Pull Request Guidelines
-   - PRs required for non-trivial changes; no direct pushes to main.
-   - Use Conventional Commits; link issues; summarize change and risks.
-   - Run lint/type/tests before review; note in the PR.
-   - Be responsive and respectful in review; squash/merge per repo policy.
-
-2) Code of Conduct
-   - State adherence to the project CoC; link to `CODE_OF_CONDUCT.md` (or add one if missing).
-   - Emphasize respectful, inclusive communication; zero tolerance for harassment.
-
-No code changes; doc only.
+Harden CI with audit/bandit/coverage.
+Edit .github/workflows/ci.yml; add steps; tune thresholds.
 ```
----
-
-## Validation Checklist (for Maintainers)
-
-- [ ] All P0 tasks merged; security & UX improved.
-- [ ] CLI still backward compatible (no accidental API breaks).
-- [ ] Docs site builds without warnings; new pages linked in nav.
-- [ ] CI green: lint, type, tests.
-- [ ] Release notes updated (if user-facing behavior changed).
-- [ ] `Agents.md` reflects latest workflow and standards.
 
 ---
 
-**How to use this plan**  
-Work from **P0 → P1 → P2**. For each task, paste the corresponding prompt into your coding agent with the repo opened. Review diffs, run checks locally, and iterate until the acceptance criteria are met.
+## P2.4 Governance: Agents.md, PR/Issue templates, Code of Conduct
+**Goal**: Make contributing predictable and respectful.
+**Files**: `AGENTS.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*.md`, `CODE_OF_CONDUCT.md`.
+
+**Subtasks**
+1. Ensure Agents.md includes PR checklist, CI expectations, ADR pointers.
+2. Add/refresh PR & Issue templates (bug, feature).
+3. Ensure CoC present, linked from Agents.md and README.
+
+**Acceptance Criteria**
+- Templates render in GitHub UI.
+- Agents.md reflects current workflow and expectations.
+
+**Codex Prompt**
+```text
+Add/refresh governance docs and templates.
+Edit AGENTS.md; create .github templates; link CoC.
+```
+
+---
+
+# Validation & Release
+
+## V.1 Smoke tests and golden outputs
+**Goal**: Prevent accidental CLI regressions.
+
+**Subtasks**
+1. Add golden/snapshot tests for key commands (env list, dv whoami, connector list).
+2. Normalize dynamic fields (timestamps/IDs) or snapshot with filters.
+
+**Acceptance Criteria**
+- Stable, reviewable text snapshots.
+- Tests pass across OS runners.
+
+**Codex Prompt**
+```text
+Add snapshot tests for key CLI commands with normalized outputs.
+```
+
+---
+
+## V.2 Changelog & version bump
+**Goal**: Document changes and cut a release.
+**Files**: `CHANGELOG.md`, workflow that publishes to PyPI.
+
+**Subtasks**
+1. Update CHANGELOG with highlights (security, UX, docs, new delete command).
+2. Bump version in `pyproject.toml`; tag release; ensure docs deploy.
+
+**Acceptance Criteria**
+- Release notes reflect real changes; package published; docs updated.
+
+**Codex Prompt**
+```text
+Prepare release: update CHANGELOG, bump version, tag, verify publish & docs deploy.
+```
+
+---
+
+# Sprint Checklist (Maintainers)
+
+- [ ] P0.1 complete — config perms/encryption + docs + tests
+- [ ] P0.2 complete — error handling decorator + tests
+- [ ] P0.3 complete — config helpers + caching + tests
+- [ ] P1.1 complete — solution subcommands + docs + tests (deprecate `--action`)
+- [ ] P1.2 complete — power pages dedupe + tests
+- [ ] P1.3 complete — connector delete + docs + tests
+- [ ] P1.4 complete — docstrings & CLI help coverage
+- [ ] P2.1–P2.4 complete — docs, CI, governance
+- [ ] V.1–V.2 complete — snapshots + release
+
+---
+
+## How to Use These Prompts
+
+For each task:
+1. Open the repository in your coding agent.
+2. Paste the **Codex Prompt** for that task.
+3. Review the diff; iterate until **Acceptance Criteria** are met.
+4. Commit with a Conventional Commit message.
+5. Run the global validation commands and ensure everything is green.
+
