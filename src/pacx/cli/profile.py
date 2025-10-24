@@ -2,6 +2,8 @@ from __future__ import annotations
 
 """Commands for inspecting and mutating stored PACX profiles."""
 
+from typing import Any
+
 import typer
 from rich import print
 
@@ -9,6 +11,10 @@ from ..config import ConfigStore
 from .common import handle_cli_errors
 
 app = typer.Typer(help="Profiles & configuration")
+
+
+MASK_PLACEHOLDER = "<hidden>"
+SENSITIVE_KEYS = frozenset({"access_token"})
 
 
 @app.command("list")
@@ -34,7 +40,10 @@ def profile_show(name: str = typer.Argument(..., help="Profile name")) -> None:
     profile = cfg.profiles.get(name) if cfg.profiles else None
     if not profile:
         raise typer.BadParameter(f"Profile '{name}' not found")
-    print(profile.__dict__)
+
+    profile_data = dict(vars(profile))
+    sanitized = _mask_sensitive_fields(profile_data)
+    print(sanitized)
 
 
 @app.command("set-env")
@@ -63,6 +72,16 @@ def profile_set_host(
     cfg.dataverse_host = dataverse_host
     store.save(cfg)
     print(f"Default Dataverse host set to {dataverse_host}")
+
+
+def _mask_sensitive_fields(data: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``data`` with sensitive keys masked."""
+
+    masked = dict(data)
+    for key in masked:
+        if key in SENSITIVE_KEYS and masked[key] not in (None, ""):
+            masked[key] = MASK_PLACEHOLDER
+    return masked
 
 
 __all__ = [

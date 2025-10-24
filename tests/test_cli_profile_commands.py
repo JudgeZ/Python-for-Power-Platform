@@ -6,6 +6,8 @@ import sys
 import pytest
 import typer
 
+from pacx.cli.profile import MASK_PLACEHOLDER
+
 
 def load_cli_app(monkeypatch: pytest.MonkeyPatch):
     original_option = typer.Option
@@ -69,11 +71,18 @@ def test_profile_show(cli_runner, cli_app) -> None:
     import types
 
     app, store = cli_app
-    store.cfg.profiles = {"named": types.SimpleNamespace(name="named", value=42)}
+    token_value = "very-secret-token"
+    store.cfg.profiles = {
+        "named": types.SimpleNamespace(
+            name="named", value=42, access_token=token_value
+        )
+    }
 
     result = cli_runner.invoke(app, ["profile", "show", "named"])
     assert result.exit_code == 0
     assert "value" in result.stdout
+    assert MASK_PLACEHOLDER in result.stdout
+    assert token_value not in result.stdout
 
 
 def test_profile_show_missing(cli_runner, cli_app) -> None:
