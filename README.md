@@ -3,6 +3,19 @@
 
 This repository provides a test-driven, extensible Python library and CLI targeting Microsoft Power Platform + Dataverse.
 
+## Continuous Integration
+
+We run automated quality gates on every push and pull request. Before opening a PR, ensure the following commands succeed locally:
+
+1. `ruff check .`
+2. `black --check .`
+3. `mypy .`
+4. `pytest --cov=pacx --cov-report=term-missing --cov-fail-under=85`
+5. `pip-audit`
+6. `bandit -q -r src`
+
+The CI workflow also uploads coverage artifacts from `pytest` and enforces a minimum 85% coverage floor, so new changes should keep or raise the overall coverage.
+
 ## New in 0.2.0 (this build)
 - **Profiles** and token storage (`ppx profile *`)
 - **Auth** via MSAL device/client flows (`ppx auth device|client`) — optional extra
