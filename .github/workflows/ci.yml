@@ -30,18 +30,27 @@ jobs:
           python -m pip install pip-audit
 
       - name: Run Ruff
+        id: ruff
+        continue-on-error: true
         run: ruff check .
 
       - name: Run Black
+        id: black
+        continue-on-error: true
         run: black --check .
 
       - name: Run mypy
+        id: mypy
+        continue-on-error: true
         run: mypy .
 
       - name: Run pytest with coverage
+        id: pytest
+        continue-on-error: true
         run: pytest --cov=pacx --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=85
 
       - name: Upload coverage report
+        if: steps.pytest.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
@@ -50,7 +59,25 @@ jobs:
             coverage.json
 
       - name: Run pip-audit
+        id: pip_audit
+        continue-on-error: true
         run: pip-audit
 
       - name: Run Bandit
+        id: bandit
+        continue-on-error: true
         run: bandit -q -r src
+
+      - name: Fail if any checks failed
+        if: |
+          always() && (
+            steps.ruff.outcome == 'failure' ||
+            steps.black.outcome == 'failure' ||
+            steps.mypy.outcome == 'failure' ||
+            steps.pytest.outcome == 'failure' ||
+            steps.pip_audit.outcome == 'failure' ||
+            steps.bandit.outcome == 'failure'
+          )
+        run: |
+          echo "One or more quality checks failed."
+          exit 1
