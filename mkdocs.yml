@@ -1,5 +1,24 @@
 site_name: PACX
 
+nav:
+  - Home: index.md
+  - User Manual:
+      - Overview: user-manual/00-overview.md
+      - Installation & Quick Start: user-manual/01-installation.md
+      - Authentication: user-manual/02-authentication.md
+      - CLI Usage: user-manual/03-cli-usage.md
+      - Power Pages: user-manual/04-power-pages.md
+      - Dataverse Bulk & Batch: user-manual/05-dataverse-batch-bulk.md
+      - Connectors: user-manual/06-connectors.md
+      - Solutions: user-manual/07-solutions.md
+      - Config & Profiles: user-manual/08-config-profiles.md
+      - CI/CD & Release: user-manual/09-ci-cd-release.md
+  - Architecture:
+      - C4 Model: architecture/index.md
+  - Reference:
+      - Auth secrets backends: auth.md
+      - Batch API usage: batch.md
+      - Power Pages how-to: pages.md
 
 plugins:
   - search
