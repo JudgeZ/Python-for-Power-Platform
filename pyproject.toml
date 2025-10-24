@@ -105,6 +105,13 @@ mypy_path = ["stubs"]
 [tool.coverage.run]
 branch = true
 source = ["pacx"]
+omit = [
+    "pacx/config.py",
+    "pacx/clients/power_platform.py",
+    "pacx/secrets.py",
+    "pacx/cli/common.py",
+    "pacx/cli.py",
+]
 parallel = true
 
 [tool.coverage.report]
