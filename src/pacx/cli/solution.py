@@ -5,7 +5,9 @@ import uuid
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
+
+import click
 
 import typer
 from rich import print
@@ -53,7 +55,7 @@ def _emit_legacy_warning() -> None:
 class SolutionCommandGroup(TyperGroup):
     """Typer command group that understands the legacy --action shim."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         context_settings = kwargs.setdefault("context_settings", {})
         context_settings.setdefault("allow_extra_args", True)
         context_settings.setdefault("ignore_unknown_options", True)
@@ -61,9 +63,11 @@ class SolutionCommandGroup(TyperGroup):
         self.allow_extra_args = True
         self.ignore_unknown_options = True
 
-    def resolve_command(self, ctx, args: Iterable[str]):
-        arguments = list(args or ())
-        action = ctx.params.get("action") if ctx is not None else None
+    def resolve_command(
+        self, ctx: click.Context, args: Iterable[str]
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        arguments = list(args)
+        action = ctx.params.get("action")
         if action:
             if action not in LEGACY_ACTIONS:
                 raise typer.BadParameter(f"Unknown solution action: {action}")
@@ -83,7 +87,7 @@ class SolutionCommandGroup(TyperGroup):
                 _emit_legacy_warning()
         return super().resolve_command(ctx, arguments)
 
-    def invoke(self, ctx):
+    def invoke(self, ctx: click.Context) -> Any:
         action = ctx.params.get("action")
         if action:
             if action not in LEGACY_ACTIONS:
@@ -107,7 +111,7 @@ class SolutionCommandGroup(TyperGroup):
         return super().invoke(ctx)
 
 
-def _gather_legacy_args(ctx: typer.Context) -> list[str]:
+def _gather_legacy_args(ctx: click.Context) -> list[str]:
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -163,9 +167,10 @@ def handle_legacy_invocation(
 
     if ctx.invoked_subcommand is None and ctx.args:
         first = ctx.args[0]
-        if first in LEGACY_ACTIONS and first not in ctx.command.commands:
+        command_group = ctx.command if isinstance(ctx.command, SolutionCommandGroup) else None
+        if command_group and first in LEGACY_ACTIONS and first not in command_group.commands:
             _emit_legacy_warning()
-            command = ctx.command.get_command(ctx, first)
+            command = command_group.get_command(ctx, first)
             if command is None:
                 raise typer.BadParameter(f"Unknown solution action: {first}")
             remaining = list(ctx.args[1:])

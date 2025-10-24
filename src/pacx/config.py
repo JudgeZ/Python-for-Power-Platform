@@ -232,7 +232,7 @@ def load_config() -> dict[str, Any]:
 
     _ensure_secure_permissions(path)
     with path.open("r", encoding="utf-8") as handle:
-        raw = json.load(handle)
+        raw = cast(dict[str, Any], json.load(handle))
 
     raw["profiles"] = {
         name: _decrypt_profile_dict(profile) for name, profile in raw.get("profiles", {}).items()
@@ -333,7 +333,7 @@ class ConfigStore:
             return {"default": None, "profiles": {}}
         _ensure_secure_permissions(self.path)
         with self.path.open("r", encoding="utf-8") as handle:
-            raw = json.load(handle)
+            raw = cast(dict[str, Any], json.load(handle))
         raw["profiles"] = {
             name: _decrypt_profile_dict(profile)
             for name, profile in raw.get("profiles", {}).items()
@@ -357,15 +357,27 @@ class ConfigStore:
 
     def load(self) -> ConfigData:
         raw = self._read()
-        profs = {
-            name: Profile(name=name, **{k: v for k, v in data.items() if k != "name"})
-            for name, data in raw.get("profiles", {}).items()
-        }
+        profiles_raw = raw.get("profiles", {})
+        profiles_data = profiles_raw if isinstance(profiles_raw, dict) else {}
+        profs: dict[str, Profile] = {}
+        for name, data in profiles_data.items():
+            if not isinstance(name, str) or not isinstance(data, dict):
+                continue
+            details = {k: v for k, v in data.items() if k != "name"}
+            profs[name] = Profile(name=name, **details)
+
+        default_raw = raw.get("default")
+        default_profile = default_raw if isinstance(default_raw, str) else None
+        env_id_raw = raw.get("environment_id")
+        environment_id = env_id_raw if isinstance(env_id_raw, str) else None
+        host_raw = raw.get("dataverse_host")
+        dataverse_host = host_raw if isinstance(host_raw, str) else None
+
         return ConfigData(
-            default_profile=raw.get("default"),
+            default_profile=default_profile,
             profiles=profs,
-            environment_id=raw.get("environment_id"),
-            dataverse_host=raw.get("dataverse_host"),
+            environment_id=environment_id,
+            dataverse_host=dataverse_host,
         )
 
     def save(self, cfg: ConfigData) -> None:

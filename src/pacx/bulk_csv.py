@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Iterable
 
 from .batch import BatchSendResult, send_batch
 from .clients.dataverse import DataverseClient
@@ -120,7 +120,9 @@ def bulk_csv_upsert(
         for row in r:
             rows.append((r.line_num, row))
 
-    def chunk(lst, n):
+    def chunk(
+        lst: list[tuple[int, dict[str, Any]]], n: int
+    ) -> Iterable[list[tuple[int, dict[str, Any]]]]:
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
@@ -164,9 +166,11 @@ def bulk_csv_upsert(
                     local_index = local_index_raw
                 else:
                     local_index = 0
-                row_number = op_row_numbers[local_index] if local_index < len(op_row_numbers) else None
+                result_row_index = (
+                    op_row_numbers[local_index] if local_index < len(op_row_numbers) else None
+                )
                 enriched = BulkCsvOperationResult.from_batch_result(
-                    op_result, row_index=row_number
+                    op_result, row_index=result_row_index
                 )
                 status = enriched.status_code
                 if status < 200 or status >= 300:

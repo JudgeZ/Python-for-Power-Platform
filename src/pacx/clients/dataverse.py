@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Any
+from typing import Any, Callable, cast
 
 from ..http_client import HttpClient
 from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest, Solution
@@ -15,7 +15,7 @@ class DataverseClient:
 
     def __init__(
         self,
-        token_getter,
+        token_getter: Callable[[], str],
         host: str,
         api_path: str = "/api/data/v9.2",
         use_https: bool = True,
@@ -63,7 +63,7 @@ class DataverseClient:
         if top is not None:
             params["$top"] = top
         resp = self.http.get("solutions", params=params)
-        data = resp.json()
+        data = cast(dict[str, Any], resp.json())
         return [Solution.model_validate(o) for o in data.get("value", [])]
 
     def export_solution(self, req: ExportSolutionRequest) -> bytes:
@@ -77,7 +77,7 @@ class DataverseClient:
         """
         payload = req.model_dump()
         resp = self.http.post("ExportSolution", json=payload)
-        data = resp.json()
+        data = cast(dict[str, Any], resp.json())
         b64 = data.get("ExportSolutionFile", "")
         return base64.b64decode(b64)
 
@@ -101,7 +101,7 @@ class DataverseClient:
         """Return the identity details of the calling user."""
 
         resp = self.http.get("WhoAmI()")
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def list_records(
         self,
@@ -134,14 +134,14 @@ class DataverseClient:
         if orderby:
             params["$orderby"] = orderby
         resp = self.http.get(entityset, params=params)
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def get_record(self, entityset: str, record_id: str) -> dict[str, Any]:
         """Retrieve a single record by ID."""
 
         path = f"{entityset}({record_id})"
         resp = self.http.get(path)
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def create_record(self, entityset: str, data: dict[str, Any]) -> dict[str, Any]:
         """Create a Dataverse record and return metadata about the result.
@@ -188,7 +188,7 @@ class DataverseClient:
         """Fetch status for a solution import job."""
 
         resp = self.http.get(f"importjobs({job_id})")
-        return resp.json()
+        return cast(dict[str, Any], resp.json())
 
     def wait_for_import_job(
         self, job_id: str, *, interval: float = 2.0, timeout: float = 600.0
@@ -215,15 +215,15 @@ class DataverseClient:
             # Heuristic: look for progress >= 100 or state indicating completion
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, int | float) and v >= 100:
+                if isinstance(v, (int, float)) and v >= 100:
                     return True
             state = str(s.get("statecode") or s.get("status") or "").lower()
             return state in {"completed", "succeeded", "failed"}
 
-        def get_progress(s: dict[str, Any]):
+        def get_progress(s: dict[str, Any]) -> int | None:
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, int | float):
+                if isinstance(v, (int, float)):
                     return int(v)
             return None
 
