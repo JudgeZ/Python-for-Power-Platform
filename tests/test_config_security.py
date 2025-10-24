@@ -42,7 +42,11 @@ def test_encryption_round_trip(tmp_path, monkeypatch):
     monkeypatch.setenv("PACX_CONFIG_ENCRYPTION_KEY", Fernet.generate_key().decode("utf-8"))
 
     store = ConfigStore()
-    profile = Profile(name="dev", access_token="token-value")
+    profile = Profile(
+        name="dev",
+        # Bandit B106: synthetic token for encryption test.
+        access_token="sample-value",  # nosec B106
+    )
     cfg = ConfigData(default_profile="dev", profiles={"dev": profile})
     store.save(cfg)
 
@@ -50,7 +54,8 @@ def test_encryption_round_trip(tmp_path, monkeypatch):
     assert raw["profiles"]["dev"]["access_token"].startswith("enc:")
 
     loaded = store.load()
-    assert loaded.profiles["dev"].access_token == "token-value"
+    # Bandit B105: validating decrypted placeholder token.
+    assert loaded.profiles["dev"].access_token == "sample-value"  # nosec B105
 
 
 def test_encrypted_config_requires_key(tmp_path, monkeypatch):
@@ -65,7 +70,11 @@ def test_encrypted_config_requires_key(tmp_path, monkeypatch):
     key = Fernet.generate_key().decode("utf-8")
     monkeypatch.setenv("PACX_CONFIG_ENCRYPTION_KEY", key)
 
-    profile = Profile(name="dev", access_token="token-value")
+    profile = Profile(
+        name="dev",
+        # Bandit B106: synthetic token for encryption test.
+        access_token="sample-value",  # nosec B106
+    )
     save_config({"default": "dev", "profiles": {"dev": profile.__dict__}})
 
     monkeypatch.delenv("PACX_CONFIG_ENCRYPTION_KEY")

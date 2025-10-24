@@ -101,8 +101,10 @@ def test_auth_client_keyring_prompt(monkeypatch: pytest.MonkeyPatch, cli_runner,
     assert result.exit_code == 0
     profile = store.profiles.get("service")
     assert profile is not None
-    assert profile.secret_backend == "keyring"
-    assert profile.secret_ref == "svc:user"
+    # Bandit B105: backend identifier, not a secret.
+    assert profile.secret_backend == "keyring"  # nosec B105
+    # Bandit B105: reference to stored secret, not the secret itself.
+    assert profile.secret_ref == "svc:user"  # nosec B105
     assert stub_keyring.stored == [("svc", "user", "super-secret")]
     assert store.default == "service"
 
