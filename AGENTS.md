@@ -41,6 +41,14 @@
 - Reference related issues or ADRs directly in the PR description to provide reviewers context.
 - Highlight any known limitations or follow-up work in the PR summary so maintainers can triage quickly.
 
+### Pull Request Checklist
+- [ ] Tests cover the change set and pass (`pytest`).
+- [ ] Lint and type checks pass (`ruff check`, `black --check`, `mypy`).
+- [ ] Documentation is updated (README, `docs/`, and ADRs as needed).
+- [ ] `CHANGELOG.md` includes an entry for user-visible changes.
+
+Consult `docs/adr/` for the latest architectural decisions and review governance expectations in `PLAN.md`, `MAINTAINERS.md`, and `CODE_OF_CONDUCT.md` before proposing substantial changes.
+
 ## Code of Conduct
 - All contributions must adhere to our [Code of Conduct](CODE_OF_CONDUCT.md); report incidents privately to the maintainers listed in `MAINTAINERS.md`.
 - Foster inclusive discussions in issues, PRs, and review comments, especially when proposing significant architecture changes.

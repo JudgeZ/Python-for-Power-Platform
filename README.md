@@ -12,6 +12,15 @@ This repository provides a test-driven, extensible Python library and CLI target
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Contributing
+
+We welcome contributions from the community. Please review and abide by our [Code of Conduct](CODE_OF_CONDUCT.md) and the guidance captured in [`AGENTS.md`](AGENTS.md) before proposing changes. When opening pull requests or filing issues, use the repository templates to streamline collaboration:
+
+- Pull requests use the [`PULL_REQUEST_TEMPLATE`](.github/PULL_REQUEST_TEMPLATE.md), which includes the required test, lint/type check, documentation, and changelog checklist.
+- Bug reports and enhancement ideas start with the issue templates under [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/), which reference the same governance resources (ADRs, PLAN, MAINTAINERS) to keep discussions grounded in documented decisions.
+
+For larger changes, consult the existing [ADRs](docs/adr/) and governance policies in [PLAN.md](PLAN.md) and [MAINTAINERS.md](MAINTAINERS.md) to understand current direction and decision-making processes.
+
 ## New additions in v0.3.0
 - Client credentials profile: `ppx auth client` (reads secret from env var you specify)
 - Profile management: `ppx profile list|show|set-env|set-host`
