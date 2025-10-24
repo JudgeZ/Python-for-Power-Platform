@@ -305,7 +305,7 @@ class PowerPagesClient:
         if key_config is None:
             key_map: Dict[str, List[str]] = self.key_config_from_manifest(src_dir)
         else:
-            key_map = {str(k).lower(): list(v) for k, v in key_config.items()}
+            key_map = self.key_config_from_manifest(src_dir, key_config)
 
         for folder, entityset, key, _ in sets:
             p = base / folder
