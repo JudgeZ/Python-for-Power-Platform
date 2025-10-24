@@ -2,7 +2,8 @@ from __future__ import annotations
 
 """Typer commands for interacting with the Power Platform REST APIs."""
 
-from typing import Annotated
+from importlib import import_module
+from typing import Annotated, Type, cast
 
 import typer
 from rich import print
@@ -12,12 +13,16 @@ from ..clients.power_platform import PowerPlatformClient as _DefaultPowerPlatfor
 from .common import get_token_getter, handle_cli_errors
 
 
-def _resolve_client_class():
+def _resolve_client_class() -> Type[_DefaultPowerPlatformClient]:
     try:
-        from pacx.cli import PowerPlatformClient  # type: ignore circular
+        module = import_module("pacx.cli")
     except Exception:  # pragma: no cover - defensive fallback
         return _DefaultPowerPlatformClient
-    return PowerPlatformClient or _DefaultPowerPlatformClient
+
+    client_cls = getattr(module, "PowerPlatformClient", None)
+    if client_cls is None:
+        return _DefaultPowerPlatformClient
+    return cast(Type[_DefaultPowerPlatformClient], client_cls) or _DefaultPowerPlatformClient
 
 
 def register(app: typer.Typer) -> None:

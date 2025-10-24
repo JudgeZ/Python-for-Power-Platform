@@ -40,7 +40,8 @@ auth = ["msal>=1.27"]
 tests = [
   "pytest>=7.4",
   "pytest-cov>=4.1",
-  "respx>=0.20"
+  "respx>=0.20",
+  "types-cryptography",
 ]
 dev = [
   "pytest>=7.4",
@@ -52,6 +53,7 @@ dev = [
   "ruff>=0.6.0",
   "mypy>=1.10.0",
   "types-requests",
+  "types-cryptography",
   "bandit>=1.7",
   "pre-commit>=3.5",
   "coverage[toml]>=7.6",
@@ -98,6 +100,7 @@ no_implicit_optional = true
 check_untyped_defs = true
 strict_optional = true
 exclude = ["build/", "dist/"]
+mypy_path = ["stubs"]
 
 [tool.coverage.run]
 branch = true

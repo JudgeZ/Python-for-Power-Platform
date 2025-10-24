@@ -7,15 +7,41 @@ import json
 import logging
 import os
 import stat
+from importlib import import_module
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from types import ModuleType
+from typing import Any, Protocol, cast
+
+
+class FernetProtocol(Protocol):
+    def __init__(self, key: bytes) -> None:
+        ...
+
+    def encrypt(self, data: bytes) -> bytes:
+        ...
+
+    def decrypt(self, token: bytes, ttl: int | None = ...) -> bytes:
+        ...
+
 
 try:  # pragma: no cover - optional dependency
-    from cryptography.fernet import Fernet, InvalidToken
+    _fernet_module: ModuleType | None = import_module("cryptography.fernet")
 except Exception:  # pragma: no cover - library not available during runtime
-    Fernet = None  # type: ignore[assignment]
-    InvalidToken = Exception  # type: ignore[assignment]
+    _fernet_module = None
+
+if _fernet_module is not None:
+    Fernet: type[FernetProtocol] | None = cast(
+        "type[FernetProtocol]", getattr(_fernet_module, "Fernet")
+    )
+    InvalidToken = cast("type[Exception]", getattr(_fernet_module, "InvalidToken"))
+else:
+    Fernet = None
+
+    class _FallbackInvalidToken(Exception):  # pragma: no cover - fallback when cryptography missing
+        pass
+
+    InvalidToken = _FallbackInvalidToken
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +51,7 @@ CONFIG_PATH = os.path.join(PACX_DIR, "config.json")
 
 _SENSITIVE_KEYS = ("access_token",)
 _FERNET_SALT = b"pacx-config"
-_cached_cipher: Fernet | None = None
+_cached_cipher: FernetProtocol | None = None
 _cached_cipher_key: str | None = None
 
 
@@ -57,7 +83,7 @@ def _derive_fernet_key(raw: str) -> bytes | None:
     return derived
 
 
-def _get_cipher() -> Fernet | None:
+def _get_cipher() -> FernetProtocol | None:
     global _cached_cipher, _cached_cipher_key
 
     key = os.getenv("PACX_CONFIG_ENCRYPTION_KEY")
