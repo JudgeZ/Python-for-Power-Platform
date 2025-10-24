@@ -1,0 +1,7 @@
+# Bandit configuration for PACX.
+#
+# B101 warns on the use of `assert`, which is expected throughout the pytest
+# suite. The production codebase avoids bare asserts, so skipping this test
+# keeps the security scan focused on actionable issues.
+skips:
+  - B101

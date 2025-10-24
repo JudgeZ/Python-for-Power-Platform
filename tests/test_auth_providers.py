@@ -65,10 +65,12 @@ def test_azure_ad_token_provider_confidential_flow(stub_msal: types.SimpleNamesp
         tenant_id="contoso",
         client_id="app-id",
         scopes=["https://graph.microsoft.com/.default"],
-        client_secret="secret",
+        # Bandit B106: placeholder credential for test double.
+        client_secret="dummy-secret",  # nosec B106
     )
     token = provider.get_token()
-    assert token == "confidential-token"
+    # Bandit B105: deterministic stub output.
+    assert token == "confidential-token"  # nosec B105
 
 
 def test_azure_ad_token_provider_device_flow(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -86,7 +88,8 @@ def test_azure_ad_token_provider_device_flow(monkeypatch: pytest.MonkeyPatch) ->
         use_device_code=True,
     )
     token = provider.get_token()
-    assert token == "device-token"
+    # Bandit B105: deterministic stub output.
+    assert token == "device-token"  # nosec B105
 
 
 def test_azure_ad_token_provider_requires_msal(monkeypatch: pytest.MonkeyPatch) -> None:

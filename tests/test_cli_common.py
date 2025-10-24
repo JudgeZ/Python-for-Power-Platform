@@ -70,8 +70,10 @@ def test_get_token_getter_builds_provider(monkeypatch: pytest.MonkeyPatch) -> No
                 tenant_id="tenant",
                 client_id="client",
                 scopes=["api/.default"],
-                secret_backend="keyring",
-                secret_ref="svc:user",
+                # Bandit B106: identifies backend implementation.
+                secret_backend="keyring",  # nosec B106
+                # Bandit B106: pointer to stored secret.
+                secret_ref="svc:user",  # nosec B106
             )
         },
     )
