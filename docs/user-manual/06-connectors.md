@@ -50,7 +50,9 @@ $ ppx connector push \
 * The command issues the same PUT request used in the OpenAPI push path, so
   updates and creates share identical output (see `tests/test_connectors_client.py`).
 * Use `--display-name` to change the friendly name shown in Power Apps and
-  Power Automate; omit it to leave the existing value unchanged.
+  Power Automate. If you omit the flag, `ppx connector push` sends the
+  connector's internal name as `displayName`, replacing any existing friendly
+  name; re-supply the current value when you need to keep it.
 
 ## Delete a connector
 
