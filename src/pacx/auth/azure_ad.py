@@ -1,10 +1,13 @@
 from __future__ import annotations
-from typing import Iterable, Optional
+
+from collections.abc import Iterable
+
+from ..errors import AuthError
+
 try:
     import msal  # type: ignore
 except Exception:  # pragma: no cover
     msal = None  # type: ignore
-from ..errors import AuthError
 
 class AzureADTokenProvider:
     """MSAL-based provider supporting device code or client credentials."""
@@ -13,7 +16,7 @@ class AzureADTokenProvider:
         tenant_id: str,
         client_id: str,
         scopes: Iterable[str],
-        client_secret: Optional[str] = None,
+        client_secret: str | None = None,
         use_device_code: bool = False,
     ) -> None:
         if msal is None:
