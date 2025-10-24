@@ -21,36 +21,34 @@ Adjust paths if your repo layout differs (defaults assume: `src/pacx/...`, tests
 
 ## P0.1 Secure token storage: permissions + optional encryption
 **Goal**: Ensure `~/.pacx/config.json` is user-only readable and tokens can be encrypted with `PACX_CONFIG_ENCRYPTION_KEY`.
-**Files**: `src/pacx/config/*.py`, `docs/user-manual/08-config-profiles.md`, tests in `tests/config/`.
+**Status**: ✅ Complete — implemented in `src/pacx/config.py` with regression coverage in `tests/test_config_security.py`.
+**Files**: `src/pacx/config.py`, `docs/user-manual/08-config-profiles.md`, tests in `tests/test_config_security.py`.
 
 **Subtasks**
-1. **Permissions**
-   - On save, set POSIX mode `0o600` (Unix). On Windows, apply best-effort user-only ACL via `os.chmod` fallback.
-   - On load, detect overly broad perms; auto-tighten and log a warning.
-2. **Encryption**
-   - Support `PACX_CONFIG_ENCRYPTION_KEY` (Fernet or PBKDF2-derived). Prefix encrypted fields with `enc:`.
-   - On load, decrypt transparently; if key missing/wrong, raise `EncryptedConfigError` with recovery guidance.
+1. **Verification**
+   - Keep `_secure_path()` enforcing POSIX `0o600` and Windows best-effort ACLs; adjust if future OS quirks arise.
+   - Monitor load-time permission warnings for false positives and tighten logging language if needed.
+2. **Encryption maintenance**
+   - Ensure Fernet/PBKDF2 support stays compatible with new dependencies; update docs if key handling changes.
+   - Extend `EncryptedConfigError` messaging when new failure modes emerge.
 3. **Docs & Tests**
-   - Document key generation, storage, and “missing key” recovery behavior.
-   - Tests: permission setting (skip/assert on Windows), encrypt/decrypt round-trip, error path when key absent.
+   - Periodically review “Security & Encryption” guidance in `docs/user-manual/08-config-profiles.md` for accuracy.
+   - Add new test cases to `tests/test_config_security.py` when regression scenarios are discovered.
 
 **Acceptance Criteria**
-- New configs are `0600` (POSIX); warning and fix if too open.
-- Tokens encrypted when key present; friendly error when missing/wrong.
-- Docs include clear “Security & Encryption” section.
-- Tests cover permission + encryption paths.
+- Regression tests in `tests/test_config_security.py` remain green.
+- Documentation reflects current encryption and permission behavior.
+- Any new edge cases are accompanied by targeted tests.
 
 **Codex Prompt**
 ```text
-Scope: Harden config security and finalize encryption UX.
+Scope: Reference implementation for config security (already complete).
 
-Edit:
-- src/pacx/config/*.py: finalize _secure_path(), encrypt_field()/decrypt_field(), EncryptedConfigError.
-- docs/user-manual/08-config-profiles.md: add ‘Security & Encryption’ with key generation & recovery.
-- tests/config/test_config_security.py: permission + encryption round-trip + missing-key scenario.
+Review:
+- src/pacx/config.py for `_secure_path()`, encryption helpers, and `EncryptedConfigError`.
+- tests/test_config_security.py for coverage of permissions, encryption round-trips, and error handling.
 
-Ensure: POSIX 0600; Windows best-effort; ‘enc:’ prefix; helpful errors.
-Run: ruff/black/mypy/pytest.
+Use this section to inform related follow-up work; no further changes required at this time.
 ```
 
 ---
