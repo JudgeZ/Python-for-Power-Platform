@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import uuid
+import warnings
 from pathlib import Path
 from typing import Iterable
 
@@ -51,8 +52,22 @@ def _emit_legacy_warning() -> None:
 class SolutionCommandGroup(TyperGroup):
     """Typer command group that understands the legacy --action shim."""
 
+    def __init__(self, *args, **kwargs):
+        context_settings = kwargs.setdefault("context_settings", {})
+        context_settings.setdefault("allow_extra_args", True)
+        context_settings.setdefault("ignore_unknown_options", True)
+        super().__init__(*args, **kwargs)
+        self.allow_extra_args = True
+        self.ignore_unknown_options = True
+
     def resolve_command(self, ctx, args: Iterable[str]):
         arguments = list(args or ())
+        action = ctx.params.get("action") if ctx is not None else None
+        if action:
+            if action not in LEGACY_ACTIONS:
+                raise typer.BadParameter(f"Unknown solution action: {action}")
+            _emit_legacy_warning()
+            arguments = [action, *arguments]
         if arguments:
             first = arguments[0]
             if first == "--action":
@@ -66,6 +81,40 @@ class SolutionCommandGroup(TyperGroup):
             elif first in LEGACY_ACTIONS and first not in self.commands:
                 _emit_legacy_warning()
         return super().resolve_command(ctx, arguments)
+
+    def invoke(self, ctx):
+        action = ctx.params.get("action")
+        if action:
+            if action not in LEGACY_ACTIONS:
+                raise typer.BadParameter(f"Unknown solution action: {action}")
+            _emit_legacy_warning()
+            command = self.get_command(ctx, action)
+            if command is None:
+                raise typer.BadParameter(f"Unknown solution action: {action}")
+            extras = _gather_legacy_args(ctx)
+            command_ctx = command.make_context(
+                f"{ctx.info_name} {action}",
+                extras,
+                parent=ctx,
+                resilient_parsing=False,
+            )
+            try:
+                result = command.invoke(command_ctx)
+            finally:
+                command_ctx.close()
+            ctx.exit(result or 0)
+        return super().invoke(ctx)
+
+
+def _gather_legacy_args(ctx: typer.Context) -> list[str]:
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=".*protected_args.*",
+            category=DeprecationWarning,
+        )
+        protected = list(getattr(ctx, "protected_args", ()))
+    return [*protected, *ctx.args]
 
 
 def _get_dataverse_client(
@@ -82,6 +131,10 @@ app = typer.Typer(
     cls=SolutionCommandGroup,
     no_args_is_help=True,
     invoke_without_command=True,
+    context_settings={
+        "allow_extra_args": True,
+        "ignore_unknown_options": True,
+    },
 )
 
 
@@ -98,16 +151,7 @@ def handle_legacy_invocation(
     if action:
         if action not in LEGACY_ACTIONS:
             raise typer.BadParameter(f"Unknown solution action: {action}")
-        _emit_legacy_warning()
-        command = ctx.command.get_command(ctx, action)
-        if command is None:
-            raise typer.BadParameter(f"Unknown solution action: {action}")
-        result = command.main(
-            args=list(ctx.args),
-            prog_name=f"{ctx.info_name} {action}",
-            standalone_mode=False,
-        )
-        raise typer.Exit(result or 0)
+        return
 
     if ctx.invoked_subcommand is None and ctx.args:
         first = ctx.args[0]

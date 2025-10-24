@@ -242,6 +242,35 @@ def test_legacy_action_option_warns_and_dispatches(monkeypatch, cli_runner, cli_
     assert "Deprecated: action-style solution invocations" in result.stdout
 
 
+def test_legacy_action_option_accepts_extra_args(monkeypatch, cli_runner, cli_app, tmp_path):
+    monkeypatch.setattr("pacx.cli.solution.DataverseClient", StubDataverseClient)
+    output_path = tmp_path / "legacy-export.zip"
+
+    result = cli_runner.invoke(
+        cli_app,
+        [
+            "solution",
+            "--action",
+            "export",
+            "--name",
+            "legacy",
+            "--host",
+            "legacy.crm.dynamics.com",
+            "--out",
+            str(output_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert output_path.read_bytes() == b"zip-bytes"
+    stub = StubDataverseClient.last_instance
+    assert stub is not None
+    assert stub.host == "legacy.crm.dynamics.com"
+    assert stub.export_requests, "expected export_solution to be called"
+    request = stub.export_requests[0]
+    assert getattr(request, "SolutionName", None) == "legacy"
+
+
 def test_legacy_action_unknown_command(monkeypatch, cli_runner, cli_app):
     result = cli_runner.invoke(cli_app, ["solution", "--action", "unknown"], catch_exceptions=False)
 
