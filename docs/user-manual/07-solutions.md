@@ -54,6 +54,10 @@ Import submitted (job: job123)
 * Provide `--wait` to poll `ImportJobId` (defaults to a generated GUID when omitted) until the job
   reaches a terminal state.
 * For fire-and-forget automation, drop `--wait` and capture the echoed job ID for later monitoring.
+* Long-running imports poll every second for up to 10 minutes; if the timeout is reached the command exits with the last known
+  status so you can decide whether to retry or continue monitoring in the Power Platform admin center.
+* After a successful import, run `ppx solution list` to confirm the version bump and `ppx solution publish-all` if the package
+  introduced unmanaged customizations that require publication.
 
 ## Publish all customizations
 
@@ -63,7 +67,8 @@ Published all customizations
 ```
 
 * Requires the same Dataverse prerequisites as import/export.
-* Useful after applying unmanaged customizations that touch multiple solutions.
+* Useful after applying unmanaged customizations that touch multiple solutions. Publish operations can take several minutes in
+  large environments; keep the terminal open until the Rich status message returns.
 
 ## Pack and unpack solution archives
 
@@ -80,6 +85,8 @@ Packed solution_unpacked -> dist/contoso_solution_managed.zip
 * These commands keep the original archive structure intact – ideal for quick edits or inspecting manifests.
 * The helper functions (`pacx.solution_source.pack_solution_folder` and `.unpack_solution_zip`) preserve every file under
   the root without reformatting component folders.
+* When using temporary working folders (e.g., `solution_unpacked`), remember to clean them up (`rm -rf solution_unpacked`) or
+  add them to `.gitignore` so build artifacts do not bleed into commits.
 
 ### SolutionPackager-like layout
 
@@ -104,3 +111,5 @@ Packed (SolutionPackager-like) solution_src/src -> dist/contoso_solution_managed
   land under `Other/` to round-trip cleanly.
 * `unpack-sp` always creates a `src/` directory so you can track exports in source control, and `pack-sp`
   reverses the projection before zipping.
+* The `src/` projection mirrors SolutionPackager conventions, making it easy to diff between environments with Git. Clean up
+  the staging tree after packaging to avoid stale files (`rm -rf solution_src`).
