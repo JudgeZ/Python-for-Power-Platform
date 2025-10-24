@@ -21,7 +21,7 @@ def test_bulk_csv_posts_batch(tmp_path, respx_mock, token_getter):
         return_value=httpx.Response(202)
     )
     result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=2)
-    assert result.stats["total_rows"] == 2
+    assert result.stats.total_rows == 2
 
 
 def test_bulk_csv_reports_retries(tmp_path, respx_mock, token_getter):
@@ -52,7 +52,7 @@ def test_bulk_csv_reports_retries(tmp_path, respx_mock, token_getter):
     )
 
     result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=1)
-    assert result.stats["retry_invocations"] == 1
+    assert result.stats.retry_invocations == 1
 
 
 def test_bulk_csv_row_index_matches_csv_line_with_skipped_rows(tmp_path, respx_mock, token_getter):
@@ -92,4 +92,4 @@ def test_bulk_csv_row_index_matches_csv_line_with_skipped_rows(tmp_path, respx_m
     )
 
     assert len(result.operations) == 1
-    assert result.operations[0]["row_index"] == 3
+    assert result.operations[0].row_index == 3

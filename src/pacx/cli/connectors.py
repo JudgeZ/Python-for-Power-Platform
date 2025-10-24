@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Typer commands that manage custom connectors."""
+
 import typer
 from rich import print
 
@@ -21,8 +23,14 @@ def connectors_list(
     top: int | None = typer.Option(
         None, help="Maximum results to return via $top (default: server limit)"
     ),
-):
-    """List custom connector APIs available in an environment."""
+) -> None:
+    """List custom connector APIs available in an environment.
+
+    Args:
+        ctx: Active Typer context used to resolve authentication.
+        environment_id: Optional environment override.
+        top: Maximum number of results requested from the service.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
@@ -41,8 +49,14 @@ def connectors_get(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
     api_name: str = typer.Argument(..., help="API (connector) internal name"),
-):
-    """Retrieve the OpenAPI definition for a connector."""
+) -> None:
+    """Retrieve the OpenAPI definition for a connector.
+
+    Args:
+        ctx: Typer context containing authentication state.
+        environment_id: Optional environment override.
+        api_name: Connector logical name.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
@@ -65,8 +79,16 @@ def connector_push(
     display_name: str | None = typer.Option(
         None, help="Optional friendly name shown in Power Platform"
     ),
-):
-    """Create or update a connector from an OpenAPI document."""
+) -> None:
+    """Create or update a connector from an OpenAPI document.
+
+    Args:
+        ctx: Typer context containing authentication state.
+        environment_id: Optional environment override.
+        name: Connector logical name.
+        openapi_path: Location of the OpenAPI document to import.
+        display_name: Optional friendly display name.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
@@ -91,8 +113,15 @@ def connector_delete(
         "-y",
         help="Confirm deletion without prompting.",
     ),
-):
-    """Delete a connector from the target environment."""
+) -> None:
+    """Delete a connector from the target environment.
+
+    Args:
+        ctx: Typer context containing authentication state.
+        environment_id: Optional environment override.
+        api_name: Connector logical name.
+        yes: When ``True`` skips the confirmation prompt.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Typer commands for interacting with the Power Platform REST APIs."""
+
 from typing import Annotated
 
 import typer
@@ -34,8 +36,13 @@ def list_envs(
             help="Power Platform API version (defaults to 2022-03-01-preview)",
         ),
     ],
-):
-    """List Power Platform environments."""
+) -> None:
+    """List Power Platform environments.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        api_version: API version used to call the management endpoint.
+    """
     token_getter = get_token_getter(ctx)
     client_cls = _resolve_client_class()
     client = client_cls(token_getter, api_version=api_version)
@@ -55,8 +62,14 @@ def list_apps(
         int | None,
         typer.Option(None, help="Maximum results to return via $top (default: server limit)"),
     ],
-):
-    """List canvas apps in an environment."""
+) -> None:
+    """List canvas apps in an environment.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        environment_id: Optional environment override.
+        top: Maximum number of app summaries to retrieve.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
@@ -74,8 +87,13 @@ def list_flows(
         str | None,
         typer.Option(None, help="Environment ID to target (defaults to profile configuration)"),
     ],
-):
-    """List cloud flows in an environment."""
+) -> None:
+    """List cloud flows in an environment.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        environment_id: Optional environment override.
+    """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)

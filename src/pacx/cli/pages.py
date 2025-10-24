@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Typer commands that orchestrate Power Pages exports and imports."""
+
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -66,8 +68,20 @@ def pages_download(
             help="JSON string/path configuring custom binary providers (default: none)",
         ),
     ],
-):
-    """Download a Power Pages site to a local folder."""
+) -> None:
+    """Download a Power Pages site to a local folder.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        website_id: Dataverse website identifier.
+        tables: Table preset or explicit list to export.
+        binaries: Whether to export binary providers by default.
+        out: Output directory for site artifacts.
+        host: Optional Dataverse host override.
+        include_files: Toggle inclusion of file entity exports.
+        binary_provider: Explicit provider identifiers to execute.
+        provider_options: JSON string or file path configuring providers.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -141,8 +155,18 @@ def pages_upload(
             help="JSON string/path overriding natural keys (merged with manifest data)",
         ),
     ],
-):
-    """Upload a previously downloaded Power Pages site."""
+) -> None:
+    """Upload a previously downloaded Power Pages site.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        website_id: Dataverse website identifier.
+        tables: Table preset or explicit list to upload.
+        src: Source directory created by :func:`pages_download`.
+        host: Optional Dataverse host override.
+        strategy: Conflict handling strategy.
+        key_config: JSON string/path overriding natural keys.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -197,8 +221,16 @@ def pages_diff_permissions(
             help="JSON string/path overriding keys (merged with manifest defaults)",
         ),
     ],
-):
-    """Compare web role permissions between Dataverse and a local export."""
+) -> None:
+    """Compare web role permissions between Dataverse and a local export.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        website_id: Dataverse website identifier.
+        src: Local export directory.
+        host: Optional Dataverse host override.
+        key_config: JSON string/path overriding keys.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)

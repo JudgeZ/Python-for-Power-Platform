@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Typer commands for Dataverse operations."""
+
 import json
 
 import typer
@@ -20,8 +22,13 @@ def dv_whoami(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """Display the caller identity returned by Dataverse."""
+) -> None:
+    """Display the caller identity returned by Dataverse.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -43,8 +50,18 @@ def dv_list(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """List table rows with optional OData query parameters."""
+) -> None:
+    """List table rows with optional OData query parameters.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        entityset: Logical table to query.
+        select: Comma-separated column list.
+        filter: OData ``$filter`` expression.
+        top: Maximum number of rows to return.
+        orderby: OData ``$orderby`` clause.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -61,8 +78,15 @@ def dv_get(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """Retrieve a single Dataverse record by ID."""
+) -> None:
+    """Retrieve a single Dataverse record by ID.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        entityset: Logical table to query.
+        record_id: Record GUID.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -79,8 +103,15 @@ def dv_create(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """Create a Dataverse record from a JSON payload."""
+) -> None:
+    """Create a Dataverse record from a JSON payload.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        entityset: Logical table to target.
+        data: JSON payload describing the record.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -99,8 +130,16 @@ def dv_update(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """Update a Dataverse record using a JSON merge payload."""
+) -> None:
+    """Update a Dataverse record using a JSON merge payload.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        entityset: Logical table to target.
+        record_id: Record GUID.
+        data: JSON payload containing fields to update.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -119,8 +158,15 @@ def dv_delete(
     host: str | None = typer.Option(
         None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
     ),
-):
-    """Delete a Dataverse record."""
+) -> None:
+    """Delete a Dataverse record.
+
+    Args:
+        ctx: Typer context providing authentication state.
+        entityset: Logical table to target.
+        record_id: Record GUID.
+        host: Optional Dataverse host override.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -159,8 +205,23 @@ def dv_bulk_csv(
     report: str | None = typer.Option(
         None, help="Write per-operation results CSV to this path (default: disabled)"
     ),
-):
-    """Upsert Dataverse records in bulk from a CSV file."""
+) -> None:
+    """Upsert Dataverse records in bulk from a CSV file.
+
+    Args:
+        ctx: Typer callback context used to resolve authentication.
+        entityset: Logical table name containing the target rows.
+        csv_path: Path to the CSV payload.
+        id_column: Column containing the Dataverse record identifier.
+        key_columns: Alternate key columns provided as a comma-separated list.
+        create_if_missing: Whether to POST when identifiers are absent.
+        host: Dataverse host override.
+        chunk_size: Number of records to batch together per request.
+        report: Optional path for writing a CSV report of the operations.
+
+    The command prints a summary of the operation and optionally writes a per-operation
+    CSV report when ``report`` is provided.
+    """
 
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
@@ -184,20 +245,21 @@ def dv_bulk_csv(
             for row in result.operations:
                 writer.writerow(
                     [
-                        row.get("row_index"),
-                        row.get("content_id"),
-                        row.get("status_code"),
-                        row.get("reason"),
-                        (row.get("json") or ""),
+                        row.row_index,
+                        row.content_id,
+                        row.status_code,
+                        row.reason,
+                        row.json or "",
                     ]
                 )
         print(f"Wrote per-op report to {report}")
     stats = result.stats
     print(
         "Bulk upsert completed: "
-        f"{stats['successes']} succeeded, {stats['failures']} failed, "
-        f"retries={stats['retry_invocations']}"
+        f"{stats.successes} succeeded, {stats.failures} failed, "
+        f"retries={stats.retry_invocations}"
     )
+    return None
 
 
 __all__ = [
