@@ -53,3 +53,13 @@ class ConnectorsClient:
             },
         }
         return self.put_api(environment_id, api_name, body)
+
+    def delete_api(self, environment_id: str, api_name: str) -> bool:
+        """Delete a connector API from an environment."""
+
+        params = {"api-version": self.api_version}
+        resp = self.http.delete(
+            f"powerapps/environments/{environment_id}/apis/{api_name}",
+            params=params,
+        )
+        return 200 <= resp.status_code < 300

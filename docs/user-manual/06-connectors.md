@@ -56,17 +56,20 @@ $ ppx connector push \
 
 ## Delete a connector
 
-PACX does not yet expose a dedicated `ppx connector delete` command, but you can call
-the same REST endpoint the client uses via `curl`.
-
 ```bash
-$ export TOKEN="$(command-to-fetch-token)"
-$ curl -X DELETE \
-    -H "Authorization: Bearer ${TOKEN}" \
-    "https://api.powerplatform.com/powerapps/environments/Default-ENV/apis/pac-lite?api-version=2022-03-01-preview"
+$ ppx connector delete --environment-id Default-ENV pac-lite
+Delete connector 'pac-lite' from environment 'Default-ENV'? [y/N]: y
+[green]Deleted connector 'pac-lite' from environment 'Default-ENV'.[/green]
+
+$ ppx connector delete --environment-id Default-ENV --yes pac-lite
+[green]Deleted connector 'pac-lite' from environment 'Default-ENV'.[/green]
 ```
 
-* A successful deletion returns HTTP `204 No Content`; rerun `ppx connector list`
-  to verify removal.
-* When automation is required, reuse the `ConnectorsClient` base URL and API version
-  constants shown in `pacx.clients.connectors` to avoid drift.
+* PACX asks for confirmation before sending the DELETE call. Pass `--yes` (or
+  `-y`) to skip the prompt in non-interactive scripts. The behaviour is exercised
+  by `tests/test_cli_connectors.py::test_connectors_delete_succeeds`.
+* Successful deletions exit with status code `0`. When the connector does not
+  exist, PACX prints a friendly not-found message and exits with status `1`
+  (`tests/test_cli_connectors.py::test_connectors_delete_handles_404`).
+* The client sends the DELETE request with the same API version used across the
+  other operations (`tests/test_connectors_client.py::test_delete_api_success`).
