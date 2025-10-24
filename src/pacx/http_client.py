@@ -48,7 +48,10 @@ class HttpClient:
         data: bytes | str | None = None,
         content: bytes | str | None = None,
     ) -> httpx.Response:
-        url = f"{self.base_url}/{path.lstrip('/')}"
+        if path.startswith(("http://", "https://")):
+            url = path
+        else:
+            url = f"{self.base_url}/{path.lstrip('/')}"
         merged_headers = {**self._default_headers, **(headers or {}), **self._auth_header()}
         attempt = 0
         while True:
@@ -99,3 +102,14 @@ class HttpClient:
 
     def delete(self, path: str, **kwargs: Any) -> httpx.Response:
         return self.request("DELETE", path, **kwargs)
+
+    def close(self) -> None:
+        """Close the underlying :class:`httpx.Client`."""
+
+        self._client.close()
+
+    def __enter__(self) -> HttpClient:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()

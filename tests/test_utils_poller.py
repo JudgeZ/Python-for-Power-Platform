@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import itertools
 
-from pacx.utils.poller import poll_until
+import pytest
+
+from pacx.utils.poller import PollTimeoutError, poll_until
 
 
 def test_poll_until_tracks_progress(monkeypatch):
@@ -37,11 +39,14 @@ def test_poll_until_times_out(monkeypatch):
     monkeypatch.setattr("pacx.utils.poller.time.sleep", lambda _: None)
     monkeypatch.setattr("pacx.utils.poller.time.time", fake_time)
 
-    result = poll_until(
-        get_status=lambda: status,
-        is_done=lambda _: False,
-        interval=0,
-        timeout=1.0,
-    )
+    with pytest.raises(PollTimeoutError) as exc_info:
+        poll_until(
+            get_status=lambda: status,
+            is_done=lambda _: False,
+            interval=0,
+            timeout=1.0,
+        )
 
-    assert result is status
+    err = exc_info.value
+    assert err.last_status is status
+    assert err.timeout == 1.0

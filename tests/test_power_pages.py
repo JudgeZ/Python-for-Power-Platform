@@ -71,6 +71,57 @@ def test_pages_download(tmp_path, respx_mock, token_getter):
     assert manifest["website_id"] == website_id
 
 
+def test_pages_download_handles_pagination(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    website_id = "00000000-0000-0000-0000-000000000000"
+
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_webpageid": "w1",
+                        "adx_name": "Home",
+                        "adx_partialurl": "home",
+                        "_adx_websiteid_value": website_id,
+                    }
+                ],
+                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages?$skiptoken=abc",
+            },
+        )
+    )
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages",
+        params={"$skiptoken": "abc"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_webpageid": "w2",
+                        "adx_name": "About",
+                        "adx_partialurl": "about",
+                        "_adx_websiteid_value": website_id,
+                    }
+                ]
+            },
+        )
+    )
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles").mock(
+        return_value=httpx.Response(200, json={"value": []})
+    )
+    _mock_empty_tables(respx_mock)
+
+    pp = PowerPagesClient(dv)
+    res = pp.download_site(website_id, tmp_path, include_files=True)
+    pages = sorted((res.output_path / "pages").glob("*.json"))
+    assert len(pages) == 2
+    names = {json.loads(path.read_text(encoding="utf-8"))["adx_name"] for path in pages}
+    assert names == {"Home", "About"}
+
+
 def test_pages_upload_with_ids(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)

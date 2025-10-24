@@ -41,6 +41,17 @@ class DataverseClient:
             },
         )
 
+    def close(self) -> None:
+        """Close the underlying HTTP session."""
+
+        self.http.close()
+
+    def __enter__(self) -> DataverseClient:
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
     # ---- Solution operations ----
     def list_solutions(
         self, select: str | None = None, filter: str | None = None, top: int | None = None

@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from typing import Any, cast
+
 from ..errors import HttpError
 from ..odata import build_alternate_key_segment
 from ..power_pages.constants import DEFAULT_NATURAL_KEYS
@@ -240,6 +242,39 @@ class PowerPagesClient:
 
         return merged
 
+    @staticmethod
+    def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+        for key in ("@odata.nextLink", "odata.nextLink"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    def _list_all_records(
+        self,
+        entityset: str,
+        *,
+        select: str,
+        filter_expr: str | None,
+        top: int = 5000,
+    ) -> list[Mapping[str, object]]:
+        payload = self.dv.list_records(entityset, select=select, filter=filter_expr, top=top)
+        records = [
+            cast(Mapping[str, object], obj)
+            for obj in cast(Iterable[object], payload.get("value", []))
+            if isinstance(obj, Mapping)
+        ]
+        next_link = self._extract_next_link(payload)
+        while next_link:
+            page = cast(dict[str, Any], self.dv.http.get(next_link).json())
+            records.extend(
+                cast(Mapping[str, object], obj)
+                for obj in cast(Iterable[object], page.get("value", []))
+                if isinstance(obj, Mapping)
+            )
+            next_link = self._extract_next_link(page)
+        return records
+
     def download_site(
         self,
         website_id: str,
@@ -279,8 +314,11 @@ class PowerPagesClient:
             filter_expr = None
             if "_adx_websiteid_value" in select:
                 filter_expr = f"_adx_websiteid_value eq {website_id}"
-            data = self.dv.list_records(entityset, select=select, filter=filter_expr, top=5000).get(
-                "value", []
+            data = self._list_all_records(
+                entityset,
+                select=select,
+                filter_expr=filter_expr,
+                top=5000,
             )
             summary[folder] = len(data)
             if entityset == "adx_webfiles":

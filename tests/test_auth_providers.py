@@ -103,3 +103,15 @@ def test_azure_ad_token_provider_requires_msal(monkeypatch: pytest.MonkeyPatch) 
             )
     finally:
         monkeypatch.setattr("pacx.auth.azure_ad.msal", original_msal, raising=False)
+
+
+def test_load_msal_reraises_other_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    import pacx.auth.azure_ad as azure
+
+    def boom(name: str) -> types.ModuleType:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(azure, "import_module", boom, raising=False)
+
+    with pytest.raises(RuntimeError):
+        azure._load_msal()
