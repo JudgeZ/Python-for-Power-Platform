@@ -3,7 +3,9 @@
 The `ppx connector` commands manage custom connectors (APIs) hosted in a Power Platform
 environment. Every operation requires an access token – either via `PACX_ACCESS_TOKEN`
 (set by `ppx auth use` or manual export) or an active profile that supplies an
-environment ID.
+environment ID. The refactored CLI exposes explicit subcommands (`list`, `get`,
+`push`, `delete`) so automations can call the operation they need directly without
+passing `--action` flags.
 
 ## List available connectors
 
@@ -71,5 +73,12 @@ $ ppx connector delete --environment-id Default-ENV --yes pac-lite
 * Successful deletions exit with status code `0`. When the connector does not
   exist, PACX prints a friendly not-found message and exits with status `1`
   (`tests/test_cli_connectors.py::test_connectors_delete_handles_404`).
-* The client sends the DELETE request with the same API version used across the
-  other operations (`tests/test_connectors_client.py::test_delete_api_success`).
+* The flow is safeguarded with a confirmation prompt, uniform Rich messaging,
+  and `HttpError` handling so that 4xx/5xx responses surface clearly in CI logs.
+* The client sends the DELETE request with the same API version (`2022-03-01-preview`)
+  used across the other operations (`tests/test_connectors_client.py::test_delete_api_success`).
+
+If the service returns a throttling error (HTTP 429) or transient fault, wait a
+few seconds before retrying the same command. Connector deletes count toward
+tenant-level quotas, so scripting loops should include exponential backoff to
+avoid exhausting the daily allowance.
