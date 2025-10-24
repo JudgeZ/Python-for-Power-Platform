@@ -3,6 +3,7 @@ from __future__ import annotations
 # ruff: noqa: S101
 import pytest
 import typer
+from typer.main import get_command
 
 import pacx.config as config_module
 from pacx import config
@@ -15,14 +16,11 @@ from pacx.cli_utils import (
 )
 
 
-class DummyCtx:
-    def __init__(self) -> None:
-        self.obj: dict | None = None
+def build_typer_context() -> typer.Context:
+    """Return a minimal :class:`typer.Context` instance for CLI helpers."""
 
-    def ensure_object(self, factory):
-        if self.obj is None:
-            self.obj = factory()
-        return self.obj
+    command = get_command(typer.Typer())
+    return typer.Context(command)
 
 
 class DummyStore:
@@ -75,7 +73,7 @@ def test_resolve_dataverse_host_missing(monkeypatch, tmp_path):
 
 
 def test_get_config_from_context_caches() -> None:
-    ctx = DummyCtx()
+    ctx = build_typer_context()
     store = DummyStore()
     cfg1 = get_config_from_context(ctx, store=store)
     cfg2 = get_config_from_context(ctx, store=store)
@@ -85,7 +83,7 @@ def test_get_config_from_context_caches() -> None:
 
 
 def test_context_resolvers_use_cached_config() -> None:
-    ctx = DummyCtx()
+    ctx = build_typer_context()
     config_data = config.ConfigData(environment_id="ENV123", dataverse_host="env.crm.dynamics.com")
     store = DummyStore(result=config_data)
 
