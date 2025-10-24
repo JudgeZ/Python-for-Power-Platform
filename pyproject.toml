@@ -77,8 +77,13 @@ target-version = ["py310"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-select = ["E","F","I","B","UP","N","S","W"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "S", "W"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101"]
 
 [tool.mypy]
 python_version = "3.10"
