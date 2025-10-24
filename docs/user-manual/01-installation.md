@@ -17,30 +17,21 @@ Follow the sequence below to bootstrap a profile, sign in, and run your first Da
 
 ### 1. Create a profile shell
 
-Profiles capture your tenant defaults and live under `~/.pacx/config.json` (override with `PACX_HOME`). Start by naming the profile and storing the environment identifier you will target most often:
+Profiles capture your tenant defaults and live under `~/.pacx/config.json` (override with `PACX_HOME`). Environment and host settings are global defaults—`ppx` does not scope them per profile—so configure them first and then create or use your profile.
 
 ```shell
-$ ppx profile set-env demo --environment-id Default-12345678-0000-0000-0000-000000000000
-Environment set for demo.
+$ ppx profile set-env Default-12345678-0000-0000-0000-000000000000
+Environment set.
 ```
 
 If your Dataverse host is different from the default, persist it as well:
 
 ```shell
-$ ppx profile set-host demo --host org.crm.dynamics.com
-Host set for demo.
+$ ppx profile set-host org.crm.dynamics.com
+Host set.
 ```
 
-You can check what is stored at any time:
-
-```shell
-$ ppx profile show demo
-{
-  "name": "demo",
-  "environment_id": "Default-12345678-0000-0000-0000-000000000000",
-  "host": "org.crm.dynamics.com"
-}
-```
+Run `ppx profile show` at any time to review the active defaults and existing profiles.
 
 ### 2. Authenticate with device code
 
