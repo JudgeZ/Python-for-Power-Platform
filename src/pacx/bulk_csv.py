@@ -1,20 +1,19 @@
-
 from __future__ import annotations
 
 import csv
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
-from .clients.dataverse import DataverseClient
 from .batch import BatchSendResult, send_batch
+from .clients.dataverse import DataverseClient
 from .odata import build_alternate_key_segment
 
 
 @dataclass
 class BulkCsvResult:
-    operations: List[Dict[str, Any]]
-    stats: Dict[str, Any]
+    operations: list[dict[str, Any]]
+    stats: dict[str, Any]
 
 
 def bulk_csv_upsert(
@@ -26,12 +25,12 @@ def bulk_csv_upsert(
     key_columns: list[str] | None = None,
     chunk_size: int = 50,
     create_if_missing: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Upsert records from CSV using OData $batch.
 
     Returns per-operation results: list of dicts with content_id, status_code, reason, json, text.
     """
-    rows: List[tuple[int, Dict[str, Any]]] = []
+    rows: list[tuple[int, dict[str, Any]]] = []
     with open(csv_path, newline="", encoding="utf-8") as f:
         r = csv.DictReader(f)
         for row in r:
@@ -39,26 +38,30 @@ def bulk_csv_upsert(
 
     def chunk(lst, n):
         for i in range(0, len(lst), n):
-            yield lst[i:i+n]
+            yield lst[i : i + n]
 
-    all_results: List[Dict[str, Any]] = []
+    all_results: list[dict[str, Any]] = []
     retry_histogram: Counter[int] = Counter()
     total_retries = 0
     grouped_errors: Counter[str] = Counter()
     total_attempts = 0
     for group in chunk(rows, chunk_size):
-        ops: List[Dict[str, Any]] = []
-        op_row_numbers: List[int] = []
+        ops: list[dict[str, Any]] = []
+        op_row_numbers: list[int] = []
         for row_number, row in group:
             rid = row.get(id_column)
             body = {k: v for k, v in row.items() if k != id_column and v not in ("", None)}
             if rid:
-                ops.append({"method": "PATCH", "url": f"/api/data/v9.2/{entityset}({rid})", "body": body})
+                ops.append(
+                    {"method": "PATCH", "url": f"/api/data/v9.2/{entityset}({rid})", "body": body}
+                )
                 op_row_numbers.append(row_number)
             elif key_columns and all(row.get(k) not in (None, "") for k in key_columns):
                 key_map = {k: row[k] for k in key_columns}
                 seg = build_alternate_key_segment(key_map)
-                ops.append({"method": "PATCH", "url": f"/api/data/v9.2/{entityset}({seg})", "body": body})
+                ops.append(
+                    {"method": "PATCH", "url": f"/api/data/v9.2/{entityset}({seg})", "body": body}
+                )
                 op_row_numbers.append(row_number)
             elif create_if_missing:
                 ops.append({"method": "POST", "url": f"/api/data/v9.2/{entityset}", "body": body})

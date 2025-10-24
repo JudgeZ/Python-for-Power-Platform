@@ -38,7 +38,9 @@ def test_send_batch_retries_transient(respx_mock: respx.Router, token_getter):
             content=_build_body([204]),
         )
 
-    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(side_effect=responder)
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(
+        side_effect=responder
+    )
 
     result = send_batch(
         dv,

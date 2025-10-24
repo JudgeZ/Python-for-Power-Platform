@@ -17,7 +17,7 @@ class StubDataverseClient:
 
 
 class StubPowerPagesClient:
-    last_instance: "StubPowerPagesClient | None" = None
+    last_instance: StubPowerPagesClient | None = None
 
     def __init__(self, dv):
         self.dv = dv
@@ -97,6 +97,7 @@ class StubPowerPagesClient:
             SimpleNamespace(entityset="adx_webroles", action="add", key=("role", "site")),
             SimpleNamespace(entityset="adx_webrolepermissions", action="remove", key=("perm",)),
         ]
+
 
 def load_cli_app(monkeypatch):
     original_option = typer.Option
@@ -184,6 +185,7 @@ def test_merge_manifest_keys_uses_client(tmp_path):
     assert result["adx_webpages"] == ["adx_partialurl"]
     assert result["adx_webfiles"] == ["filename"]
 
+
 def test_pages_upload_merges_key_configuration(monkeypatch, cli_runner, tmp_path):
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
@@ -228,6 +230,7 @@ def test_pages_upload_merges_key_configuration(monkeypatch, cli_runner, tmp_path
         "adx_webpages": ["adx_name"],
         "adx_webfiles": ["filename"],
     }
+
 
 def test_pages_diff_permissions_lists_plan(monkeypatch, cli_runner, tmp_path):
     app = load_cli_app(monkeypatch)

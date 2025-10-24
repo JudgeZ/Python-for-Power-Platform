@@ -1,4 +1,9 @@
-from .power_platform import PowerPlatformClient
-from .dataverse import DataverseClient
+from .connectors import ConnectorsClient as ConnectorsClient
+from .dataverse import DataverseClient as DataverseClient
+from .power_platform import PowerPlatformClient as PowerPlatformClient
 
-from .connectors import ConnectorsClient
+__all__ = [
+    "ConnectorsClient",
+    "DataverseClient",
+    "PowerPlatformClient",
+]

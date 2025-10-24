@@ -34,13 +34,31 @@ def test_pages_download(tmp_path, respx_mock, token_getter):
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages").mock(
         return_value=httpx.Response(
             200,
-            json={"value": [{"adx_webpageid": "w1", "adx_name": "Home", "adx_partialurl": "home", "_adx_websiteid_value": website_id}]},
+            json={
+                "value": [
+                    {
+                        "adx_webpageid": "w1",
+                        "adx_name": "Home",
+                        "adx_partialurl": "home",
+                        "_adx_websiteid_value": website_id,
+                    }
+                ]
+            },
         )
     )
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles").mock(
         return_value=httpx.Response(
             200,
-            json={"value": [{"adx_webfileid": "f1", "adx_name": "logo.png", "adx_partialurl": "logo.png", "_adx_websiteid_value": website_id}]},
+            json={
+                "value": [
+                    {
+                        "adx_webfileid": "f1",
+                        "adx_name": "logo.png",
+                        "adx_partialurl": "logo.png",
+                        "_adx_websiteid_value": website_id,
+                    }
+                ]
+            },
         )
     )
     _mock_empty_tables(respx_mock)
@@ -62,11 +80,19 @@ def test_pages_upload_with_ids(tmp_path, respx_mock, token_getter):
     files_dir = site / "files"
     pages_dir.mkdir(parents=True)
     files_dir.mkdir(parents=True)
-    (pages_dir / "home.json").write_text(json.dumps({"adx_webpageid": "w1", "adx_name": "Home"}), encoding="utf-8")
-    (files_dir / "logo.json").write_text(json.dumps({"adx_webfileid": "f1", "adx_name": "logo.png"}), encoding="utf-8")
+    (pages_dir / "home.json").write_text(
+        json.dumps({"adx_webpageid": "w1", "adx_name": "Home"}), encoding="utf-8"
+    )
+    (files_dir / "logo.json").write_text(
+        json.dumps({"adx_webfileid": "f1", "adx_name": "logo.png"}), encoding="utf-8"
+    )
 
-    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(w1)").mock(return_value=httpx.Response(204))
-    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles(f1)").mock(return_value=httpx.Response(204))
+    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(w1)").mock(
+        return_value=httpx.Response(204)
+    )
+    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles(f1)").mock(
+        return_value=httpx.Response(204)
+    )
 
     pp.upload_site("id", str(site))
 
@@ -85,7 +111,9 @@ def test_pages_upload_natural_keys(tmp_path, respx_mock, token_getter):
         assert "adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')" in request.url.path
         return httpx.Response(204)
 
-    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(side_effect=responder)
+    respx_mock.patch(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(side_effect=responder)
 
     pp.upload_site("site", str(site), strategy="replace")
 
@@ -97,10 +125,17 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
     site = Path(tmp_path) / "site"
     pages_dir = site / "pages"
     pages_dir.mkdir(parents=True)
-    (pages_dir / "home.json").write_text(json.dumps({"adx_partialurl": "home", "_adx_websiteid_value": "site", "adx_name": "New"}), encoding="utf-8")
+    (pages_dir / "home.json").write_text(
+        json.dumps({"adx_partialurl": "home", "_adx_websiteid_value": "site", "adx_name": "New"}),
+        encoding="utf-8",
+    )
 
-    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(
-        return_value=httpx.Response(200, json={"adx_name": "Old", "adx_partialurl": "home", "_adx_websiteid_value": "site"})
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(
+        return_value=httpx.Response(
+            200, json={"adx_name": "Old", "adx_partialurl": "home", "_adx_websiteid_value": "site"}
+        )
     )
 
     def patcher(request: httpx.Request) -> httpx.Response:
@@ -109,7 +144,9 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
         assert body["adx_partialurl"] == "home"
         return httpx.Response(204)
 
-    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(side_effect=patcher)
+    respx_mock.patch(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(side_effect=patcher)
 
     pp.upload_site("site", str(site), strategy="merge")
 
@@ -124,12 +161,12 @@ def test_pages_upload_natural_keys_skip_existing(tmp_path, respx_mock, token_get
     page_data = {"adx_partialurl": "home", "_adx_websiteid_value": "site", "adx_name": "Existing"}
     (pages_dir / "home.json").write_text(json.dumps(page_data), encoding="utf-8")
 
-    get_route = respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(
-        return_value=httpx.Response(200, json=page_data)
-    )
-    patch_route = respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')").mock(
-        return_value=httpx.Response(204)
-    )
+    get_route = respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(return_value=httpx.Response(200, json=page_data))
+    patch_route = respx_mock.patch(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(return_value=httpx.Response(204))
 
     pp.upload_site("site", str(site), strategy="skip-existing")
 
@@ -185,9 +222,7 @@ def test_key_config_from_manifest_merges_overrides(tmp_path, token_getter):
     manifest = {"natural_keys": {"adx_webpages": ["adx_name"]}}
     (site / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
-    merged = pp.key_config_from_manifest(
-        str(site), overrides={"adx_webfiles": ["filename"]}
-    )
+    merged = pp.key_config_from_manifest(str(site), overrides={"adx_webfiles": ["filename"]})
 
     assert merged["adx_webpages"] == ["adx_name"]
     assert merged["adx_webfiles"] == ["filename"]

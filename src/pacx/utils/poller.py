@@ -1,18 +1,18 @@
-
 from __future__ import annotations
 
 import time
-from typing import Callable, Dict, Any, Optional
+from collections.abc import Callable
+from typing import Any
 
 
 def poll_until(
-    get_status: Callable[[], Dict[str, Any]],
-    is_done: Callable[[Dict[str, Any]], bool],
-    get_progress: Optional[Callable[[Dict[str, Any]], Optional[int]]] = None,
+    get_status: Callable[[], dict[str, Any]],
+    is_done: Callable[[dict[str, Any]], bool],
+    get_progress: Callable[[dict[str, Any]], int | None] | None = None,
     interval: float = 2.0,
     timeout: float = 600.0,
-    on_update: Optional[Callable[[Dict[str, Any]], None]] = None,
-) -> Dict[str, Any]:
+    on_update: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     """Generic polling loop for long-running operations."""
     start = time.time()
     last_pct = None

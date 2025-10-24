@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import httpx
-import respx
 from typer.testing import CliRunner
 
 from pacx.cli import app, doctor

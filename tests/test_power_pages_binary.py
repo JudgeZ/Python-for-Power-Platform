@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-from pathlib import Path
 
 import httpx
 import respx
@@ -31,7 +30,7 @@ def _mock_site(respx_mock: respx.Router) -> None:
         )
     )
 
-    for folder, entityset in (
+    for _folder, entityset in (
         ("websites", "adx_websites"),
         ("pages", "adx_webpages"),
         ("snippets", "adx_contentsnippets"),
@@ -84,7 +83,9 @@ def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
 
     _mock_site(respx_mock)
 
-    blob = respx_mock.get("https://storage/f/logo.png").mock(return_value=httpx.Response(200, content=b"blob"))
+    blob = respx_mock.get("https://storage/f/logo.png").mock(
+        return_value=httpx.Response(200, content=b"blob")
+    )
 
     res = pp.download_site(
         "site",

@@ -1,15 +1,17 @@
-
 from __future__ import annotations
 
+import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from .clients.dataverse import DataverseClient
 
+logger = logging.getLogger(__name__)
 
-def _encode_part(headers: Dict[str, str], body: str) -> str:
+
+def _encode_part(headers: dict[str, str], body: str) -> str:
     lines = []
     for k, v in headers.items():
         lines.append(f"{k}: {v}")
@@ -18,16 +20,18 @@ def _encode_part(headers: Dict[str, str], body: str) -> str:
     return "\r\n".join(lines)
 
 
-def build_batch(ops: List[Dict[str, Any]]) -> Tuple[str, bytes]:
+def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
     """Build a multipart/mixed OData $batch request body.
 
     Each op: {"method": "PATCH|POST|DELETE|GET", "url": "/api/data/v9.2/ENTITYSET(...)", "body": dict|None}
     URLs should be relative to the Dataverse base (no scheme/host) but can include the api path.
     """
-    import uuid, json
+    import json
+    import uuid
+
     batch_id = f"batch_{uuid.uuid4()}"
     changeset_id = f"changeset_{uuid.uuid4()}"
-    batch_lines: List[str] = []
+    batch_lines: list[str] = []
 
     batch_lines.append(f"--{batch_id}")
     batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
@@ -56,18 +60,18 @@ def build_batch(ops: List[Dict[str, Any]]) -> Tuple[str, bytes]:
     return batch_id, body_bytes
 
 
-def parse_batch_response(content_type: str, body: bytes) -> List[Dict[str, Any]]:
+def parse_batch_response(content_type: str, body: bytes) -> list[dict[str, Any]]:
     """Parse a Dataverse $batch multipart/mixed response into a list of per-op results.
 
     Returns: [{content_id, status_code, reason, json, text}]
     """
-    m = re.search(r'boundary=([\w\-\_\.]+)', content_type or "", re.IGNORECASE)
+    m = re.search(r"boundary=([\w\-\_\.]+)", content_type or "", re.IGNORECASE)
     if not m:
         return [{"status_code": 0, "reason": "NoBoundary", "text": body.decode(errors="replace")}]
     boundary = m.group(1)
     raw = body.decode("utf-8", errors="replace")
     parts = [p for p in raw.split(f"--{boundary}") if p.strip() and p.strip() != "--"]
-    results: List[Dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
     for part in parts:
         # Expect nested application/http blocks with Content-ID
         cid_m = re.search(r"Content-ID:\s*(\d+)", part, re.IGNORECASE)
@@ -83,17 +87,26 @@ def parse_batch_response(content_type: str, body: bytes) -> List[Dict[str, Any]]
         j = None
         try:
             import json as _json
+
             j = _json.loads(text) if text.strip() else None
-        except Exception:
-            pass
-        results.append({"content_id": content_id, "status_code": scode, "reason": reason, "json": j, "text": text})
+        except Exception:  # pragma: no cover - defensive best-effort parse
+            logger.debug("Failed to parse batch response part as JSON", exc_info=True)
+        results.append(
+            {
+                "content_id": content_id,
+                "status_code": scode,
+                "reason": reason,
+                "json": j,
+                "text": text,
+            }
+        )
     return results
 
 
 @dataclass
 class BatchSendResult:
-    operations: List[Dict[str, Any]]
-    retry_counts: Dict[int, int]
+    operations: list[dict[str, Any]]
+    retry_counts: dict[int, int]
     attempts: int
 
 
@@ -102,30 +115,30 @@ TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 
 def send_batch(
     dv: DataverseClient,
-    ops: List[Dict[str, Any]],
+    ops: list[dict[str, Any]],
     *,
     max_retries: int = 3,
-    retry_statuses: Optional[set[int]] = None,
+    retry_statuses: set[int] | None = None,
     base_backoff: float = 0.5,
 ) -> BatchSendResult:
     statuses = retry_statuses or TRANSIENT_STATUSES
     pending = list(enumerate(ops))
-    retry_counts: Dict[int, int] = {}
-    final_results: Dict[int, Dict[str, Any]] = {}
+    retry_counts: dict[int, int] = {}
+    final_results: dict[int, dict[str, Any]] = {}
     attempt = 0
 
     while pending and attempt <= max_retries:
         attempt += 1
-        idxs, payload = zip(*pending)
+        idxs, payload = zip(*pending, strict=False)
         req_ops = list(payload)
         batch_id, body = build_batch(req_ops)
         headers = {"Content-Type": f"multipart/mixed; boundary={batch_id}"}
         resp = dv.http.post("$batch", headers=headers, content=body)
         parsed = parse_batch_response(resp.headers.get("Content-Type", ""), resp.content)
 
-        next_round: List[Tuple[int, Dict[str, Any]]] = []
+        next_round: list[tuple[int, dict[str, Any]]] = []
         processed_indices: set[int] = set()
-        for idx, result in zip(idxs, parsed):
+        for idx, result in zip(idxs, parsed, strict=False):
             processed_indices.add(idx)
             result["operation_index"] = idx
             if result.get("status_code") in statuses and attempt <= max_retries:
@@ -148,7 +161,11 @@ def send_batch(
     # attach final attempt results for any exhausted retries
     for idx, _ in pending:
         if idx not in final_results:
-            final_results[idx] = {"status_code": 0, "reason": "RetryExhausted", "operation_index": idx}
+            final_results[idx] = {
+                "status_code": 0,
+                "reason": "RetryExhausted",
+                "operation_index": idx,
+            }
 
     ordered = [final_results[i] for i in sorted(final_results.keys())]
     return BatchSendResult(operations=ordered, retry_counts=retry_counts, attempts=attempt)

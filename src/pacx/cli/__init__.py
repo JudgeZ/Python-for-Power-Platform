@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable, Iterable, Iterator
+
 import typer
-from typing import Callable, Iterable, Iterator, List
 from typer.models import CommandInfo
 
 from . import (
@@ -37,11 +38,13 @@ def _called_from_typer_main() -> bool:
 
 
 class _RegisteredCommandCollection:
-    def __init__(self, base: List[CommandInfo], extras: Callable[[], Iterable[CommandInfo]]) -> None:
+    def __init__(
+        self, base: list[CommandInfo], extras: Callable[[], Iterable[CommandInfo]]
+    ) -> None:
         self._base = base
         self._extras_factory = extras
 
-    def _extras(self) -> List[CommandInfo]:
+    def _extras(self) -> list[CommandInfo]:
         return list(self._extras_factory())
 
     def __iter__(self) -> Iterator[CommandInfo]:

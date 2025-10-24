@@ -1,11 +1,13 @@
-
 from __future__ import annotations
 
 import base64
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any
 
 from ..http_client import HttpClient
-from ..models.dataverse import Solution, ExportSolutionRequest, ImportSolutionRequest
+from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest, Solution
+
+logger = logging.getLogger(__name__)
 
 
 class DataverseClient:
@@ -40,7 +42,9 @@ class DataverseClient:
         )
 
     # ---- Solution operations ----
-    def list_solutions(self, select: Optional[str] = None, filter: Optional[str] = None, top: Optional[int] = None) -> List[Solution]:
+    def list_solutions(
+        self, select: str | None = None, filter: str | None = None, top: int | None = None
+    ) -> list[Solution]:
         """List solutions from the Dataverse environment.
 
         Args:
@@ -51,7 +55,7 @@ class DataverseClient:
         Returns:
             Parsed :class:`Solution` models for each entry in the response.
         """
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
         if select:
             params["$select"] = select
         if filter:
@@ -93,7 +97,7 @@ class DataverseClient:
         self.http.post("PublishAllXml")
 
     # ---- Generic CRUD ----
-    def whoami(self) -> Dict[str, Any]:
+    def whoami(self) -> dict[str, Any]:
         """Return the identity details of the calling user."""
 
         resp = self.http.get("WhoAmI()")
@@ -103,11 +107,11 @@ class DataverseClient:
         self,
         entityset: str,
         *,
-        select: Optional[str] = None,
-        filter: Optional[str] = None,
-        top: Optional[int] = None,
-        orderby: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        select: str | None = None,
+        filter: str | None = None,
+        top: int | None = None,
+        orderby: str | None = None,
+    ) -> dict[str, Any]:
         """List entities for an entity set using standard OData options.
 
         Args:
@@ -120,7 +124,7 @@ class DataverseClient:
         Returns:
             JSON response payload from the Dataverse Web API.
         """
-        params: Dict[str, Any] = {}
+        params: dict[str, Any] = {}
         if select:
             params["$select"] = select
         if filter:
@@ -132,14 +136,14 @@ class DataverseClient:
         resp = self.http.get(entityset, params=params)
         return resp.json()
 
-    def get_record(self, entityset: str, record_id: str) -> Dict[str, Any]:
+    def get_record(self, entityset: str, record_id: str) -> dict[str, Any]:
         """Retrieve a single record by ID."""
 
         path = f"{entityset}({record_id})"
         resp = self.http.get(path)
         return resp.json()
 
-    def create_record(self, entityset: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_record(self, entityset: str, data: dict[str, Any]) -> dict[str, Any]:
         """Create a Dataverse record and return metadata about the result.
 
         Args:
@@ -150,7 +154,7 @@ class DataverseClient:
             Dict containing the ``entityUrl`` header and any JSON response.
         """
         resp = self.http.post(entityset, json=data)
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         loc = resp.headers.get("OData-EntityId") or resp.headers.get("Location")
         if loc:
             out["entityUrl"] = loc
@@ -158,11 +162,11 @@ class DataverseClient:
             j = resp.json()
             if isinstance(j, dict):
                 out.update(j)
-        except Exception:
-            pass
+        except Exception:  # pragma: no cover - best-effort parse
+            logger.debug("Failed to decode Dataverse create_record response", exc_info=True)
         return out
 
-    def update_record(self, entityset: str, record_id: str, data: Dict[str, Any]) -> None:
+    def update_record(self, entityset: str, record_id: str, data: dict[str, Any]) -> None:
         """Replace or merge fields on an existing record.
 
         Args:
@@ -180,13 +184,15 @@ class DataverseClient:
         self.http.delete(path)
 
     # ---- Import Job helpers ----
-    def get_import_job(self, job_id: str) -> Dict[str, Any]:
+    def get_import_job(self, job_id: str) -> dict[str, Any]:
         """Fetch status for a solution import job."""
 
         resp = self.http.get(f"importjobs({job_id})")
         return resp.json()
 
-    def wait_for_import_job(self, job_id: str, *, interval: float = 2.0, timeout: float = 600.0) -> Dict[str, Any]:
+    def wait_for_import_job(
+        self, job_id: str, *, interval: float = 2.0, timeout: float = 600.0
+    ) -> dict[str, Any]:
         """Poll an import job until completion or timeout.
 
         Args:
@@ -199,25 +205,25 @@ class DataverseClient:
         """
         from ..utils.poller import poll_until
 
-        def get_status() -> Dict[str, Any]:
+        def get_status() -> dict[str, Any]:
             try:
                 return self.get_import_job(job_id)
             except Exception:
                 return {"status": "Unknown"}
 
-        def is_done(s: Dict[str, Any]) -> bool:
+        def is_done(s: dict[str, Any]) -> bool:
             # Heuristic: look for progress >= 100 or state indicating completion
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, (int, float)) and v >= 100:
+                if isinstance(v, int | float) and v >= 100:
                     return True
             state = str(s.get("statecode") or s.get("status") or "").lower()
             return state in {"completed", "succeeded", "failed"}
 
-        def get_progress(s: Dict[str, Any]):
+        def get_progress(s: dict[str, Any]):
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, (int, float)):
+                if isinstance(v, int | float):
                     return int(v)
             return None
 

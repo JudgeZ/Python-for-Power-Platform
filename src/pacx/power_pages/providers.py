@@ -5,9 +5,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Optional, Protocol, Sequence
+from typing import Protocol
 
 import httpx
 
@@ -21,7 +22,7 @@ class ProviderFile:
     path: Path
     checksum: str
     size: int
-    extra: Dict[str, str] = field(default_factory=dict)
+    extra: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -29,11 +30,11 @@ class ProviderResult:
     """Result summary returned by a provider."""
 
     name: str
-    files: List[ProviderFile] = field(default_factory=list)
+    files: list[ProviderFile] = field(default_factory=list)
     skipped: int = 0
-    errors: List[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "name": self.name,
             "files": [
@@ -62,8 +63,9 @@ class BinaryExportProvider(Protocol):
 
     name: str
 
-    def export(self, ctx: ProviderContext, options: Mapping[str, object] | None = None) -> ProviderResult:
-        ...
+    def export(
+        self, ctx: ProviderContext, options: Mapping[str, object] | None = None
+    ) -> ProviderResult: ...
 
 
 class AnnotationBinaryProvider:
@@ -71,7 +73,9 @@ class AnnotationBinaryProvider:
 
     name = "annotations"
 
-    def export(self, ctx: ProviderContext, options: Mapping[str, object] | None = None) -> ProviderResult:
+    def export(
+        self, ctx: ProviderContext, options: Mapping[str, object] | None = None
+    ) -> ProviderResult:
         out_dir = ctx.output_dir / "files_bin"
         out_dir.mkdir(parents=True, exist_ok=True)
         top = int((options or {}).get("top", 50))
@@ -130,7 +134,9 @@ class AzureBlobVirtualFileProvider:
         timeout = float(os.getenv("PACX_BLOB_TIMEOUT", "30"))
         return httpx.Client(timeout=timeout)
 
-    def export(self, ctx: ProviderContext, options: Mapping[str, object] | None = None) -> ProviderResult:
+    def export(
+        self, ctx: ProviderContext, options: Mapping[str, object] | None = None
+    ) -> ProviderResult:
         result = ProviderResult(name=self.name)
         root = ctx.output_dir / "files_virtual"
         root.mkdir(parents=True, exist_ok=True)
@@ -154,7 +160,12 @@ class AzureBlobVirtualFileProvider:
                 except Exception as exc:  # pragma: no cover - logged for manifest consumers
                     result.errors.append(f"{url}: {exc}")
                     continue
-                fname = str(wf.get("adx_name") or wf.get("adx_partialurl") or wf.get("adx_webfileid") or "file.bin")
+                fname = str(
+                    wf.get("adx_name")
+                    or wf.get("adx_partialurl")
+                    or wf.get("adx_webfileid")
+                    or "file.bin"
+                )
                 fname = fname.replace("/", "_")
                 target = root / fname
                 target.write_bytes(resp.content)
@@ -185,10 +196,10 @@ def resolve_providers(
     names: Iterable[str],
     *,
     options: Mapping[str, Mapping[str, object]] | None = None,
-) -> List[BinaryExportProvider]:
+) -> list[BinaryExportProvider]:
     """Instantiate providers by name."""
 
-    resolved: List[BinaryExportProvider] = []
+    resolved: list[BinaryExportProvider] = []
     for name in names:
         canonical = normalize_provider_name(name)
         if canonical == "annotations":
@@ -204,13 +215,12 @@ def resolve_providers(
 def provider_options_for_manifest(
     names: Sequence[str],
     options: Mapping[str, Mapping[str, object]] | None,
-) -> Dict[str, Mapping[str, object]]:
+) -> dict[str, Mapping[str, object]]:
     """Serialize provider options for manifest output."""
 
-    out: Dict[str, Mapping[str, object]] = {}
+    out: dict[str, Mapping[str, object]] = {}
     opts = options or {}
     for n in names:
         if n in opts:
             out[n] = opts[n]
     return out
-

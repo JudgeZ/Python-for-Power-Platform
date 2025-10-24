@@ -3,8 +3,8 @@ from __future__ import annotations
 import typer
 from rich import print
 
-from ..clients.connectors import ConnectorsClient
 from ..cli_utils import resolve_environment_id_from_context
+from ..clients.connectors import ConnectorsClient
 from ..errors import HttpError
 from .common import get_token_getter, handle_cli_errors
 

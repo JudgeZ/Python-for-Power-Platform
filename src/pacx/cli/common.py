@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Optional
 
 import typer
 from rich.console import Console
@@ -103,7 +103,7 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
     raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
 
 
-def get_token_getter(ctx: typer.Context, *, required: bool = True) -> Optional[TokenGetter]:
+def get_token_getter(ctx: typer.Context, *, required: bool = True) -> TokenGetter | None:
     ctx.ensure_object(dict)
     token_getter = ctx.obj.get("token_getter") if ctx.obj else None
     if callable(token_getter):
@@ -123,4 +123,10 @@ def get_token_getter(ctx: typer.Context, *, required: bool = True) -> Optional[T
     return token_getter
 
 
-__all__ = ["console", "handle_cli_errors", "resolve_token_getter", "get_token_getter", "TokenGetter"]
+__all__ = [
+    "console",
+    "handle_cli_errors",
+    "resolve_token_getter",
+    "get_token_getter",
+    "TokenGetter",
+]

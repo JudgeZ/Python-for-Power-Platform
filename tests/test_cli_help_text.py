@@ -4,7 +4,6 @@ from typer.testing import CliRunner
 
 from pacx.cli import app
 
-
 runner = CliRunner()
 
 
@@ -54,4 +53,3 @@ def test_auth_use_help_mentions_default_profile() -> None:
     result = runner.invoke(app, ["auth", "use", "--help"])
     assert result.exit_code == 0
     assert "Set a profile as the default" in result.stdout
-

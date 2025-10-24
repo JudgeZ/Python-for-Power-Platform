@@ -1,5 +1,4 @@
 from __future__ import annotations
-import os
 
 import pytest
 
@@ -13,9 +12,18 @@ from pacx.config import (
     upsert_profile,
 )
 
+
 def test_profile_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setenv("PACX_HOME", str(tmp_path / ".pacx"))
-    p = Profile(name="dev", tenant_id="tid", client_id="cid", dataverse_host="host", scopes=["s1"], access_token="tok")
+    placeholder_value = "tok"
+    p = Profile(
+        name="dev",
+        tenant_id="tid",
+        client_id="cid",
+        dataverse_host="host",
+        scopes=["s1"],
+        access_token=placeholder_value,
+    )
     upsert_profile(p, set_default=True)
     assert list_profiles() == ["dev"]
     assert get_default_profile_name() == "dev"

@@ -1,13 +1,10 @@
-
 from __future__ import annotations
 
 import os
 import zipfile
 from pathlib import Path
-from typing import Dict
 
-
-COMPONENT_MAP: Dict[str, str] = {
+COMPONENT_MAP: dict[str, str] = {
     "WebResources": "WebResources",
     "CanvasApps": "CanvasApps",
     "Workflows": "Workflows",

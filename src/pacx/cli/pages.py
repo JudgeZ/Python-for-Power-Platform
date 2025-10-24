@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import Annotated
 
 import typer
 from rich import print
 
+from ..cli_utils import resolve_dataverse_host_from_context
 from ..clients.dataverse import DataverseClient
 from ..clients.power_pages import PowerPagesClient
-from ..cli_utils import resolve_dataverse_host_from_context
-from .common import get_token_getter, handle_cli_errors
 from ._pages_utils import ensure_mapping, load_json_or_path, merge_manifest_keys
+from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Power Pages site ops")
 
@@ -18,36 +19,53 @@ app = typer.Typer(help="Power Pages site ops")
 @handle_cli_errors
 def pages_download(
     ctx: typer.Context,
-    website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
-    tables: str = typer.Option(
-        "core",
-        help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
-    ),
-    binaries: bool = typer.Option(
-        False,
-        help="Enable default binary provider (annotations); disabled unless specified",
-    ),
-    out: str = typer.Option("site_out", help="Output directory (default: site_out)"),
-    host: str | None = typer.Option(
-        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
-    ),
-    include_files: bool = typer.Option(True, help="Include adx_webfiles (default: True)"),
-    binary_provider: list[str] | None = typer.Option(
-        None,
-        "--binary-provider",
-        help=(
-            "Comma-separated binary provider IDs to run (overrides --binaries and"
-            " requires files to be included)"
+    website_id: Annotated[
+        str,
+        typer.Option(..., help="adx_website id GUID (without braces)"),
+    ],
+    tables: Annotated[
+        str,
+        typer.Option(
+            "core",
+            help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
         ),
-        parser=lambda value: [
-            item.strip() for item in (value or "").split(",") if item.strip()
-        ]
-        or None,
-    ),
-    provider_options: str | None = typer.Option(
-        None,
-        help="JSON string/path configuring custom binary providers (default: none)",
-    ),
+    ],
+    binaries: Annotated[
+        bool,
+        typer.Option(
+            False,
+            help="Enable default binary provider (annotations); disabled unless specified",
+        ),
+    ],
+    out: Annotated[str, typer.Option("site_out", help="Output directory (default: site_out)")],
+    host: Annotated[
+        str | None,
+        typer.Option(None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"),
+    ],
+    include_files: Annotated[
+        bool,
+        typer.Option(True, help="Include adx_webfiles (default: True)"),
+    ],
+    binary_provider: Annotated[
+        list[str] | None,
+        typer.Option(
+            None,
+            "--binary-provider",
+            help=(
+                "Comma-separated binary provider IDs to run (overrides --binaries and"
+                " requires files to be included)"
+            ),
+            parser=lambda value: [item.strip() for item in (value or "").split(",") if item.strip()]
+            or None,
+        ),
+    ],
+    provider_options: Annotated[
+        str | None,
+        typer.Option(
+            None,
+            help="JSON string/path configuring custom binary providers (default: none)",
+        ),
+    ],
 ):
     """Download a Power Pages site to a local folder."""
 
@@ -59,9 +77,7 @@ def pages_download(
             raw_options = load_json_or_path(provider_options)
             mapping = ensure_mapping(raw_options, option_name="--provider-options")
             provider_opts = {
-                key: dict(
-                    ensure_mapping(value, option_name=f"--provider-options[{key}]")
-                )
+                key: dict(ensure_mapping(value, option_name=f"--provider-options[{key}]"))
                 for key, value in mapping.items()
             }
         except ValueError as exc:
@@ -98,22 +114,33 @@ def pages_download(
 @handle_cli_errors
 def pages_upload(
     ctx: typer.Context,
-    website_id: str = typer.Option(..., help="adx_website id GUID (without braces)"),
-    tables: str = typer.Option(
-        "core",
-        help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
-    ),
-    src: str = typer.Option(..., help="Source directory created by pages download"),
-    host: str | None = typer.Option(
-        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
-    ),
-    strategy: str = typer.Option(
-        "replace", help="replace|merge|skip-existing|create-only (default: replace)"
-    ),
-    key_config: str | None = typer.Option(
-        None,
-        help="JSON string/path overriding natural keys (merged with manifest data)",
-    ),
+    website_id: Annotated[
+        str,
+        typer.Option(..., help="adx_website id GUID (without braces)"),
+    ],
+    tables: Annotated[
+        str,
+        typer.Option(
+            "core",
+            help="Table selection preset (core|full|comma-separated list, defaults to 'core')",
+        ),
+    ],
+    src: Annotated[str, typer.Option(..., help="Source directory created by pages download")],
+    host: Annotated[
+        str | None,
+        typer.Option(None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"),
+    ],
+    strategy: Annotated[
+        str,
+        typer.Option("replace", help="replace|merge|skip-existing|create-only (default: replace)"),
+    ],
+    key_config: Annotated[
+        str | None,
+        typer.Option(
+            None,
+            help="JSON string/path overriding natural keys (merged with manifest data)",
+        ),
+    ],
 ):
     """Upload a previously downloaded Power Pages site."""
 
@@ -129,12 +156,12 @@ def pages_upload(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
             ]
             if invalid:
                 raise ValueError(
@@ -157,15 +184,19 @@ def pages_upload(
 @handle_cli_errors
 def pages_diff_permissions(
     ctx: typer.Context,
-    website_id: str = typer.Option(..., help="adx_website id GUID"),
-    src: str = typer.Option(..., help="Local export directory"),
-    host: str | None = typer.Option(
-        None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
-    ),
-    key_config: str | None = typer.Option(
-        None,
-        help="JSON string/path overriding keys (merged with manifest defaults)",
-    ),
+    website_id: Annotated[str, typer.Option(..., help="adx_website id GUID")],
+    src: Annotated[str, typer.Option(..., help="Local export directory")],
+    host: Annotated[
+        str | None,
+        typer.Option(None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"),
+    ],
+    key_config: Annotated[
+        str | None,
+        typer.Option(
+            None,
+            help="JSON string/path overriding keys (merged with manifest defaults)",
+        ),
+    ],
 ):
     """Compare web role permissions between Dataverse and a local export."""
 
@@ -180,12 +211,12 @@ def pages_diff_permissions(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence) and not isinstance(value, (str, bytes))
+                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
             ]
             if invalid:
                 raise ValueError(

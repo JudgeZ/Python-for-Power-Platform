@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Mapping, Sequence
 
 from ..errors import HttpError
 from ..odata import build_alternate_key_segment
@@ -21,8 +21,7 @@ from ..power_pages.providers import (
 )
 from .dataverse import DataverseClient
 
-
-CORE_TABLES: List[tuple[str, str, str, str]] = [
+CORE_TABLES: list[tuple[str, str, str, str]] = [
     ("websites", "adx_websites", "adx_websiteid", "adx_websiteid,adx_name"),
     (
         "pages",
@@ -56,7 +55,7 @@ CORE_TABLES: List[tuple[str, str, str, str]] = [
     ),
 ]
 
-EXTRA_TABLES: List[tuple[str, str, str, str]] = [
+EXTRA_TABLES: list[tuple[str, str, str, str]] = [
     (
         "weblinksets",
         "adx_weblinksets",
@@ -101,9 +100,9 @@ class DownloadResult:
     """Details about a site download."""
 
     output_path: Path
-    summary: Dict[str, int]
+    summary: dict[str, int]
     manifest_path: Path
-    providers: Dict[str, ProviderResult] = field(default_factory=dict)
+    providers: dict[str, ProviderResult] = field(default_factory=dict)
 
 
 logger = logging.getLogger(__name__)
@@ -121,7 +120,7 @@ class PowerPagesClient:
         self.dv = dv
 
     @staticmethod
-    def _select_sets(tables: str | Iterable[str] = "core") -> List[tuple[str, str, str, str]]:
+    def _select_sets(tables: str | Iterable[str] = "core") -> list[tuple[str, str, str, str]]:
         if isinstance(tables, str):
             tokens = [token.strip().lower() for token in tables.split(",") if token.strip()]
         else:
@@ -130,15 +129,15 @@ class PowerPagesClient:
         include_core = False
         include_full = False
         wanted: set[str] = set()
-        for token in tokens:
-            if token == "full":
+        for label in tokens:
+            if label == "full":
                 include_full = True
-            elif token == "core":
+            elif label == "core":
                 include_core = True
             else:
-                wanted.add(token)
+                wanted.add(label)
 
-        selected: List[tuple[str, str, str, str]] = []
+        selected: list[tuple[str, str, str, str]] = []
         seen: set[tuple[str, str, str, str]] = set()
 
         def add_choice(choice: tuple[str, str, str, str]) -> None:
@@ -170,7 +169,7 @@ class PowerPagesClient:
         binary_providers: Iterable[str] | None,
         include_files: bool,
         provider_options: Mapping[str, Mapping[str, object]] | None = None,
-    ) -> tuple[List[str], Dict[str, Mapping[str, object]]]:
+    ) -> tuple[list[str], dict[str, Mapping[str, object]]]:
         """Normalize provider inputs coming from the CLI layer.
 
         Args:
@@ -184,7 +183,7 @@ class PowerPagesClient:
             mappings suitable for :func:`resolve_providers`.
         """
 
-        providers: List[str] = []
+        providers: list[str] = []
         if binary_providers:
             providers = [str(name) for name in binary_providers]
         elif binaries:
@@ -193,13 +192,11 @@ class PowerPagesClient:
         if providers and not include_files:
             raise ValueError("Binary providers require include_files=True")
 
-        normalized_options: Dict[str, Mapping[str, object]] = {}
+        normalized_options: dict[str, Mapping[str, object]] = {}
         if provider_options:
             for key, value in provider_options.items():
                 if not isinstance(value, Mapping):
-                    raise ValueError(
-                        f"Provider options for {key!s} must be a mapping"
-                    )
+                    raise ValueError(f"Provider options for {key!s} must be a mapping")
                 normalized_options[str(key)] = dict(value)
 
         return providers, normalized_options
@@ -208,7 +205,7 @@ class PowerPagesClient:
         self,
         src_dir: str,
         overrides: Mapping[str, Sequence[str]] | None = None,
-    ) -> Dict[str, List[str]]:
+    ) -> dict[str, list[str]]:
         """Compose natural key configuration using defaults and overrides.
 
         Args:
@@ -220,7 +217,7 @@ class PowerPagesClient:
         """
 
         base = Path(src_dir)
-        merged: Dict[str, List[str]] = {
+        merged: dict[str, list[str]] = {
             key.lower(): list(values) for key, values in DEFAULT_NATURAL_KEYS.items()
         }
         manifest_path = base / "manifest.json"
@@ -233,12 +230,12 @@ class PowerPagesClient:
                 natural_keys = data.get("natural_keys", {})
                 if isinstance(natural_keys, Mapping):
                     for entity, columns in natural_keys.items():
-                        if isinstance(columns, Sequence) and not isinstance(columns, (str, bytes)):
+                        if isinstance(columns, Sequence) and not isinstance(columns, str | bytes):
                             merged[str(entity).lower()] = [str(col) for col in columns]
 
         if overrides:
             for entity, columns in overrides.items():
-                if isinstance(columns, Sequence) and not isinstance(columns, (str, bytes)):
+                if isinstance(columns, Sequence) and not isinstance(columns, str | bytes):
                     merged[str(entity).lower()] = [str(col) for col in columns]
 
         return merged
@@ -275,21 +272,25 @@ class PowerPagesClient:
         if not include_files:
             sets = [s for s in sets if s[0] != "files"]
 
-        summary: Dict[str, int] = {}
-        webfiles: List[Mapping[str, object]] = []
+        summary: dict[str, int] = {}
+        webfiles: list[Mapping[str, object]] = []
         for folder, entityset, key, select in sets:
             (out / folder).mkdir(parents=True, exist_ok=True)
             filter_expr = None
             if "_adx_websiteid_value" in select:
                 filter_expr = f"_adx_websiteid_value eq {website_id}"
-            data = self.dv.list_records(entityset, select=select, filter=filter_expr, top=5000).get("value", [])
+            data = self.dv.list_records(entityset, select=select, filter=filter_expr, top=5000).get(
+                "value", []
+            )
             summary[folder] = len(data)
             if entityset == "adx_webfiles":
                 webfiles.extend(data)
             for obj in data:
                 rec_id = obj.get(key) or obj.get("id") or obj.get("name")
                 name = str(rec_id).replace("/", "_")
-                (out / folder / f"{name}.json").write_text(json.dumps(obj, indent=2), encoding="utf-8")
+                (out / folder / f"{name}.json").write_text(
+                    json.dumps(obj, indent=2), encoding="utf-8"
+                )
 
         provider_names, normalized_options = self.normalize_provider_inputs(
             binaries=binaries,
@@ -298,8 +299,8 @@ class PowerPagesClient:
             provider_options=provider_options,
         )
 
-        providers: Dict[str, ProviderResult] = {}
-        resolved_options: Dict[str, Mapping[str, object]] = {}
+        providers: dict[str, ProviderResult] = {}
+        resolved_options: dict[str, Mapping[str, object]] = {}
         for opt_key, opt_value in normalized_options.items():
             try:
                 canonical_key = normalize_provider_name(opt_key)
@@ -307,7 +308,7 @@ class PowerPagesClient:
                 canonical_key = opt_key
             resolved_options[canonical_key] = opt_value
 
-        resolved_names: List[str] = list(provider_names)
+        resolved_names: list[str] = list(provider_names)
         if provider_names and include_files:
             resolved = resolve_providers(provider_names, options=resolved_options)
             resolved_names = [prov.name for prov in resolved]
@@ -316,7 +317,7 @@ class PowerPagesClient:
                 opts = resolved_options.get(prov.name)
                 providers[prov.name] = prov.export(ctx, options=opts)
 
-        manifest: Dict[str, object] = {
+        manifest: dict[str, object] = {
             "website_id": website_id,
             "tables": summary,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -327,7 +328,9 @@ class PowerPagesClient:
         manifest_path = out / "manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-        return DownloadResult(output_path=out, summary=summary, manifest_path=manifest_path, providers=providers)
+        return DownloadResult(
+            output_path=out, summary=summary, manifest_path=manifest_path, providers=providers
+        )
 
     def upload_site(
         self,
@@ -350,7 +353,7 @@ class PowerPagesClient:
         base = Path(src_dir)
         sets = self._select_sets(tables)
         if key_config is None:
-            key_map: Dict[str, List[str]] = self.key_config_from_manifest(src_dir)
+            key_map: dict[str, list[str]] = self.key_config_from_manifest(src_dir)
         else:
             key_map = self.key_config_from_manifest(src_dir, key_config)
 
@@ -406,7 +409,9 @@ class PowerPagesClient:
                 else:
                     self.dv.create_record(entityset, obj)
 
-    def _handle_record_with_id(self, entityset: str, record_id: str, body: Mapping[str, object], strategy: str) -> None:
+    def _handle_record_with_id(
+        self, entityset: str, record_id: str, body: Mapping[str, object], strategy: str
+    ) -> None:
         if strategy == "skip-existing":
             return
         if strategy == "create-only":
@@ -451,4 +456,3 @@ class _ProviderContext:
     website_id: str
     output_dir: Path
     webfiles: Sequence[Mapping[str, object]]
-

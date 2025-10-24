@@ -1,20 +1,19 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class SecretSpec:
     backend: str  # "env", "keyring", "keyvault"
-    ref: str      # env: VAR, keyring: SERVICE:USERNAME, keyvault: VAULT_URL:SECRET_NAME
+    ref: str  # env: VAR, keyring: SERVICE:USERNAME, keyvault: VAULT_URL:SECRET_NAME
 
 
-def get_secret(spec: SecretSpec) -> Optional[str]:
+def get_secret(spec: SecretSpec) -> str | None:
     backend = spec.backend.lower()
     if backend == "env":
         import os
+
         return os.getenv(spec.ref)
     if backend == "keyring":
         try:

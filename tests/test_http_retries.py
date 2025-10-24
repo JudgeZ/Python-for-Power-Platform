@@ -1,6 +1,9 @@
 from __future__ import annotations
-import httpx, respx
+
+import httpx
+
 from pacx.http_client import HttpClient
+
 
 def test_retries_on_429(respx_mock):
     client = HttpClient("https://example.com", token_getter=lambda: "t", max_retries=2)

@@ -9,8 +9,10 @@ try:
 except Exception:  # pragma: no cover
     msal = None  # type: ignore
 
+
 class AzureADTokenProvider:
     """MSAL-based provider supporting device code or client credentials."""
+
     def __init__(
         self,
         tenant_id: str,
@@ -50,7 +52,9 @@ class AzureADTokenProvider:
                     print(flow["message"])  # pragma: no cover
                     result = app.acquire_token_by_device_flow(flow)
                 else:
-                    raise AuthError("Interactive auth not configured; set use_device_code=True or provide client_secret.")
+                    raise AuthError(
+                        "Interactive auth not configured; set use_device_code=True or provide client_secret."
+                    )
         if "access_token" not in result:
             raise AuthError(f"Failed to acquire token: {result}")
         return result["access_token"]

@@ -8,7 +8,7 @@ import typer
 
 
 class StubConnectorsClient:
-    last_instance: "StubConnectorsClient | None" = None
+    last_instance: StubConnectorsClient | None = None
 
     def __init__(self, token_getter):
         self.token = token_getter()

@@ -1,8 +1,8 @@
-
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional, Callable, Iterable, Set
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import httpx
 
@@ -16,11 +16,11 @@ class HttpClient:
         self,
         base_url: str,
         token_getter: Callable[[], str] | None = None,
-        default_headers: Optional[Dict[str, str]] = None,
-        data: Optional[bytes | str] = None,
+        default_headers: dict[str, str] | None = None,
+        data: bytes | str | None = None,
         timeout: float = 60.0,
         max_retries: int = 2,
-        retry_statuses: Optional[Iterable[int]] = None,
+        retry_statuses: Iterable[int] | None = None,
         backoff_factor: float = 0.5,
     ) -> None:
         self.base_url = base_url.rstrip("/")
@@ -28,10 +28,10 @@ class HttpClient:
         self._client = httpx.Client(timeout=timeout)
         self._default_headers = default_headers or {}
         self._max_retries = max_retries
-        self._retry_statuses: Set[int] = set(retry_statuses or {429, 500, 502, 503, 504})
+        self._retry_statuses: set[int] = set(retry_statuses or {429, 500, 502, 503, 504})
         self._backoff_factor = backoff_factor
 
-    def _auth_header(self) -> Dict[str, str]:
+    def _auth_header(self) -> dict[str, str]:
         if not self._token_getter:
             return {}
         token = self._token_getter()
@@ -42,18 +42,18 @@ class HttpClient:
         method: str,
         path: str,
         *,
-        params: Optional[Dict[str, Any]] = None,
-        json: Optional[Any] = None,
-        headers: Optional[Dict[str, str]] = None,
-        data: Optional[bytes | str] = None,
-        content: Optional[bytes | str] = None,
+        params: dict[str, Any] | None = None,
+        json: Any | None = None,
+        headers: dict[str, str] | None = None,
+        data: bytes | str | None = None,
+        content: bytes | str | None = None,
     ) -> httpx.Response:
         url = f"{self.base_url}/{path.lstrip('/')}"
         merged_headers = {**self._default_headers, **(headers or {}), **self._auth_header()}
         attempt = 0
         while True:
             try:
-                request_kwargs: Dict[str, Any] = {
+                request_kwargs: dict[str, Any] = {
                     "params": params,
                     "json": json,
                     "headers": merged_headers,
@@ -65,14 +65,14 @@ class HttpClient:
                 resp = self._client.request(method, url, **request_kwargs)
             except httpx.TransportError as e:
                 if attempt < self._max_retries:
-                    time.sleep(self._backoff_factor * (2 ** attempt))
+                    time.sleep(self._backoff_factor * (2**attempt))
                     attempt += 1
                     continue
                 raise HttpError(0, f"Transport error: {e}") from e
 
             if resp.status_code in self._retry_statuses and attempt < self._max_retries:
                 ra = resp.headers.get("Retry-After")
-                delay = float(ra) if ra and ra.isdigit() else self._backoff_factor * (2 ** attempt)
+                delay = float(ra) if ra and ra.isdigit() else self._backoff_factor * (2**attempt)
                 time.sleep(delay)
                 attempt += 1
                 continue
