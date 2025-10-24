@@ -52,6 +52,11 @@ def reset_stub():
     StubDataverseClient.last_instance = None
 
 
+@pytest.fixture(autouse=True)
+def fake_access_token(monkeypatch):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "test-token")
+
+
 @pytest.fixture
 def cli_app(monkeypatch):
     original_option = typer.Option
