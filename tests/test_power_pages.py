@@ -155,15 +155,23 @@ def test_pages_upload_natural_keys(tmp_path, respx_mock, token_getter):
     site = Path(tmp_path) / "site"
     pages_dir = site / "pages"
     pages_dir.mkdir(parents=True)
-    page_data = {"adx_name": "Home", "adx_partialurl": "home", "_adx_websiteid_value": "site"}
+    page_data = {
+        "adx_name": "Home",
+        "adx_partialurl": "home/intro",
+        "_adx_websiteid_value": "site'id",
+    }
     (pages_dir / "home.json").write_text(json.dumps(page_data), encoding="utf-8")
 
+    expected_segment = (
+        "adx_webpages(adx_partialurl='home%2Fintro',_adx_websiteid_value='site%27%27id')"
+    )
+
     def responder(request: httpx.Request) -> httpx.Response:
-        assert "adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')" in request.url.path
+        assert expected_segment in request.url.path
         return httpx.Response(204)
 
     respx_mock.patch(
-        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+        "https://example.crm.dynamics.com/api/data/v9.2/" + expected_segment
     ).mock(side_effect=responder)
 
     pp.upload_site("site", str(site), strategy="replace")
