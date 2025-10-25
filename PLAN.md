@@ -17,6 +17,213 @@ Adjust paths if your repo layout differs (defaults assume: `src/pacx/...`, tests
 
 ---
 
+# Shared Execution Plan — GitHub OAuth Unified Login
+
+The next milestone introduces GitHub as a first-class identity provider while
+preserving the existing Azure experience. Work is grouped into high-impact
+increments so we can land and verify changes independently.
+
+## P0 — Core authentication support
+
+### P0.1 Add provider awareness to profiles (config)
+**Goal**: Extend profile records so they can describe the issuing identity
+provider and any provider-specific scope/refresh metadata.
+
+**Files**: `src/pacx/config.py`, `src/pacx/secrets.py` (helper),
+`tests/config/`.
+
+**Subtasks**
+1. Update the `Profile` dataclass with `provider`, `scopes`, and
+   `refresh_token` fields while defaulting legacy records to Azure.
+2. Mark `refresh_token` as sensitive so the existing encryption pipeline keeps
+   it secure at rest.
+3. Add a `set_secret()` helper that mirrors `get_secret()` for writing to the
+   configured secrets backend (keyring-first, with helpful errors when
+   unavailable).
+4. Tests: coverage for legacy profile loading, encrypted refresh tokens, and
+   the new helper.
+
+**Acceptance Criteria**
+- Loading an existing config without `provider` yields `provider == "azure"`.
+- New profiles persist and reload with GitHub metadata intact.
+- Sensitive fields (`access_token`, `refresh_token`) stay encrypted in the
+  config file when encryption is enabled.
+- Unit tests in `tests/config/` and `tests/secrets/` assert the above.
+
+### P0.2 Implement GitHub token provider (device + auth-code flows)
+**Goal**: Introduce `GitHubTokenProvider` that supports device-code and web
+authorization flows using the project `HttpClient` abstraction (no direct
+httpx usage) and reusable error plumbing.
+
+**Files**: `src/pacx/auth/github.py` (new), `tests/auth/test_github_oauth.py`.
+
+**Subtasks**
+1. Implement provider constructor accepting client id/secret, scopes, flow
+   selection, and redirect URI.
+2. Device flow: request/poll endpoints, surface user instructions, and respect
+   interval/back-off guidance.
+3. Authorization-code flow: launch browser helper, capture/prompt for the code
+   (localhost listener optional), and exchange for tokens.
+4. Optional refresh-token exchange when a refresh token exists.
+5. Tests: mock happy path, slow down, expired token, auth-code error, and
+   refresh exchange via `respx`.
+
+**Acceptance Criteria**
+- Provider caches valid access tokens and refreshes when needed.
+- Errors raise `AuthError` with actionable messaging (no token logging).
+- Test suite exercises all branches with deterministic timings.
+
+### P0.3 CLI: `ppx auth github`
+**Goal**: Add a Typer-powered entry point for GitHub authentication that reuses
+shared helpers and respects secure storage conventions.
+
+**Files**: `src/pacx/cli/auth_github.py` (new), `src/pacx/cli/__init__.py`,
+`src/pacx/cli/common.py` (if registration tweaks required),
+`tests/cli/test_auth_github_cli.py`.
+
+**Subtasks**
+1. Define CLI options (`--client-id`, `--client-secret`, `--scopes`,
+   `--web/--device`, `--redirect-uri`, `--save-secret`,
+   `--set-default/--no-set-default`).
+2. Resolve scopes (split on comma/space) and instantiate
+   `GitHubTokenProvider` with the correct flow configuration.
+3. Persist tokens via `set_secret()` when keyring is available, otherwise fall
+   back to encrypted config fields.
+4. Update/create profiles with `provider="github"` and scope metadata; respect
+   `--no-set-default`.
+5. Tests: CLI happy path (device & web), keyring failure fallback, and
+   `--no-set-default` behavior.
+
+**Acceptance Criteria**
+- `ppx auth github --help` documents all options.
+- Tokens store securely with friendly success messaging.
+- CLI tests cover success/failure flows without leaking secrets.
+
+### P0.4 Token resolution updates
+**Goal**: Teach token resolution helpers to honor GitHub-backed profiles while
+preserving Azure behavior.
+
+**Files**: `src/pacx/cli/common.py` (or the shared resolver module),
+`tests/cli/test_token_resolution_github.py`.
+
+**Subtasks**
+1. Extend resolver precedence: env var → keyring → config → provider fetch for
+   GitHub profiles.
+2. Pull client secrets from configured env vars when present.
+3. Instantiate `GitHubTokenProvider` lazily for the fallback branch.
+4. Tests: env override, keyring hit, config fallback, provider invocation.
+
+**Acceptance Criteria**
+- GitHub profiles return callable token getters consistent with Azure logic.
+- Resolver emits actionable errors when required metadata is missing.
+- New tests prove each branch and avoid regressions for Azure paths.
+
+### P0.5 Error messaging polish
+**Goal**: Ensure GitHub-authenticated users receive tailored remediation tips
+when token acquisition fails.
+
+**Files**: `src/pacx/cli/common.py`, `tests/cli/test_errors.py`.
+
+**Subtasks**
+1. Detect GitHub provider failures inside `handle_cli_errors` (or equivalent).
+2. Surface “Run `ppx auth github <profile>` to (re)authenticate.” guidance.
+3. Tests validating the new hint appears only for GitHub contexts.
+
+**Acceptance Criteria**
+- Existing Azure messaging remains unchanged.
+- GitHub failures prompt the new actionable guidance.
+- Tests demonstrate message specificity.
+
+## P1 — Secure storage, docs, and UX polish
+
+### P1.1 Secrets persistence helper hardening
+**Goal**: Finalize `set_secret()` ergonomics, documenting supported backends
+and graceful fallbacks.
+
+**Files**: `src/pacx/secrets.py`, `tests/secrets/`, docs updates under
+`docs/user-manual/`.
+
+**Subtasks**
+1. Expand helper docstrings, emphasizing keyring usage and error modes.
+2. Provide docs snippet showing how CLI flags interact with keyring storage.
+3. Add negative-path tests (e.g., keyring import error) with helpful messages.
+
+**Acceptance Criteria**
+- Helper behavior is clearly documented and fully covered by tests.
+- Docs explain security posture and troubleshooting.
+
+### P1.2 Documentation for GitHub OAuth
+**Goal**: Author a dedicated guide covering device and web flows along with
+configuration tips.
+
+**Files**: `docs/user-manual/02-authentication.md`,
+`docs/user-manual/10-github-oauth.md` (new),
+`docs/user-manual/03-cli-usage.md`, `README.md` (links), tests if docs have
+doctests.
+
+**Subtasks**
+1. Extend authentication overview with GitHub provider summary.
+2. Create the dedicated GitHub OAuth guide (app registration, CLI examples,
+   CI guidance).
+3. Cross-link from CLI usage docs and README for discoverability.
+
+**Acceptance Criteria**
+- Documentation builds without warnings and matches CLI flags.
+- Examples are copy/paste ready with placeholder markers for secrets.
+
+### P1.3 CLI help snapshots & smoke tests
+**Goal**: Capture `ppx auth github --help` output and add a mocked smoke test to
+guard against regressions.
+
+**Files**: `tests/cli/test_auth_github_cli.py`, snapshot fixtures as needed.
+
+**Subtasks**
+1. Snapshot help output to lock flag descriptions.
+2. Introduce an end-to-end smoke test with mocked device endpoints ensuring the
+   CLI prints verification instructions and exits cleanly.
+
+**Acceptance Criteria**
+- Snapshots updated intentionally when help text changes.
+- Smoke test runs in CI without hitting real GitHub services.
+
+## P2 — Unified alias & release readiness
+
+### P2.1 `ppx login` alias
+**Goal**: Provide a top-level login command that delegates to provider-specific
+flows based on flags or the default profile.
+
+**Files**: `src/pacx/cli/login.py` (new) or existing auth router,
+`src/pacx/cli/__init__.py`, docs references, `tests/cli/test_login_alias.py`.
+
+**Subtasks**
+1. Implement the router command using Typer that forwards to Azure or GitHub
+   auth handlers.
+2. Respect `--provider` overrides and default profile inference.
+3. Tests ensuring delegation works and help text is clear.
+
+**Acceptance Criteria**
+- `ppx login --help` documents routing semantics.
+- Alias defers to provider commands without duplicating logic.
+- Unit tests cover Azure and GitHub paths.
+
+### P2.2 Packaging & changelog updates
+**Goal**: Confirm dependencies and metadata reflect the new authentication
+features.
+
+**Files**: `pyproject.toml`, `CHANGELOG.md`.
+
+**Subtasks**
+1. Ensure `HttpClient` dependencies remain satisfied (no direct httpx
+   additions) and introduce optional extras if needed for keyring/crypto.
+2. Document the feature release in the changelog with highlights.
+3. Bump version per release policy once features ship.
+
+**Acceptance Criteria**
+- Packaging checks stay green (`pip-audit`, `bandit`).
+- Changelog entry summarizes GitHub OAuth work for end users.
+
+---
+
 # P0 — Security, Stability & Core UX
 
 ## P0.1 Secure token storage: permissions + optional encryption
