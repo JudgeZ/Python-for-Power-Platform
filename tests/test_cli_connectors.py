@@ -13,9 +13,14 @@ class StubConnectorsClient:
     def __init__(self, token_getter):
         self.token = token_getter()
         self.list_args: tuple[str, int | None] | None = None
+        self.iter_args: tuple[str, int | None] | None = None
         self.get_args: tuple[str, str] | None = None
         self.put_args: tuple[str, str, str | None] | None = None
         self.delete_args: tuple[str, str] | None = None
+        self.pages = [
+            [{"name": "shared-api"}],
+            [{"id": "custom-connector"}],
+        ]
         StubConnectorsClient.last_instance = self
 
     def list_apis(self, environment: str, *, top: int | None = None):
@@ -26,6 +31,11 @@ class StubConnectorsClient:
                 {"id": "custom-connector"},
             ]
         }
+
+    def iter_apis(self, environment: str, *, top: int | None = None):
+        self.iter_args = (environment, top)
+        for page in self.pages:
+            yield page
 
     def get_api(self, environment: str, api_name: str):
         self.get_args = (environment, api_name)
@@ -82,7 +92,8 @@ def test_connectors_list_formats_output(monkeypatch, cli_runner):
     assert lines[1] == "custom-connector"
     stub = StubConnectorsClient.last_instance
     assert stub is not None
-    assert stub.list_args == ("ENV", 5)
+    assert stub.iter_args == ("ENV", 5)
+    assert stub.list_args is None
 
 
 def test_connectors_get_prints_payload(monkeypatch, cli_runner):

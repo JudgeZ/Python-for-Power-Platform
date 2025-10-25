@@ -21,7 +21,7 @@ def connectors_list(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
     top: int | None = typer.Option(
-        None, help="Maximum results to return via $top (default: server limit)"
+        None, help="Optional page size sent with the initial request"
     ),
 ) -> None:
     """List custom connector APIs available in an environment.
@@ -35,10 +35,10 @@ def connectors_list(
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = ConnectorsClient(token_getter)
-    data = client.list_apis(environment, top=top)
-    for item in data.get("value") or []:
-        name = item.get("name") or item.get("id")
-        print(f"[bold]{name}[/bold]")
+    for page in client.iter_apis(environment, top=top):
+        for item in page:
+            name = item.get("name") or item.get("id")
+            print(f"[bold]{name}[/bold]")
 
 
 @app.command("get")
