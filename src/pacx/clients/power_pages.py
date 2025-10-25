@@ -509,6 +509,7 @@ class _ProviderContext:
     output_dir: Path
     webfiles: Sequence[Mapping[str, object]]
 _COLUMN_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_RELATIONSHIP_BIND_SUFFIX = "@odata.bind"
 
 
 def _filter_dataverse_columns(data: Mapping[str, Any] | None) -> dict[str, Any]:
@@ -529,8 +530,15 @@ def _filter_dataverse_columns(data: Mapping[str, Any] | None) -> dict[str, Any]:
             continue
         if key.startswith("@"):
             continue
-        if not _COLUMN_NAME_RE.match(key):
+        if _COLUMN_NAME_RE.match(key):
+            filtered[key] = value
             continue
-        filtered[key] = value
+        lowered = key.lower()
+        if lowered.endswith(_RELATIONSHIP_BIND_SUFFIX):
+            column = key[: -len(_RELATIONSHIP_BIND_SUFFIX)]
+            if _COLUMN_NAME_RE.match(column):
+                filtered[key] = value
+        # Any other key containing "@" represents OData metadata and should be
+        # omitted from PATCH payloads.
     return filtered
 
