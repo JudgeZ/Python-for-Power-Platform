@@ -432,8 +432,16 @@ class PowerPagesClient:
                     elif strategy == "merge":
                         try:
                             current = self.dv.http.get(path).json()
+                        except HttpError as exc:
+                            if exc.status_code == 404:
+                                self.dv.create_record(entityset, obj)
+                                continue
+                            raise
                         except Exception:
                             current = {}
+                        if not current:
+                            self.dv.create_record(entityset, obj)
+                            continue
                         merged = {**current, **obj}
                         self.dv.http.patch(path, json=merged)
                     else:

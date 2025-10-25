@@ -202,6 +202,41 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
     pp.upload_site("site", str(site), strategy="merge")
 
 
+def test_pages_upload_natural_keys_merge_creates_when_missing(
+    tmp_path, respx_mock, token_getter
+):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    site = Path(tmp_path) / "site"
+    pages_dir = site / "pages"
+    pages_dir.mkdir(parents=True)
+    (pages_dir / "home.json").write_text(
+        json.dumps({"adx_partialurl": "home", "_adx_websiteid_value": "site", "adx_name": "New"}),
+        encoding="utf-8",
+    )
+
+    get_route = respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/"
+        "adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(return_value=httpx.Response(404, json={"error": "Not Found"}))
+
+    post_route = respx_mock.post(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages"
+    ).mock(return_value=httpx.Response(201, headers={"OData-EntityId": "entity"}))
+
+    patch_route = respx_mock.patch(
+        "https://example.crm.dynamics.com/api/data/v9.2/"
+        "adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(return_value=httpx.Response(204))
+
+    pp.upload_site("site", str(site), strategy="merge")
+
+    assert get_route.called
+    assert post_route.called
+    assert not patch_route.called
+
+
 def test_pages_upload_natural_keys_skip_existing(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
