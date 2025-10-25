@@ -57,6 +57,7 @@ def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
             "Content-Transfer-Encoding": "binary",
             "Content-ID": str(i),
         }
+        batch_lines.append(f"--{changeset_id}")
         req_lines = [f"{method} {url} HTTP/1.1", "Content-Type: application/json; charset=utf-8"]
         req_lines.append("")
         req_lines.append(json.dumps(body) if body is not None else "")
