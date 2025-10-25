@@ -76,38 +76,35 @@ def test_pages_download_handles_pagination(tmp_path, respx_mock, token_getter):
     website_id = "00000000-0000-0000-0000-000000000000"
 
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "value": [
-                    {
-                        "adx_webpageid": "w1",
-                        "adx_name": "Home",
-                        "adx_partialurl": "home",
-                        "_adx_websiteid_value": website_id,
-                    }
-                ],
-                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages?$skiptoken=abc",
-            },
-        )
-    )
-    respx_mock.get(
-        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages",
-        params={"$skiptoken": "abc"},
-    ).mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "value": [
-                    {
-                        "adx_webpageid": "w2",
-                        "adx_name": "About",
-                        "adx_partialurl": "about",
-                        "_adx_websiteid_value": website_id,
-                    }
-                ]
-            },
-        )
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "adx_webpageid": "w1",
+                            "adx_name": "Home",
+                            "adx_partialurl": "home",
+                            "_adx_websiteid_value": website_id,
+                        }
+                    ],
+                    "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages?$skiptoken=abc",
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "adx_webpageid": "w2",
+                            "adx_name": "About",
+                            "adx_partialurl": "about",
+                            "_adx_websiteid_value": website_id,
+                        }
+                    ]
+                },
+            ),
+        ]
     )
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles").mock(
         return_value=httpx.Response(200, json={"value": []})
