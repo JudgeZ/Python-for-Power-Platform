@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import os
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Protocol, cast
+from typing import Any, Callable, Protocol, cast
 
 import httpx
 
 from ..clients.dataverse import DataverseClient
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -73,6 +77,14 @@ class AnnotationBinaryProvider:
 
     name = "annotations"
 
+    @staticmethod
+    def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+        for key in ("@odata.nextLink", "odata.nextLink"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
     def export(
         self, ctx: ProviderContext, options: Mapping[str, object] | None = None
     ) -> ProviderResult:
@@ -90,30 +102,54 @@ class AnnotationBinaryProvider:
             if not wf_id:
                 result.skipped += 1
                 continue
-            data = ctx.dv.list_records(
+            payload = ctx.dv.list_records(
                 "annotations",
                 select="annotationid,filename,documentbody,_objectid_value",
                 filter=f"_objectid_value eq {wf_id}",
                 top=top,
             )
-            for note in data.get("value", []):
-                fname = note.get("filename") or f"{note.get('annotationid')}.bin"
-                document = note.get("documentbody")
-                if not document:
-                    result.skipped += 1
-                    continue
-                raw = base64.b64decode(str(document))
-                target = out_dir / fname
-                target.write_bytes(raw)
-                checksum = hashlib.sha256(raw).hexdigest()
-                (out_dir / f"{fname}.sha256").write_text(checksum, encoding="utf-8")
-                result.files.append(
-                    ProviderFile(
-                        path=target.relative_to(ctx.output_dir),
-                        checksum=checksum,
-                        size=len(raw),
-                        extra={"annotationid": str(note.get("annotationid"))},
+            page_count = 0
+            note_count = 0
+            while True:
+                page_count += 1
+                entries = cast(Iterable[object], payload.get("value", []))
+                for raw_note in entries:
+                    if not isinstance(raw_note, Mapping):
+                        continue
+                    note = raw_note
+                    fname = note.get("filename") or f"{note.get('annotationid')}.bin"
+                    document = note.get("documentbody")
+                    if not document:
+                        result.skipped += 1
+                        continue
+                    note_count += 1
+                    raw = base64.b64decode(str(document))
+                    target = out_dir / fname
+                    target.write_bytes(raw)
+                    checksum = hashlib.sha256(raw).hexdigest()
+                    (out_dir / f"{fname}.sha256").write_text(checksum, encoding="utf-8")
+                    result.files.append(
+                        ProviderFile(
+                            path=target.relative_to(ctx.output_dir),
+                            checksum=checksum,
+                            size=len(raw),
+                            extra={"annotationid": str(note.get("annotationid"))},
+                        )
                     )
+
+                next_link = self._extract_next_link(payload)
+                if not next_link:
+                    break
+                payload = cast(
+                    dict[str, Any],
+                    ctx.dv.http.get(next_link).json(),
+                )
+            if page_count > 1:
+                logger.debug(
+                    "AnnotationBinaryProvider exported %d annotations across %d pages for %s",
+                    note_count,
+                    page_count,
+                    wf_id,
                 )
         return result
 

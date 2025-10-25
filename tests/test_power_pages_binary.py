@@ -77,6 +77,74 @@ def test_download_with_annotation_provider(tmp_path, respx_mock, token_getter):
     assert manifest["providers"]["annotations"]["files"][0]["checksum"]
 
 
+def test_annotation_provider_handles_pagination(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    _mock_site(respx_mock)
+
+    first_page_data = base64.b64encode(b"first").decode("ascii")
+    second_page_data = base64.b64encode(b"second").decode("ascii")
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/annotations",
+        params={
+            "$select": "annotationid,filename,documentbody,_objectid_value",
+            "$filter": "_objectid_value eq wf1",
+            "$top": 1,
+        },
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "annotationid": "n1",
+                        "filename": "logo.png",
+                        "documentbody": first_page_data,
+                    }
+                ],
+                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/annotations?$skiptoken=page2",
+            },
+        )
+    )
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/annotations",
+        params={"$skiptoken": "page2"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "annotationid": "n2",
+                        "filename": "banner.png",
+                        "documentbody": second_page_data,
+                    }
+                ]
+            },
+        )
+    )
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=True,
+        provider_options={"annotations": {"top": 1}},
+    )
+
+    bin_dir = res.output_path / "files_bin"
+    assert (bin_dir / "logo.png").read_bytes() == b"first"
+    assert (bin_dir / "banner.png").read_bytes() == b"second"
+
+    manifest = json.loads((res.output_path / "manifest.json").read_text())
+    files = manifest["providers"]["annotations"]["files"]
+    names = {entry["path"].split("/")[-1] for entry in files}
+    assert names == {"logo.png", "banner.png"}
+
+
 def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
