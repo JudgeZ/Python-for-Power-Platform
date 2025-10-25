@@ -6,6 +6,7 @@ from typing import Any, Callable, cast
 
 from ..http_client import HttpClient
 from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest, Solution
+from ..utils.guid import sanitize_guid
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,8 @@ class DataverseClient:
     def get_record(self, entityset: str, record_id: str) -> dict[str, Any]:
         """Retrieve a single record by ID."""
 
-        path = f"{entityset}({record_id})"
+        clean_id = sanitize_guid(record_id)
+        path = f"{entityset}({clean_id})"
         resp = self.http.get(path)
         return cast(dict[str, Any], resp.json())
 
@@ -185,20 +187,23 @@ class DataverseClient:
             record_id: Primary key GUID formatted string.
             data: Fields to patch into the record.
         """
-        path = f"{entityset}({record_id})"
+        clean_id = sanitize_guid(record_id)
+        path = f"{entityset}({clean_id})"
         self.http.patch(path, headers={"If-Match": "*"}, json=data)
 
     def delete_record(self, entityset: str, record_id: str) -> None:
         """Delete a record from Dataverse."""
 
-        path = f"{entityset}({record_id})"
+        clean_id = sanitize_guid(record_id)
+        path = f"{entityset}({clean_id})"
         self.http.delete(path)
 
     # ---- Import Job helpers ----
     def get_import_job(self, job_id: str) -> dict[str, Any]:
         """Fetch status for a solution import job."""
 
-        resp = self.http.get(f"importjobs({job_id})")
+        clean_id = sanitize_guid(job_id)
+        resp = self.http.get(f"importjobs({clean_id})")
         return cast(dict[str, Any], resp.json())
 
     def wait_for_import_job(

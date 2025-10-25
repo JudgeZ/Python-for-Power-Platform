@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import httpx
 from typer.testing import CliRunner
 
@@ -21,6 +23,68 @@ def test_cli_dv_whoami(monkeypatch, respx_mock):
     assert respx_mock.calls, "expected Dataverse request"
     auth_header = respx_mock.calls.last.request.headers.get("Authorization")
     assert auth_header == "Bearer dummy"
+
+
+def test_cli_dv_get_strips_braces(monkeypatch, respx_mock):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
+    monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
+    raw_id = "{00000000-0000-0000-0000-000000000123}"
+    clean_id = "00000000-0000-0000-0000-000000000123"
+    respx_mock.get(
+        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    ).mock(return_value=httpx.Response(200, json={"accountid": clean_id}))
+
+    result = runner.invoke(app, ["dv", "get", "accounts", raw_id])
+
+    assert result.exit_code == 0
+    assert clean_id in result.stdout
+    assert respx_mock.calls
+    assert (
+        str(respx_mock.calls.last.request.url)
+        == f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    )
+
+
+def test_cli_dv_update_strips_braces(monkeypatch, respx_mock):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
+    monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
+    raw_id = " {ABCDEFAB-1234-5678-9ABC-DEF012345678}"
+    clean_id = "ABCDEFAB-1234-5678-9ABC-DEF012345678"
+    respx_mock.patch(
+        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    ).mock(return_value=httpx.Response(204))
+
+    payload = json.dumps({"name": "Updated"})
+    result = runner.invoke(
+        app,
+        ["dv", "update", "accounts", raw_id, "--data", payload],
+    )
+
+    assert result.exit_code == 0
+    assert respx_mock.calls
+    assert (
+        str(respx_mock.calls.last.request.url)
+        == f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    )
+
+
+def test_cli_dv_delete_strips_braces(monkeypatch, respx_mock):
+    monkeypatch.setenv("PACX_ACCESS_TOKEN", "dummy")
+    monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
+    raw_id = "{DEF0DEF0-0000-0000-0000-000000000000}"
+    clean_id = "DEF0DEF0-0000-0000-0000-000000000000"
+    respx_mock.delete(
+        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    ).mock(return_value=httpx.Response(204))
+
+    result = runner.invoke(app, ["dv", "delete", "accounts", raw_id])
+
+    assert result.exit_code == 0
+    assert respx_mock.calls
+    assert (
+        str(respx_mock.calls.last.request.url)
+        == f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
+    )
 
 
 def test_cli_dv_bulk_csv_exits_cleanly(monkeypatch, tmp_path):

@@ -33,14 +33,25 @@ def test_crud_cycle(respx_mock, token_getter):
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/accounts(12345)").mock(
         return_value=httpx.Response(200, json={"name": "test"})
     )
-    assert dv.get_record("accounts", "12345")["name"] == "test"
+    assert dv.get_record("accounts", " {12345} ")["name"] == "test"
 
     respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/accounts(12345)").mock(
         return_value=httpx.Response(204)
     )
-    dv.update_record("accounts", "12345", {"name": "updated"})
+    dv.update_record("accounts", "{12345}", {"name": "updated"})
 
     respx_mock.delete("https://example.crm.dynamics.com/api/data/v9.2/accounts(12345)").mock(
         return_value=httpx.Response(204)
     )
-    dv.delete_record("accounts", "12345")
+    dv.delete_record("accounts", "{12345}")
+
+
+def test_get_import_job_strips_braces(respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/importjobs(abc)").mock(
+        return_value=httpx.Response(200, json={"importjobid": "abc"})
+    )
+
+    data = dv.get_import_job(" {abc} ")
+    assert data["importjobid"] == "abc"
