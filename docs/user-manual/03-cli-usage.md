@@ -29,7 +29,7 @@ Run `ppx --help` to see all registered groups and global options.
 PACX reads defaults from the active profile (set via `ppx auth use`) and the persisted configuration (`ppx profile set-env`, `ppx profile set-host`). Every command also accepts overrides:
 
 - `--environment-id`: Overrides the environment configured on the profile. Useful when targeting another environment for connectors, apps, or flows.
-- `--host`: Overrides the Dataverse host. When omitted, the CLI falls back to the profile setting or the `DATAVERSE_HOST` environment variable.
+- `--host`: Overrides the Dataverse host. When omitted, the CLI falls back to the profile setting or the `DATAVERSE_HOST` environment variable. You can supply either a bare hostname (`org.crm.dynamics.com`) or a full URL with scheme (`https://org.crm.dynamics.com`).
 - `--top`: Many list commands expose the OData `$top` parameter to limit returned records; leaving it blank uses the server default (typically 100).
 - `--select`, `--filter`, `--orderby`: Dataverse list commands accept the corresponding OData query parameters to shape the result set.
 
