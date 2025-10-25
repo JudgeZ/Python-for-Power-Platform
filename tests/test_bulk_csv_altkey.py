@@ -19,9 +19,11 @@ def test_bulk_csv_altkey_patch(tmp_path, respx_mock, token_getter):
     # Intercept $batch and assert the alt-key URL appears
     def callback(request):
         body = request.content.decode("utf-8", errors="replace")
-        expected = (
-            "PATCH /api/data/v9.2/accounts(accountnumber='A%2F1',"
-            "name='Co-op%2FO%27%27Connor') HTTP/1.1"
+        expected = "".join(
+            [
+                "PATCH /api/data/v9.2/accounts(accountnumber='A%2F1',",
+                "name='Co-op%2FO%27%27Connor') HTTP/1.1",
+            ]
         )
         assert expected in body
         response_body = """--batchresponse_1
