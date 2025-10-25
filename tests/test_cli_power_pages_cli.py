@@ -18,6 +18,7 @@ class StubDataverseClient:
 
 class StubPowerPagesClient:
     last_instance: StubPowerPagesClient | None = None
+    provider_errors: list[str] | None = None
 
     def __init__(self, dv):
         self.dv = dv
@@ -47,7 +48,11 @@ class StubPowerPagesClient:
             "binary_providers": binary_providers,
             "provider_options": provider_options,
         }
-        provider = SimpleNamespace(files=["file1", "file2"], skipped=0)
+        provider = SimpleNamespace(
+            files=["file1", "file2"],
+            skipped=0,
+            errors=list(self.provider_errors or []),
+        )
         return SimpleNamespace(output_path=out, providers={"annotations": provider})
 
     def upload_site(
@@ -116,6 +121,7 @@ def load_cli_app(monkeypatch):
 @pytest.fixture(autouse=True)
 def reset_stub():
     StubPowerPagesClient.last_instance = None
+    StubPowerPagesClient.provider_errors = None
 
 
 def test_pages_download_reports_providers(monkeypatch, cli_runner, tmp_path):
@@ -156,6 +162,41 @@ def test_pages_download_reports_providers(monkeypatch, cli_runner, tmp_path):
     assert stub.download_kwargs is not None
     assert stub.download_kwargs["binary_providers"] == ["annotations"]
     assert stub.download_kwargs["provider_options"] == {"annotations": {"foo": "bar"}}
+
+
+def test_pages_download_reports_provider_errors(monkeypatch, cli_runner, tmp_path):
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
+    monkeypatch.setattr("pacx.cli.pages.PowerPagesClient", StubPowerPagesClient)
+
+    StubPowerPagesClient.provider_errors = [
+        "Failed to download binary file asset.js",
+        "Timeout while contacting provider API",
+    ]
+
+    out_dir = tmp_path / "site_out"
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "pages",
+            "download",
+            "--website-id",
+            "site123",
+            "--tables",
+            "core",
+            "--out",
+            str(out_dir),
+        ],
+        env={
+            "PACX_ACCESS_TOKEN": "test-token",
+            "DATAVERSE_HOST": "example.crm.dynamics.com",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert "Provider annotations error: Failed to download binary file asset.js" in result.stdout
+    assert "Provider annotations error: Timeout while contacting provider API" in result.stdout
 
 
 def test_load_json_or_path_reads_file(tmp_path):
