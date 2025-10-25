@@ -101,6 +101,10 @@ def pages_download(
     if result.providers:
         for name, provider in result.providers.items():
             print(f"Provider {name}: {len(provider.files)} files, skipped={provider.skipped}")
+            errors = getattr(provider, "errors", None)
+            if errors:
+                for error in errors:
+                    print(f"Provider {name} error: {error}")
 
 
 @app.command("upload")
