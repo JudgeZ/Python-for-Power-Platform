@@ -98,15 +98,19 @@ class AnnotationBinaryProvider:
             )
             for note in data.get("value", []):
                 fname = note.get("filename") or f"{note.get('annotationid')}.bin"
+                fname_raw = str(fname)
+                sanitized = Path(fname_raw.replace("\\", "/")).name
+                if not sanitized:
+                    sanitized = f"{note.get('annotationid')}.bin"
                 document = note.get("documentbody")
                 if not document:
                     result.skipped += 1
                     continue
                 raw = base64.b64decode(str(document))
-                target = out_dir / fname
+                target = out_dir / sanitized
                 target.write_bytes(raw)
                 checksum = hashlib.sha256(raw).hexdigest()
-                (out_dir / f"{fname}.sha256").write_text(checksum, encoding="utf-8")
+                (out_dir / f"{sanitized}.sha256").write_text(checksum, encoding="utf-8")
                 result.files.append(
                     ProviderFile(
                         path=target.relative_to(ctx.output_dir),
