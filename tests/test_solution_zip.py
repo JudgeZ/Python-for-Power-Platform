@@ -60,3 +60,13 @@ def test_unpack_to_source_rejects_component_traversal(tmp_path):
 
     with pytest.raises(ValueError, match="outside"):
         unpack_to_source(str(archive), tmp_path)
+
+
+def test_unpack_to_source_rejects_double_traversal(tmp_path):
+    archive = tmp_path / "evil_sp_double.zip"
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("WebResources/../../evil.txt", "bad")
+        z.writestr("CanvasApps/../Other/../../evil.txt", "bad")
+
+    with pytest.raises(ValueError, match="outside"):
+        unpack_to_source(str(archive), tmp_path)
