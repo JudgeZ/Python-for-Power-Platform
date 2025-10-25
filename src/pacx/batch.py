@@ -37,15 +37,18 @@ def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
         if not pending_writes:
             return
         changeset_id = f"changeset_{uuid.uuid4()}"
-        batch_lines.append(f"--{batch_id}")
-        batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
-        batch_lines.append("")
+        batch_lines.extend(
+            [
+                f"--{batch_id}",
+                f"Content-Type: multipart/mixed; boundary={changeset_id}",
+                "",
+            ]
+        )
         for headers, request_text in pending_writes:
             batch_lines.append(f"--{changeset_id}")
             batch_lines.append(_encode_part(headers, request_text))
             batch_lines.append("")
-        batch_lines.append(f"--{changeset_id}--")
-        batch_lines.append("")
+        batch_lines.extend([f"--{changeset_id}--", ""])
         pending_writes.clear()
 
     for i, op in enumerate(ops, start=1):
