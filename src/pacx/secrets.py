@@ -10,6 +10,9 @@ class KeyringModule(Protocol):
     def get_password(self, service_name: str, username: str) -> str | None:
         ...
 
+    def set_password(self, service_name: str, username: str, password: str) -> None:
+        ...
+
 
 class KeyVaultSecret(Protocol):
     value: str | None
@@ -20,6 +23,9 @@ class SecretClientProtocol(Protocol):
         ...
 
     def get_secret(self, name: str) -> KeyVaultSecret:
+        ...
+
+    def set_secret(self, name: str, value: str) -> KeyVaultSecret:
         ...
 
 
@@ -90,3 +96,37 @@ def get_secret(spec: SecretSpec) -> str | None:
         client = secret_client_cls(vault_url=vault_url, credential=credential)
         return client.get_secret(secret_name).value
     return None
+
+
+def set_secret(backend: str, ref: str, value: str) -> bool:
+    backend_normalized = backend.lower()
+    if backend_normalized == "keyring":
+        keyring_module = _load_keyring()
+        if keyring_module is None:
+            return False
+        try:
+            service, username = ref.split(":", 1)
+        except ValueError:
+            return False
+        try:
+            keyring_module.set_password(service, username, value)
+        except Exception:
+            return False
+        return True
+    if backend_normalized == "keyvault":
+        resolved = _load_keyvault()
+        if resolved is None:
+            return False
+        credential_factory, secret_client_cls = resolved
+        try:
+            vault_url, secret_name = ref.rsplit(":", 1)
+        except ValueError:
+            return False
+        try:
+            credential = credential_factory()
+            client = secret_client_cls(vault_url=vault_url, credential=credential)
+            client.set_secret(secret_name, value)
+        except Exception:
+            return False
+        return True
+    return False

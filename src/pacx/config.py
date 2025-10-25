@@ -11,7 +11,7 @@ from importlib import import_module
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Protocol, cast
+from typing import Any, Literal, Protocol, cast
 
 
 class FernetProtocol(Protocol):
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 PACX_DIR = os.path.expanduser(os.getenv("PACX_HOME", "~/.pacx"))
 CONFIG_PATH = os.path.join(PACX_DIR, "config.json")
 
-_SENSITIVE_KEYS = ("access_token",)
+_SENSITIVE_KEYS = ("access_token", "refresh_token")
 _FERNET_SALT = b"pacx-config"
 _cached_cipher: FernetProtocol | None = None
 _cached_cipher_key: str | None = None
@@ -202,18 +202,34 @@ def _decrypt_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
         value = payload.get(key)
         if isinstance(value, str):
             payload[key] = decrypt_field(value)
+    return _normalize_profile_dict(payload)
+
+
+def _normalize_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(profile)
+    provider = payload.get("provider")
+    if isinstance(provider, str):
+        provider_normalized = provider.strip().lower()
+        if provider_normalized in {"azure", "github"}:
+            payload["provider"] = provider_normalized
+        else:
+            payload["provider"] = "azure"
+    else:
+        payload["provider"] = "azure"
     return payload
 
 
 @dataclass
 class Profile:
     name: str
+    provider: Literal["azure", "github"] = "azure"
     tenant_id: str | None = None
     client_id: str | None = None
     scope: str | None = None
     dataverse_host: str | None = None
     environment_id: str | None = None
     access_token: str | None = None
+    refresh_token: str | None = None
     client_secret_env: str | None = None
     secret_backend: str | None = None
     secret_ref: str | None = None
@@ -280,7 +296,7 @@ def get_profile(name: str) -> Profile | None:
     data = cfg.get("profiles", {}).get(name)
     if not data:
         return None
-    return Profile(**data)
+    return Profile(**_normalize_profile_dict(data))
 
 
 def upsert_profile(p: Profile, set_default: bool = False) -> None:
@@ -364,7 +380,8 @@ class ConfigStore:
             if not isinstance(name, str) or not isinstance(data, dict):
                 continue
             details = {k: v for k, v in data.items() if k != "name"}
-            profs[name] = Profile(name=name, **details)
+            normalized = _normalize_profile_dict(details)
+            profs[name] = Profile(name=name, **normalized)
 
         default_raw = raw.get("default")
         default_profile = default_raw if isinstance(default_raw, str) else None
