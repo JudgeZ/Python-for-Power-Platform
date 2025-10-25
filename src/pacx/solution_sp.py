@@ -16,11 +16,20 @@ COMPONENT_MAP: dict[str, str] = {
 
 def _resolve_destination(root: Path, src_root: Path) -> Path:
     if not root.parts:
-        return src_root / "Other" / root.name
-    component = root.parts[0]
+        raise ValueError("Archive entry has no path components to unpack.")
+
+    component, *remainder_parts = root.parts
     mapped = COMPONENT_MAP.get(component, "Other")
-    remainder = Path(*root.parts[1:]) if len(root.parts) > 1 else Path(root.name)
-    return (src_root / mapped / remainder).resolve()
+    remainder = Path(*remainder_parts) if remainder_parts else Path(root.name)
+    candidate = (src_root / mapped / remainder).resolve(strict=False)
+
+    try:
+        candidate.relative_to(src_root)
+    except ValueError:
+        raise ValueError(
+            f"Archive entry '{root.as_posix()}' would extract outside '{src_root}'."
+        ) from None
+    return candidate
 
 
 def unpack_to_source(solution_zip: str | os.PathLike[str], out_dir: str | os.PathLike[str]) -> str:

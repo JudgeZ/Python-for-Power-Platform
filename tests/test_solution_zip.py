@@ -51,3 +51,12 @@ def test_unpack_rejects_traversal(tmp_path):
 
     with pytest.raises(ValueError):
         unpack_solution_zip(archive, tmp_path / "out")
+
+
+def test_unpack_to_source_rejects_component_traversal(tmp_path):
+    archive = tmp_path / "evil_sp.zip"
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("CanvasApps/../../evil.txt", "bad")
+
+    with pytest.raises(ValueError, match="outside"):
+        unpack_to_source(str(archive), tmp_path)
