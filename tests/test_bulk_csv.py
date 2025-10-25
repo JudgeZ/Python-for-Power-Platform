@@ -7,6 +7,7 @@ import pytest
 
 import httpx
 
+from pacx.batch import BatchSendResult
 from pacx.bulk_csv import bulk_csv_upsert
 from pacx.clients.dataverse import DataverseClient
 
@@ -68,6 +69,78 @@ def test_bulk_csv_reports_retries(tmp_path, respx_mock, token_getter):
 
     result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=1)
     assert result.stats.retry_invocations == 1
+
+
+def test_bulk_csv_attempts_accumulate_across_chunks(monkeypatch, tmp_path, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    csvp = tmp_path / "attempts.csv"
+    with open(csvp, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["id", "name"])
+        writer.writerow(["", "First"])
+        writer.writerow(["", "Second"])
+        writer.writerow(["", "Third"])
+        writer.writerow(["", "Fourth"])
+
+    plan = iter(
+        [
+            BatchSendResult(
+                operations=[
+                    {
+                        "operation_index": 0,
+                        "status_code": 204,
+                        "reason": "No Content",
+                        "json": None,
+                        "text": "",
+                    },
+                    {
+                        "operation_index": 1,
+                        "status_code": 204,
+                        "reason": "No Content",
+                        "json": None,
+                        "text": "",
+                    },
+                ],
+                retry_counts={0: 2, 1: 1},
+                attempts=3,
+            ),
+            BatchSendResult(
+                operations=[
+                    {
+                        "operation_index": 0,
+                        "status_code": 204,
+                        "reason": "No Content",
+                        "json": None,
+                        "text": "",
+                    },
+                    {
+                        "operation_index": 1,
+                        "status_code": 204,
+                        "reason": "No Content",
+                        "json": None,
+                        "text": "",
+                    },
+                ],
+                retry_counts={0: 1},
+                attempts=2,
+            ),
+        ]
+    )
+
+    def fake_send_batch(dv_arg, ops):
+        assert dv_arg is dv
+        assert len(ops) == 2
+        try:
+            return next(plan)
+        except StopIteration as exc:  # pragma: no cover - defensive to surface extra calls
+            raise AssertionError("send_batch called too many times") from exc
+
+    monkeypatch.setattr("pacx.bulk_csv.send_batch", fake_send_batch)
+
+    result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=2)
+
+    assert result.stats.attempts == 5
+    assert result.stats.retry_invocations == 4
 
 
 def test_bulk_csv_row_index_matches_csv_line_with_skipped_rows(tmp_path, respx_mock, token_getter):

@@ -165,7 +165,7 @@ def bulk_csv_upsert(
                 op_row_numbers.append(row_number)
         if ops:
             batch_res: BatchSendResult = send_batch(dv, ops)
-            total_attempts = max(total_attempts, batch_res.attempts)
+            total_attempts += batch_res.attempts
             for count in batch_res.retry_counts.values():
                 retry_histogram[count] += 1
                 total_retries += count
