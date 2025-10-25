@@ -124,7 +124,10 @@ def pages_upload(
         "replace", help="replace|merge|skip-existing|create-only (default: replace)"
     ),
     key_config: str | None = typer.Option(
-        None, help="JSON string/path overriding natural keys (merged with manifest data)"
+        None,
+        help=(
+            "JSON string/path overriding natural keys (map entity -> array of column names)"
+        ),
     ),
 ) -> None:
     """Upload a previously downloaded Power Pages site.
@@ -151,12 +154,13 @@ def pages_upload(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
+                if isinstance(value, Sequence)
+                and not isinstance(value, (str, bytes))
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
+                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
             ]
             if invalid:
                 raise ValueError(
@@ -185,7 +189,10 @@ def pages_diff_permissions(
         None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
     ),
     key_config: str | None = typer.Option(
-        None, help="JSON string/path overriding keys (merged with manifest defaults)"
+        None,
+        help=(
+            "JSON string/path overriding keys (map entity -> array of column names)"
+        ),
     ),
 ) -> None:
     """Compare web role permissions between Dataverse and a local export.
@@ -209,12 +216,13 @@ def pages_diff_permissions(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
+                if isinstance(value, Sequence)
+                and not isinstance(value, (str, bytes))
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
+                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
             ]
             if invalid:
                 raise ValueError(
