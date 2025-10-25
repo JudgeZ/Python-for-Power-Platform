@@ -27,8 +27,8 @@ It keeps changes **small, testable, and reversible**, and aligns with the projec
 **Changes**
 - Extend `Profile` to include:
   - `provider: Literal["azure","github"] = "azure"` (default azure for backward compat)
-  - `scopes: list[str] | None = None`
   - `refresh_token: str | None = None` (sensitive)
+- Keep using the existing `scopes: list[str] | None = None` field (already defined alongside `scope`).
 - Add `"refresh_token"` into the sensitive keys set so it is encrypted at rest (just like `access_token`).
 - On load, **default** missing `provider` to `"azure"` for old configs.
 - (If not present) add a small, internal `set_secret(backend, ref, value)` helper symmetrical to `get_secret`.
@@ -42,10 +42,11 @@ It keeps changes **small, testable, and reversible**, and aligns with the projec
 ```text
 Edit src/pacx/config.py:
 
-1) In Profile dataclass, add:
+1) In Profile dataclass, add or confirm:
    - provider: Literal["azure","github"] = "azure"
-   - scopes: list[str] | None = None
    - refresh_token: str | None = None
+
+   (The scopes field already exists; continue using it as-is.)
 
 2) Ensure "refresh_token" is included in the SENSITIVE_KEYS so it is encrypted/decrypted like access_token.
 
