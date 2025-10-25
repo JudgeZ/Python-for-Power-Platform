@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import logging
 from typing import Any, Callable, cast
+from urllib.parse import urlparse
 
 from ..http_client import HttpClient
 from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest, Solution
@@ -29,8 +30,31 @@ class DataverseClient:
             api_path: Base path for the Web API endpoint.
             use_https: When ``True`` build an ``https`` URL, otherwise ``http``.
         """
-        scheme = "https" if use_https else "http"
-        base_url = f"{scheme}://{host}{api_path}"
+        normalized_api_path = "/" + api_path.lstrip("/")
+        raw_host = host.strip()
+        if not raw_host:
+            raise ValueError("Dataverse host must not be empty")
+
+        parsed = urlparse(raw_host)
+        if parsed.scheme:
+            scheme = parsed.scheme
+            netloc = parsed.netloc or parsed.path
+            path = parsed.path if parsed.netloc else ""
+        else:
+            scheme = "https" if use_https else "http"
+            parsed = urlparse(f"{scheme}://{raw_host}")
+            netloc = parsed.netloc or parsed.path
+            path = parsed.path
+
+        if not netloc:
+            raise ValueError(f"Invalid Dataverse host: {host!r}")
+
+        clean_path = path.rstrip("/")
+        if clean_path and not clean_path.startswith("/"):
+            clean_path = f"/{clean_path}"
+
+        base_path = f"{clean_path}{normalized_api_path}" if clean_path else normalized_api_path
+        base_url = f"{scheme}://{netloc}{base_path}"
         self.http = HttpClient(
             base_url,
             token_getter=token_getter,
