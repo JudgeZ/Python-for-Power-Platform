@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import httpx
 import respx
 
@@ -78,3 +80,51 @@ def test_send_batch_handles_missing_responses(respx_mock: respx.Router, token_ge
     assert result.operations[1]["operation_index"] == 1
     assert result.operations[1]["status_code"] == 0
     assert result.operations[1]["reason"] == "MissingResponse"
+
+
+def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+
+    def responder(request: httpx.Request) -> httpx.Response:
+        content_type = request.headers["Content-Type"]
+        match = re.search(r"boundary=([^;]+)", content_type)
+        assert match is not None
+        boundary = match.group(1)
+        raw = request.content.decode("utf-8")
+        assert raw.startswith(f"--{boundary}")
+        assert raw.strip().endswith(f"--{boundary}--")
+
+        segments = [part.strip() for part in raw.split(f"--{boundary}") if part.strip() and part.strip() != "--"]
+        assert len(segments) == 2
+
+        first_part, second_part = segments
+        assert "Content-Type: application/http" in first_part
+        assert "GET /api/data/v9.2/accounts?$top=1 HTTP/1.1" in first_part
+        assert "multipart/mixed" not in first_part
+        assert "Content-ID: 1" in first_part
+
+        assert "Content-Type: multipart/mixed; boundary=changeset_" in second_part
+        assert second_part.count("--changeset_") >= 2
+        assert "PATCH /api/data/v9.2/accounts(1) HTTP/1.1" in second_part
+        assert "Content-ID: 2" in second_part
+
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "multipart/mixed; boundary=batchresponse_test"},
+            content=_build_body([200, 204]),
+        )
+
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(side_effect=responder)
+
+    result = send_batch(
+        dv,
+        [
+            {"method": "GET", "url": "/api/data/v9.2/accounts?$top=1", "body": None},
+            {"method": "PATCH", "url": "/api/data/v9.2/accounts(1)", "body": {"name": "Updated"}},
+        ],
+        base_backoff=0.0,
+    )
+
+    assert len(result.operations) == 2
+    assert result.operations[0]["status_code"] == 200
+    assert result.operations[1]["status_code"] == 204
