@@ -77,6 +77,78 @@ def test_download_with_annotation_provider(tmp_path, respx_mock, token_getter):
     assert manifest["providers"]["annotations"]["files"][0]["checksum"]
 
 
+def test_annotation_provider_sanitizes_filename(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    _mock_site(respx_mock)
+
+    payload_one = base64.b64encode(b"one").decode("ascii")
+    payload_two = base64.b64encode(b"two").decode("ascii")
+    payload_three = base64.b64encode(b"three").decode("ascii")
+    payload_four = base64.b64encode(b"four").decode("ascii")
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/annotations",
+        params={
+            "$select": "annotationid,filename,documentbody,_objectid_value",
+            "$filter": "_objectid_value eq wf1",
+            "$top": 50,
+        },
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "annotationid": "n1",
+                        "filename": "../secrets/logo.png",
+                        "documentbody": payload_one,
+                    },
+                    {
+                        "annotationid": "n2",
+                        "filename": "..\\hidden\\config.json",
+                        "documentbody": payload_two,
+                    },
+                    {
+                        "annotationid": "n3",
+                        "filename": "..\\",
+                        "documentbody": payload_three,
+                    },
+                    {
+                        "annotationid": "n4",
+                        "filename": "./",
+                        "documentbody": payload_four,
+                    },
+                ]
+            },
+        )
+    )
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=True,
+        provider_options={"annotations": {"top": 50}},
+    )
+
+    bin_dir = res.output_path / "files_bin"
+    expected_files = {
+        "logo.png",
+        "logo.png.sha256",
+        "config.json",
+        "config.json.sha256",
+        "n3.bin",
+        "n3.bin.sha256",
+        "n4.bin",
+        "n4.bin.sha256",
+    }
+    assert {p.name for p in bin_dir.iterdir()} == expected_files
+    # Ensure nothing escaped outside of the export directory.
+    assert not (res.output_path / "logo.png").exists()
+    assert not (res.output_path / "config.json").exists()
+
+
 def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
