@@ -26,7 +26,7 @@ ppx pages upload --website-id <GUID> --src site_dump --host <DV> \
 
 * Strategies: `replace` (default), `merge`, `skip-existing`, `create-only`.
   * `replace`: full refresh that overwrites Dataverse with `site_dump`. Useful when publishing from a known-good branch: `ppx pages upload --strategy replace --src site_dump`.
-  * `merge`: apply incremental edits without disturbing untouched records. Ideal for tweaking copy or templates: `ppx pages upload --strategy merge --src site_dump`.
+  * `merge`: apply incremental edits without disturbing untouched records. Ideal for tweaking copy or templates: `ppx pages upload --strategy merge --src site_dump`. When a natural-key lookup returns `404 Not Found`, the client now falls back to creating the record so uploads succeed for new content without explicit IDs.
   * `skip-existing`: seed new entities while leaving anything already provisioned in Dataverse intact, e.g. populating a new sandbox: `ppx pages upload --strategy skip-existing --src site_dump`.
   * `create-only`: fail instead of updating existing rows, letting you validate that the target really is empty before the first deployment.
 * Natural keys default to the manifest values, but `--key-config` (inline JSON or file) can override per entity.

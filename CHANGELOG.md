@@ -7,5 +7,6 @@
 - Harden solution archive extraction against Zip Slip directory traversal.
 - Ensure Azure Blob binary downloads append SAS tokens even when URLs contain query strings.
 - Expose lifecycle management on HTTP-based clients to close connections when finished.
+- Allow Power Pages natural-key merges to create records when lookups return 404s instead of attempting a patch.
 
 - 0.2.0 Extended features
