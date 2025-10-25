@@ -59,23 +59,19 @@ def list_apps(
     environment_id: str | None = typer.Option(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
-    top: int | None = typer.Option(
-        None, help="Maximum results to return via $top (default: server limit)"
-    ),
 ) -> None:
     """List canvas apps in an environment.
 
     Args:
         ctx: Typer context providing authentication state.
         environment_id: Optional environment override.
-        top: Maximum number of app summaries to retrieve.
     """
 
     token_getter = get_token_getter(ctx)
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client_cls = _resolve_client_class()
     client = client_cls(token_getter)
-    apps = client.list_apps(environment, top=top)
+    apps = client.list_apps(environment)
     for app_summary in apps:
         print(f"[bold]{app_summary.name or app_summary.id}[/bold]")
 

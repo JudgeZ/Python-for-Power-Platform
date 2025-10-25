@@ -77,56 +77,111 @@ def test_upsert_environment_setting(respx_mock, token_getter):
     assert route.called
 
 
-def test_list_apps_with_paging(respx_mock, token_getter):
+def test_list_apps_paginates_until_exhausted(respx_mock, token_getter):
     client = build_client(token_getter)
     route = respx_mock.get(
         "https://api.powerplatform.com/powerapps/environments/env1/apps",
-        params={"api-version": "2022-03-01-preview", "$top": 5, "$skiptoken": "next"},
     ).mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "value": [
-                    {"id": "app1", "name": "App One"},
-                    {"id": "app2", "name": "App Two"},
-                ]
-            },
-        )
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": [{"id": "app1", "name": "App One"}],
+                    "@odata.nextLink": "https://api.powerplatform.com/powerapps/environments/env1/apps?$skiptoken=token&api-version=2022-03-01-preview",
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {"id": "app2", "name": "App Two"},
+                        {"id": "app3", "name": "App Three"},
+                    ]
+                },
+            ),
+        ]
     )
 
-    apps = client.list_apps("env1", top=5, skiptoken="next")
+    apps = client.list_apps("env1")
 
     assert route.called
-    assert [app.id for app in apps] == ["app1", "app2"]
+    assert len(route.calls) == 2
+    assert route.calls[0].request.url.params["api-version"] == "2022-03-01-preview"
+    assert route.calls[1].request.url.params["$skiptoken"] == "token"
+    assert [app.id for app in apps] == ["app1", "app2", "app3"]
 
 
-def test_list_cloud_flows_filters_none_filtered(respx_mock, token_getter):
+def test_list_cloud_flows_aggregates_pages(respx_mock, token_getter):
     client = build_client(token_getter)
     route = respx_mock.get(
         "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows",
-        params={"api-version": "2022-03-01-preview", "status": "Active"},
-    ).mock(return_value=httpx.Response(200, json={"value": [{"id": "flow1", "name": "Flow"}]}))
+    ).mock(
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": [{"id": "flow1", "name": "Flow One"}],
+                    "@odata.nextLink": "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows?$skiptoken=more&api-version=2022-03-01-preview",
+                },
+            ),
+            httpx.Response(
+                200,
+                json={"value": [{"id": "flow2", "name": "Flow Two"}]},
+            ),
+        ]
+    )
 
     flows = client.list_cloud_flows("env1", status="Active", owner=None)
 
     assert route.called
-    assert flows[0].id == "flow1"
+    assert len(route.calls) == 2
+    first_request_params = route.calls[0].request.url.params
+    assert first_request_params["api-version"] == "2022-03-01-preview"
+    assert first_request_params["status"] == "Active"
+    assert [flow.id for flow in flows] == ["flow1", "flow2"]
 
 
-def test_list_flow_runs(respx_mock, token_getter):
+def test_list_flow_runs_aggregates_workflow_pages(respx_mock, token_getter):
     client = build_client(token_getter)
     route = respx_mock.get(
         "https://api.powerplatform.com/powerautomate/environments/env1/flowRuns",
-        params={"api-version": "2022-03-01-preview", "workflowId": "flow1"},
     ).mock(
-        return_value=httpx.Response(
-            200,
-            json={"value": [{"id": "run1", "name": "Run", "status": "Succeeded", "startTime": "s", "endTime": "e"}]},
-        )
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "id": "run1",
+                            "name": "Run One",
+                            "status": "Succeeded",
+                            "startTime": "s",
+                            "endTime": "e",
+                        }
+                    ],
+                    "workflowRun@odata.nextLink": "https://api.powerplatform.com/powerautomate/environments/env1/flowRuns?$skiptoken=next&api-version=2022-03-01-preview",
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "id": "run2",
+                            "name": "Run Two",
+                            "status": "Failed",
+                            "startTime": "s2",
+                            "endTime": "e2",
+                        }
+                    ]
+                },
+            ),
+        ]
     )
 
     runs = client.list_flow_runs("env1", "flow1")
 
     assert route.called
-    assert runs[0].id == "run1"
-    assert runs[0].status == "Succeeded"
+    assert len(route.calls) == 2
+    assert route.calls[0].request.url.params["workflowId"] == "flow1"
+    assert [run.id for run in runs] == ["run1", "run2"]
