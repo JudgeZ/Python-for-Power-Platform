@@ -225,10 +225,11 @@ def test_pages_upload_natural_keys_merge_creates_when_missing(
         "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages"
     ).mock(return_value=httpx.Response(201, headers={"OData-EntityId": "entity"}))
 
-    patch_route = respx_mock.patch(
+    patch_url = (
         "https://example.crm.dynamics.com/api/data/v9.2/"
         "adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
-    ).mock(return_value=httpx.Response(204))
+    )
+    patch_route = respx_mock.patch(patch_url).mock(return_value=httpx.Response(204))
 
     pp.upload_site("site", str(site), strategy="merge")
 
