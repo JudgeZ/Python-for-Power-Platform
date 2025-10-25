@@ -65,6 +65,16 @@ def test_request_includes_headers(monkeypatch: pytest.MonkeyPatch) -> None:
     assert headers["Y"] == "2"
 
 
+def test_get_request_omits_json_when_payload_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    response = make_response(200, json={"ok": True})
+    client, stub = setup_client(monkeypatch, [response])
+
+    client.get("/items")
+
+    _, _, kwargs = stub.calls[0]
+    assert "json" not in kwargs
+
+
 def test_http_error_raises_with_details(monkeypatch: pytest.MonkeyPatch) -> None:
     error_response = make_response(404, json={"error": "missing"})
     client, _ = setup_client(monkeypatch, [error_response])

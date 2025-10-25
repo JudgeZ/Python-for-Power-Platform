@@ -58,9 +58,10 @@ class HttpClient:
             try:
                 request_kwargs: dict[str, Any] = {
                     "params": params,
-                    "json": json,
                     "headers": merged_headers,
                 }
+                if json is not None:
+                    request_kwargs["json"] = json
                 if content is not None:
                     request_kwargs["content"] = content
                 else:
