@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -431,11 +432,18 @@ class PowerPagesClient:
                                 raise
                     elif strategy == "merge":
                         try:
-                            current = self.dv.http.get(path).json()
+                            current_raw = self.dv.http.get(path).json()
                         except Exception:
-                            current = {}
+                            current_raw = {}
+                        current = (
+                            _filter_dataverse_columns(current_raw)
+                            if isinstance(current_raw, Mapping)
+                            else {}
+                        )
                         merged = {**current, **obj}
-                        self.dv.http.patch(path, json=merged)
+                        self.dv.http.patch(
+                            path, json=_filter_dataverse_columns(merged)
+                        )
                     else:
                         self.dv.http.patch(path, json=obj)
                     continue
@@ -456,11 +464,17 @@ class PowerPagesClient:
             return
         if strategy == "merge":
             try:
-                current = self.dv.get_record(entityset, record_id)
+                current_raw = self.dv.get_record(entityset, record_id)
             except Exception:
                 current = {}
-            merged = {**current, **body}
-            self.dv.update_record(entityset, record_id, dict(merged))
+            else:
+                current = _filter_dataverse_columns(current_raw)
+            merged = {**current, **dict(body)}
+            self.dv.update_record(
+                entityset,
+                record_id,
+                _filter_dataverse_columns(merged),
+            )
             return
         self.dv.update_record(entityset, record_id, dict(body))
 
@@ -494,3 +508,29 @@ class _ProviderContext:
     website_id: str
     output_dir: Path
     webfiles: Sequence[Mapping[str, object]]
+_COLUMN_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _filter_dataverse_columns(data: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Return only legitimate Dataverse column names from ``data``.
+
+    Dataverse responses include OData metadata such as ``@odata.etag`` or
+    ``adx_name@OData.Community.Display.V1.FormattedValue`` that cannot be sent back
+    during an update. This helper strips those keys to ensure merge operations emit
+    clean PATCH payloads.
+    """
+
+    if not data:
+        return {}
+
+    filtered: dict[str, Any] = {}
+    for key, value in data.items():
+        if not isinstance(key, str):
+            continue
+        if key.startswith("@"):
+            continue
+        if not _COLUMN_NAME_RE.match(key):
+            continue
+        filtered[key] = value
+    return filtered
+

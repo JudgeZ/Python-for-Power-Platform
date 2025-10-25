@@ -185,7 +185,14 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
         "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
     ).mock(
         return_value=httpx.Response(
-            200, json={"adx_name": "Old", "adx_partialurl": "home", "_adx_websiteid_value": "site"}
+            200,
+            json={
+                "adx_name": "Old",
+                "adx_partialurl": "home",
+                "_adx_websiteid_value": "site",
+                "@odata.etag": "W/\"123\"",
+                "adx_name@OData.Community.Display.V1.FormattedValue": "Old",
+            },
         )
     )
 
@@ -193,10 +200,51 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
         body = json.loads(request.content.decode("utf-8"))
         assert body["adx_name"] == "New"
         assert body["adx_partialurl"] == "home"
+        assert "@odata.etag" not in body
+        assert "adx_name@OData.Community.Display.V1.FormattedValue" not in body
         return httpx.Response(204)
 
     respx_mock.patch(
         "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(adx_partialurl='home',_adx_websiteid_value='site')"
+    ).mock(side_effect=patcher)
+
+    pp.upload_site("site", str(site), strategy="merge")
+
+
+def test_pages_upload_with_ids_merge_filters_metadata(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    site = Path(tmp_path) / "site"
+    pages_dir = site / "pages"
+    pages_dir.mkdir(parents=True)
+    page_path = pages_dir / "home.json"
+    page_path.write_text(
+        json.dumps({"adx_webpageid": "w1", "adx_name": "Updated"}),
+        encoding="utf-8",
+    )
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(w1)"
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "adx_webpageid": "w1",
+                "adx_name": "Original",
+                "@odata.etag": "W/\"456\"",
+                "adx_name@OData.Community.Display.V1.FormattedValue": "Original",
+            },
+        )
+    )
+
+    def patcher(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode("utf-8"))
+        assert body == {"adx_webpageid": "w1", "adx_name": "Updated"}
+        return httpx.Response(204)
+
+    respx_mock.patch(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(w1)"
     ).mock(side_effect=patcher)
 
     pp.upload_site("site", str(site), strategy="merge")
