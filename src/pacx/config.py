@@ -7,22 +7,19 @@ import json
 import logging
 import os
 import stat
+from dataclasses import asdict, dataclass, field, fields
 from importlib import import_module
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Protocol, cast
 
 
 class FernetProtocol(Protocol):
-    def __init__(self, key: bytes) -> None:
-        ...
+    def __init__(self, key: bytes) -> None: ...
 
-    def encrypt(self, data: bytes) -> bytes:
-        ...
+    def encrypt(self, data: bytes) -> bytes: ...
 
-    def decrypt(self, token: bytes, ttl: int | None = ...) -> bytes:
-        ...
+    def decrypt(self, token: bytes, ttl: int | None = ...) -> bytes: ...
 
 
 try:  # pragma: no cover - optional dependency
@@ -31,17 +28,17 @@ except Exception:  # pragma: no cover - library not available during runtime
     _fernet_module = None
 
 if _fernet_module is not None:
-    Fernet: type[FernetProtocol] | None = cast(
-        "type[FernetProtocol]", getattr(_fernet_module, "Fernet")
-    )
-    InvalidToken = cast("type[Exception]", getattr(_fernet_module, "InvalidToken"))
+    Fernet: type[FernetProtocol] | None = cast("type[FernetProtocol]", _fernet_module.Fernet)
+    InvalidToken = cast("type[Exception]", _fernet_module.InvalidToken)
 else:
     Fernet = None
 
-    class _FallbackInvalidToken(Exception):  # pragma: no cover - fallback when cryptography missing
+    class _FallbackInvalidTokenError(
+        Exception
+    ):  # pragma: no cover - fallback when cryptography missing
         pass
 
-    InvalidToken = _FallbackInvalidToken
+    InvalidToken = _FallbackInvalidTokenError
 
 
 logger = logging.getLogger(__name__)
@@ -49,7 +46,7 @@ logger = logging.getLogger(__name__)
 PACX_DIR = os.path.expanduser(os.getenv("PACX_HOME", "~/.pacx"))
 CONFIG_PATH = os.path.join(PACX_DIR, "config.json")
 
-_SENSITIVE_KEYS = ("access_token",)
+_SENSITIVE_KEYS = ("access_token", "refresh_token")
 _FERNET_SALT = b"pacx-config"
 _cached_cipher: FernetProtocol | None = None
 _cached_cipher_key: str | None = None
@@ -214,10 +211,12 @@ class Profile:
     dataverse_host: str | None = None
     environment_id: str | None = None
     access_token: str | None = None
+    refresh_token: str | None = None
     client_secret_env: str | None = None
     secret_backend: str | None = None
     secret_ref: str | None = None
     scopes: list[str] | None = None
+    use_device_code: bool = False
 
 
 def _ensure_dir() -> None:
@@ -360,10 +359,11 @@ class ConfigStore:
         profiles_raw = raw.get("profiles", {})
         profiles_data = profiles_raw if isinstance(profiles_raw, dict) else {}
         profs: dict[str, Profile] = {}
+        profile_fields = {field_.name for field_ in fields(Profile)}
         for name, data in profiles_data.items():
             if not isinstance(name, str) or not isinstance(data, dict):
                 continue
-            details = {k: v for k, v in data.items() if k != "name"}
+            details = {k: v for k, v in data.items() if k != "name" and k in profile_fields}
             profs[name] = Profile(name=name, **details)
 
         default_raw = raw.get("default")

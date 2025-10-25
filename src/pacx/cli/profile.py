@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Commands for inspecting and mutating stored PACX profiles."""
+
+from __future__ import annotations
 
 from typing import Any
 
@@ -14,7 +14,7 @@ app = typer.Typer(help="Profiles & configuration")
 
 
 MASK_PLACEHOLDER = "<hidden>"
-SENSITIVE_KEYS = frozenset({"access_token"})
+SENSITIVE_KEYS = frozenset({"access_token", "refresh_token"})
 
 
 @app.command("list")
