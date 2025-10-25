@@ -30,29 +30,63 @@ def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
     import uuid
 
     batch_id = f"batch_{uuid.uuid4()}"
-    changeset_id = f"changeset_{uuid.uuid4()}"
     batch_lines: list[str] = []
+    pending_mutations: list[tuple[int, dict[str, Any]]] = []
+    content_id = 0
 
-    batch_lines.append(f"--{batch_id}")
-    batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
-    batch_lines.append("")
-    for i, op in enumerate(ops, start=1):
-        body = op.get("body")
+    def encode_request(method: str, url: str, body: Any) -> str:
+        request_lines = [f"{method} {url} HTTP/1.1"]
+        if body is not None:
+            request_lines.append("Content-Type: application/json; charset=utf-8")
+        request_lines.append("")
+        if body is not None:
+            request_lines.append(json.dumps(body))
+        return "\r\n".join(request_lines)
+
+    def flush_mutations() -> None:
+        if not pending_mutations:
+            return
+        changeset_id = f"changeset_{uuid.uuid4()}"
+        batch_lines.append(f"--{batch_id}")
+        batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
+        batch_lines.append("")
+        for cid, op in pending_mutations:
+            method = op["method"].upper()
+            url = op["url"]
+            body = op.get("body")
+            batch_lines.append(f"--{changeset_id}")
+            headers = {
+                "Content-Type": "application/http",
+                "Content-Transfer-Encoding": "binary",
+                "Content-ID": str(cid),
+            }
+            request_payload = encode_request(method, url, body)
+            batch_lines.append(_encode_part(headers, request_payload))
+            batch_lines.append("")
+        batch_lines.append(f"--{changeset_id}--")
+        batch_lines.append("")
+        pending_mutations.clear()
+
+    for op in ops:
         method = op["method"].upper()
         url = op["url"]
-        cs_headers = {
-            "Content-Type": "application/http",
-            "Content-Transfer-Encoding": "binary",
-            "Content-ID": str(i),
-        }
-        req_lines = [f"{method} {url} HTTP/1.1", "Content-Type: application/json; charset=utf-8"]
-        req_lines.append("")
-        req_lines.append(json.dumps(body) if body is not None else "")
-        part = _encode_part(cs_headers, "\r\n".join(req_lines))
-        batch_lines.append(part)
-        batch_lines.append("")
-    batch_lines.append(f"--{changeset_id}--")
-    batch_lines.append("")
+        body = op.get("body")
+        content_id += 1
+        if method == "GET":
+            flush_mutations()
+            headers = {
+                "Content-Type": "application/http",
+                "Content-Transfer-Encoding": "binary",
+                "Content-ID": str(content_id),
+            }
+            batch_lines.append(f"--{batch_id}")
+            request_payload = encode_request(method, url, body)
+            batch_lines.append(_encode_part(headers, request_payload))
+            batch_lines.append("")
+            continue
+        pending_mutations.append((content_id, op))
+
+    flush_mutations()
     batch_lines.append(f"--{batch_id}--")
     batch_lines.append("")
 
