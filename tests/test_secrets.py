@@ -52,12 +52,25 @@ class StubSecretClient:
 
 
 def test_get_secret_keyvault(monkeypatch: pytest.MonkeyPatch) -> None:
+    created_clients: list[StubSecretClient] = []
+
+    class RecordingSecretClient(StubSecretClient):
+        def __init__(self, *, vault_url: str, credential: object) -> None:
+            super().__init__(vault_url=vault_url, credential=credential)
+            created_clients.append(self)
+
     monkeypatch.setattr(
         "pacx.secrets._load_keyvault",
-        lambda: (lambda: object(), StubSecretClient),
+        lambda: (lambda: object(), RecordingSecretClient),
     )
-    spec = SecretSpec(backend="keyvault", ref="https://vault:secret-name")
+    spec = SecretSpec(
+        backend="keyvault", ref="https://vault.azure.net:my-secret"
+    )
     assert get_secret(spec) == "vault-secret"
+    assert len(created_clients) == 1
+    client = created_clients[0]
+    assert client.vault_url == "https://vault.azure.net"
+    assert client.requests == ["my-secret"]
 
 
 def test_get_secret_keyvault_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
