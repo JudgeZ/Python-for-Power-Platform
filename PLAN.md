@@ -1,371 +1,405 @@
-# PLAN.md — Codex Implementation Plan (Tasks & Subtasks)
+# PLAN.md — GitHub OAuth (Unified Login) Implementation Plan
 
-This plan is designed for a code-generation assistant ("Codex/agent") to **implement** and **finish** repository improvements end-to-end.
-It includes **granular tasks**, **subtasks**, **explicit file paths**, **acceptance criteria**, and **copy/paste-ready prompts**.
-Adjust paths if your repo layout differs (defaults assume: `src/pacx/...`, tests under `tests/...`, docs under `docs/...`).
-
----
-
-## Global Conventions for All Tasks
-
-- **Tooling**: Keep green `ruff`, `black`, `mypy`, `pytest`. Do not introduce new warnings.
-- **Safety**: Maintain backward compatibility for public APIs unless explicitly marked `BREAKING`. Provide deprecation shims/messages.
-- **Commits**: Use Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`. One logical change per commit.
-- **Docs**: Update CLI `--help` and pages under `docs/user-manual/` whenever user-visible behavior changes.
-- **Tests**: Add/adjust tests with each change. Prefer deterministic, isolated tests (tmp dirs, mocks, snapshot filtering).
-- **Validation** (per task): Run `ruff --fix . && black . && mypy . && pytest -q`, then verify `ppx --help` and relevant subcommand help.
+This plan contains **copy/paste Codex prompts** to add **GitHub OAuth 2.0** to the repo with a **single, unified login UX**.
+It keeps changes **small, testable, and reversible**, and aligns with the project’s existing patterns (Typer CLI, HttpClient, ConfigStore, keyring/crypto).
 
 ---
 
-# P0 — Security, Stability & Core UX
+## Global conventions for all prompts
 
-## P0.1 Secure token storage: permissions + optional encryption
-**Goal**: Ensure `~/.pacx/config.json` is user-only readable and tokens can be encrypted with `PACX_CONFIG_ENCRYPTION_KEY`.
-**Status**: ✅ Complete — implemented in `src/pacx/config.py` with regression coverage in `tests/test_config_security.py`.
-**Files**: `src/pacx/config.py`, `docs/user-manual/08-config-profiles.md`, tests in `tests/test_config_security.py`.
+- Keep public APIs backward compatible unless stated (deprecate gently, don’t break).
+- Strictly maintain: `ruff`, `black`, `mypy`, `pytest -q` → green.
+- Use existing error plumbing (`handle_cli_errors`) and `Rich`-style messages.
+- Prefer the shared `HttpClient` abstraction (backed by httpx) over direct HTTP client usage.
+- **Never print secrets**. Mask tokens in logs; store in keyring or encrypted config.
+- For each task, update docs and write tests. Small, focused commits using Conventional Commits.
+- Keep `pip-audit` and `bandit` clean when touching dependency or security-sensitive code.
 
-**Subtasks**
-1. **Verification**
-   - Keep `_secure_path()` enforcing POSIX `0o600` and Windows best-effort ACLs; adjust if future OS quirks arise.
-   - Monitor load-time permission warnings for false positives and tighten logging language if needed.
-2. **Encryption maintenance**
-   - Ensure Fernet/PBKDF2 support stays compatible with new dependencies; update docs if key handling changes.
-   - Extend `EncryptedConfigError` messaging when new failure modes emerge.
-3. **Docs & Tests**
-   - Periodically review “Security & Encryption” guidance in `docs/user-manual/08-config-profiles.md` for accuracy.
-   - Add new test cases to `tests/test_config_security.py` when regression scenarios are discovered.
+---
 
-**Acceptance Criteria**
-- Regression tests in `tests/test_config_security.py` remain green.
-- Documentation reflects current encryption and permission behavior.
-- Any new edge cases are accompanied by targeted tests.
+# P0 — Core authentication support
 
-**Codex Prompt**
+## P0.1 Add provider awareness to profiles (config)
+**Goal**: Allow multiple identity providers; support GitHub tokens & (optional) refresh tokens.
+
+**Files**: `src/pacx/config.py`, `src/pacx/secrets.py` (if needed), tests under `tests/config/`.
+
+**Changes**
+- Extend `Profile` to include:
+  - `provider: Literal["azure","github"] = "azure"` (default azure for backward compat)
+  - `scopes: list[str] | None = None`
+  - `refresh_token: str | None = None` (sensitive)
+- Add `"refresh_token"` into the sensitive keys set so it is encrypted at rest (just like `access_token`).
+- On load, **default** missing `provider` to `"azure"` for old configs.
+- (If not present) add a small, internal `set_secret(backend, ref, value)` helper symmetrical to `get_secret`.
+
+**Acceptance**
+- Loading legacy configs (no `provider`) yields `provider="azure"`.
+- New profiles round-trip correctly (JSON + encryption for sensitive fields).
+- Tests demonstrate: legacy load default, encryption of `refresh_token` if present.
+
+**Codex prompt**
 ```text
-Scope: Reference implementation for config security (already complete).
+Edit src/pacx/config.py:
 
-Review:
-- src/pacx/config.py for `_secure_path()`, encryption helpers, and `EncryptedConfigError`.
-- tests/test_config_security.py for coverage of permissions, encryption round-trips, and error handling.
+1) In Profile dataclass, add:
+   - provider: Literal["azure","github"] = "azure"
+   - scopes: list[str] | None = None
+   - refresh_token: str | None = None
 
-Use this section to inform related follow-up work; no further changes required at this time.
+2) Ensure "refresh_token" is included in the SENSITIVE_KEYS so it is encrypted/decrypted like access_token.
+
+3) In ConfigStore.load(), when materializing Profile instances, default provider to "azure" if missing (back-compat).
+
+4) Add/verify tests:
+   - tests/config/test_profile_provider_defaults.py
+     * load legacy JSON (no provider) -> Profile.provider == "azure"
+   - tests/config/test_profile_sensitive_fields.py
+     * ensure refresh_token is encrypted/decrypted when PACX_CONFIG_ENCRYPTION_KEY is set.
+
+Run: ruff/black/mypy/pytest.
 ```
 
 ---
 
-## P0.2 CLI error handling: consistent, helpful messages
-**Goal**: No raw tracebacks for expected operational errors; standardized Rich-formatted error output; exit code 1 on failure.
-**Status**: ✅ Complete — `handle_cli_errors` decorator and messaging already live in `src/pacx/cli/common.py`.
-**Files**: `src/pacx/cli/common.py`, `src/pacx/cli/*`, tests `tests/cli/`.
+## P0.2 Implement GitHub OAuth provider (device + auth-code, optional refresh)
+**Goal**: New `GitHubTokenProvider` with **Device Code** and **Authorization Code** flows using the shared `HttpClient`.
 
-**Subtasks**
-_None — milestone complete. Track future gaps here if new error types emerge._
+**File**: `src/pacx/auth/github.py` (new). Tests: `tests/auth/test_github_oauth.py`.
 
-**Acceptance Criteria**
-- Newly added CLI commands or error paths continue to use `handle_cli_errors` so messaging stays aligned with existing output.
-- Expand `tests/cli/test_errors.py` only when enhancing coverage for additional exceptions or debug scenarios.
+**Key behaviors**
+- Public API: `GitHubTokenProvider(client_id, scopes, client_secret: str|None=None, use_device_code: bool=False, redirect_uri: str|None=None)`
+- Method: `get_token() -> str` (caches in-memory; tries refresh if a refresh token is present).
+- **Device Code flow**:
+  - POST `https://github.com/login/device/code` with `client_id`, `scope` (space-joined).
+  - Print “Open {verification_uri} and enter code: {user_code}” (no secrets).
+  - Poll `https://github.com/login/oauth/access_token` with `client_id`, `device_code`, `grant_type=urn:ietf:params:oauth:grant-type:device_code` until `access_token` or terminal error.
+  - Handle `authorization_pending`, `slow_down` (+5s), `expired_token` clearly.
+- **Auth Code flow**:
+  - Open browser to `https://github.com/login/oauth/authorize` with `client_id`, `scope` (and `redirect_uri` if provided).
+  - If `redirect_uri` is localhost, capture code via a minimal local socket listener; else prompt user to paste `code`.
+  - Exchange code: POST `https://github.com/login/oauth/access_token` with `client_id`, `client_secret`, `code`, and `redirect_uri` if used.
+- **Refresh (optional)**:
+  - If `refresh_token` present, POST token refresh with `grant_type=refresh_token` to the same token endpoint.
+- Raise `AuthError` for any failure; never print tokens.
 
-**Codex Prompt**
+**Acceptance**
+- Unit tests mock endpoints (respx) for:
+  - Happy device flow (pending → success).
+  - slow_down and expired_token branches.
+  - Auth code exchange happy path + error.
+  - Optional refresh (if refresh_token returned by mock).
+- Type hints + docstrings present; ruff/black/mypy clean.
+
+**Codex prompt**
 ```text
-Scope: Reference existing `handle_cli_errors` implementation and extend messaging/tests only when new scenarios are discovered.
+Create src/pacx/auth/github.py with class GitHubTokenProvider implementing:
+- __init__(client_id, scopes, client_secret: str|None=None, use_device_code: bool=False, redirect_uri: str|None=None)
+- get_token() -> str
+- private helpers for device flow, auth code flow, and refresh if refresh_token exists.
 
-Review:
-- src/pacx/cli/common.py for the shipped decorator and messaging.
-- tests/cli/test_errors.py for baseline coverage.
+Constraints:
+- Use the shared HttpClient abstraction. Set "Accept: application/json".
+- Print only user instructions (verification_uri + user_code). Do not print tokens.
+- Raise pacx.errors.AuthError on failures.
 
-Enhance:
-- Add guidance for new exception types or debug affordances as needed.
-- Ensure any new CLI command reuses the decorator.
+Add tests in tests/auth/test_github_oauth.py using respx:
+- device flow success (authorization_pending → access_token).
+- device flow slow_down behavior (interval increases).
+- device flow expired_token -> AuthError.
+- auth code exchange success and error.
+- refresh token path (mock returns refresh_token then new access_token).
 
-Run toolchain when implementing enhancements.
+Run ruff/black/mypy/pytest.
 ```
 
 ---
 
-## P0.3 Centralize config resolution in CLI
-**Goal**: DRY helpers that resolve `environment_id` and `dataverse_host`, cached in Typer context.
-**Status**: ✅ Complete — helpers live in `src/pacx/cli_utils.py` with coverage in `tests/test_cli_utils.py` and representative CLI flows.
-**Files**: `src/pacx/cli_utils.py`, `src/pacx/cli/*`, tests `tests/test_cli_utils.py`, `tests/cli/`.
+## P0.3 CLI: `ppx auth github` (unified login entry)
+**Goal**: Add a single CLI entry for GitHub login with flags that cover both flows.
 
-**Subtasks**
-1. **Ongoing refactor audits** — When introducing new CLI commands, replace any bespoke config lookups with the shared helpers.
-2. **Context caching review** — Expand helper docstrings/tests if multi-command sessions surface new caching expectations.
-3. **Contributor guidance** — Document `pacx.cli_utils` usage patterns in CLI contributor docs to steer future implementations.
+**File**: `src/pacx/cli/auth_github.py` (new) or extend existing `auth.py`. Register in `src/pacx/cli/__init__.py`.
 
-**Acceptance Criteria**
-- `tests/test_cli_utils.py` (and related CLI coverage) continue to guard helper behavior as new scenarios are added.
-- Contributor docs explicitly point CLI authors to the shared helpers, preventing drift.
-- No new CLI command merges with redundant config resolution logic (verified during code review).
+**CLI signature**
+- `ppx auth github <profile>`
+  - `--client-id TEXT` (required)
+  - `--client-secret TEXT` (optional; triggers web flow if provided or with `--web`)
+  - `--scopes "repo gist read:org"` (default `"repo"`)
+  - `--web/--device` (default device)
+  - `--redirect-uri TEXT` (for localhost capture; optional)
+  - `--save-secret` (store client-secret in keyring; otherwise recommend env)
+  - `--set-default/--no-set-default` (default: set-default)
 
-**Codex Prompt**
+**Behavior**
+- Resolve scopes list (split on comma/space). If empty, interactively suggest common scopes (optional).
+- Instantiate `GitHubTokenProvider` with chosen flow; call `get_token()`.
+- Persist tokens securely:
+  - Prefer keyring via `set_secret("keyring", f"github-{profile}-token", token)`.
+  - If keyring unavailable, store `access_token` (and `refresh_token`) in Profile (encrypted at rest).
+- Create/update Profile with `provider="github"`, `client_id`, `scopes`, and secret references.
+- Print friendly success message; on AuthError, show concise guidance.
+
+**Acceptance**
+- `ppx auth github --help` renders complete help.
+- Running command stores tokens securely and sets profile default (unless `--no-set-default`).
+- Tests cover CLI happy paths and error flows (CliRunner + respx mocks).
+
+**Codex prompt**
 ```text
-Reference the shipped helpers in src/pacx/cli_utils.py when extending CLI behavior.
+Add new CLI command for GitHub auth.
 
-Audit new commands for redundant config resolution and update docs/tests alongside any helper refinements.
+1) Create src/pacx/cli/auth_github.py with a Typer app and command "github".
+   - Arguments/options: profile, --client-id, --client-secret, --scopes, --web/--device, --redirect-uri, --save-secret, --set-default/--no-set-default.
+   - Use GitHubTokenProvider; on success, persist tokens securely (keyring preferred; else in encrypted config).
 
-Run toolchain.
+2) Register sub-app in src/pacx/cli/__init__.py (e.g., app.add_typer(auth_github_app, name="auth")).
+   If an auth group already exists, add command "github" within it.
+
+3) Tests: tests/cli/test_auth_github_cli.py
+   - mock device flow; assert console shows verification_uri/user_code message; profile created; token stored.
+   - mock auth code flow; assert browser open stub called or URL printed; profile created.
+   - simulate keyring failure to force config storage path.
+   - ensure --no-set-default keeps prior default intact.
+
+Run ruff/black/mypy/pytest.
 ```
 
 ---
 
-# P1 — Maintainability & Feature Parity
+## P0.4 Token resolution: support `provider="github"`
+**Goal**: Make `resolve_token_getter` (or equivalent) return a GitHub token when the default profile is GitHub.
 
-## P1.1 Modularize Solutions commands into subcommands
-**Goal**: Replace single `solution --action <op>` with explicit subcommands:
-`solution list|export|import|publish-all|pack|unpack|pack-sp|unpack-sp`.
-**Files**: `src/pacx/cli/solution.py` (new) or split by op; `src/pacx/cli/__init__.py`; docs `docs/user-manual/07-solutions.md`; tests `tests/solution/`.
+**Files**: `src/pacx/cli/common.py` or `src/pacx/cli/cli_utils.py`, tests in `tests/cli/`.
 
-**Subtasks**
-1. Create `cli/solution.py` Typer app with dedicated functions per op.
-2. Keep backward-compatible alias (support `--action` path; print one-time deprecation warning).
-3. Move logic out of monolithic function; keep signatures/output stable.
-4. Update docs examples to subcommand style.
-5. Tests: each subcommand, including `--wait` behavior and raw vs SP pack/unpack.
+**Behavior**
+- Precedence: `PACX_ACCESS_TOKEN` (env) → stored secret via keyring → config `access_token` → interactive provider fallback.
+- If profile.provider == "github":
+  - Fetch token from keyring if `secret_backend=="keyring"` + `secret_ref` present.
+  - Else, if config has `access_token`, return it.
+  - Else, instantiate `GitHubTokenProvider` with `client_id`, `scopes` (from profile), `client_secret` from env if `client_secret_env` set, and `use_device_code` when no secret.
+- For Azure profiles: current behavior unchanged.
+- Error: clear BadParameter if required fields missing (e.g., no client_id).
 
-**Acceptance Criteria**
-- `ppx solution <subcmd>` help is clear; old `--action` still works (with deprecation notice).
-- All solution flows function and are tested.
+**Acceptance**
+- New tests verify token resolution for github profiles (keyring path, config path, provider fallback).
+- No regressions for azure profiles.
 
-**Codex Prompt**
+**Codex prompt**
 ```text
-Refactor Solutions CLI into explicit subcommands with backward compatibility.
+Extend token resolution for GitHub.
 
-Edit:
-- src/pacx/cli/__init__.py: add_typer(solution_app, name="solution").
-- src/pacx/cli/solution.py: implement list/export/import/publish-all/pack/unpack/pack-sp/unpack-sp.
-- Add shim handling `--action` -> call subcommands; warn once.
+1) In src/pacx/cli/common.py (or cli_utils), add branch for profile.provider == "github".
+2) Implement precedence: env -> keyring -> config -> provider.get_token().
+3) Read client_secret from env if profile.client_secret_env is set.
+4) Use profile.scopes (list) when instantiating provider.
 
-Docs: update 07-solutions.md examples.
-Tests: tests/solution/test_solution_cli.py for each subcmd.
+Tests in tests/cli/test_token_resolution_github.py:
+- env overrides all.
+- keyring hit returns lambda.
+- config access_token returns lambda.
+- fallback calls provider.get_token() (mock provider).
 
-Run toolchain.
+Run ruff/black/mypy/pytest.
 ```
 
 ---
 
-## P1.2 Finish Power Pages helpers cleanup
-**Goal**: Single canonical path for webfile binary download and site upload strategies.
-**Files**: `src/pacx/clients/power_pages*.py`, `src/pacx/power_pages/providers/*.py`, tests `tests/pages/`.
+# P1 — Secure storage, docs, and UX polish
 
-**Subtasks**
-1. Ensure no duplicate `upload_site`/binary download functions exist; consolidate into client + provider layer.
-2. Guarantee file naming safety (no traversal), deterministic output tree.
-3. Tests: download with/without binaries; upload merge/replace; diff-permissions path.
+## P1.1 Secrets persistence helper
+**Goal**: Provide `set_secret()` to complement `get_secret()` for keyring/kv, with graceful fallback.
 
-**Acceptance Criteria**
-- One implementation per concern; CLI calls client methods only.
-- Tests cover flows and verify filesystem outputs.
+**Files**: `src/pacx/secrets.py`, tests `tests/secrets/`.
 
-**Codex Prompt**
+**Behavior**
+- Implement `set_secret(backend: Literal["keyring","keyvault"], ref: str, value: str) -> None`.
+- Keyring path: use `keyring.set_password(service, username, value)`; pick stable service/username scheme (e.g., service `"pacx"`, username=ref).
+- KeyVault path: optional (if existing code already supports reads, leave write as NotImplemented).
+- Raise informative errors; do not print values.
+
+**Acceptance**
+- tests: keyring happy path (monkeypatch keyring), error path (no keyring).
+
+**Codex prompt**
 ```text
-Unify Power Pages binary/transfer logic.
-
-Search and remove duplicates; route through PowerPagesClient and providers.
-Add tests for binary download, upload strategies, and permissions diff.
-
-Run toolchain.
+Add set_secret() in src/pacx/secrets.py and tests in tests/secrets/test_set_secret.py.
+Use keyring if available, otherwise raise a clear exception. Do not log secret values.
 ```
 
 ---
 
-## P1.3 Implement `ppx connector delete`
-**Goal**: Provide a first-class deletion command for custom connectors to avoid manual REST.
-**Files**: `src/pacx/clients/connectors.py`, `src/pacx/cli/connectors.py`, docs `docs/user-manual/06-connectors.md`, tests `tests/connectors/`.
+## P1.2 Documentation: GitHub OAuth
+**Goal**: Add GitHub auth docs with quick start and flows.
 
-**Subtasks**
-1. Client: add `delete_api(environment_id: str, name: str)` calling correct endpoint.
-2. CLI: `ppx connector delete --environment-id <ENV> --name <NAME> --yes` (confirm unless `--yes`).
-3. Docs: usage, warnings (irreversible), exit codes.
-4. Tests: successful delete (mock), 404 returns friendly message.
+**Files**: `docs/user-manual/02-authentication.md` (extend), `docs/user-manual/10-github-oauth.md` (new), `docs/user-manual/03-cli-usage.md` (link).
 
-**Acceptance Criteria**
-- Command exists, documented, and tested.
-- Follows error handling standards and config helpers.
+**Content**
+- How to create a GitHub OAuth App (Client ID/Secret; enabling device flow; callback URI for auth code).
+- Examples:
+  - Device flow: `ppx auth github <profile> --client-id ... --scopes "repo gist"`
+  - Web flow: `ppx auth github <profile> --client-id ... --client-secret ... --web --redirect-uri http://localhost:8765/callback`
+  - CI fallback: `PACX_ACCESS_TOKEN` usage.
+- Storage and security notes (keyring preferred, encryption fallback).
 
-**Codex Prompt**
+**Acceptance**
+- Docs build without warnings; examples copy/paste successfully (with placeholders).
+
+**Codex prompt**
 ```text
-Add connector deletion support.
+Update docs:
+- Extend 02-authentication.md with "GitHub OAuth" section.
+- Add 10-github-oauth.md with step-by-step setup and examples.
+- Link from 03-cli-usage.md and README to new section.
 
-Client: implement delete_api().
-CLI: new command ‘connector delete’ with confirmation flag.
-Docs: update connectors guide.
-Tests: deletion happy path + 404 case.
-
-Run toolchain.
+Include screenshots/ASCII where helpful. Ensure consistency with CLI help text.
 ```
 
 ---
 
-## P1.4 Docstrings & CLI help coverage
-**Goal**: Ensure all public client methods and CLI commands have concise docstrings/help.
-**Files**: `src/pacx/clients/*.py`, `src/pacx/cli/*.py`.
+## P1.3 CLI error messaging
+**Goal**: If auth fails and default profile is GitHub, suggest `ppx auth github` explicitly.
 
-**Subtasks**
-1. Add one-line docstrings + concise param/return notes where missing.
-2. Review Typer option help; expand where ambiguous.
-3. Verify `ppx --help` and `ppx <group> --help` are clear and complete.
+**Files**: `src/pacx/cli/common.py`, tests `tests/cli/test_errors.py`.
 
-**Acceptance Criteria**
-- Docstring coverage ~100% for public surface.
-- Help text is unambiguous.
+**Acceptance**
+- On `AuthError` with github provider, message includes `ppx auth github` guidance.
+- Tests assert message text.
 
-**Codex Prompt**
+**Codex prompt**
 ```text
-Add missing docstrings and improve CLI help.
-
-Sweep clients and CLI modules; add concise docstrings and clearer option help.
-Verify via help output.
-
-Run toolchain.
+Amend handle_cli_errors to add GitHub guidance:
+- If provider == "github" or token resolution fails in github branch, print:
+  "Run `ppx auth github <profile>` to (re)authenticate."
+Add/adjust tests accordingly.
 ```
 
 ---
 
-# P2 — Documentation, CI/CD & Governance
+# P2 — Optional unified alias & CI/packaging
 
-## P2.1 Quick Start & walkthroughs (polish/extend)
-**Goal**: A runnable mini-journey: install → profile → auth → first DV/connector/pages commands.
-**Files**: `docs/user-manual/01-getting-started.md`, `docs/user-manual/03-cli-usage.md`.
+## P2.1 Unified alias: `ppx login`
+**Goal**: User-friendly alias that chooses provider by flag or infers from default profile.
 
-**Subtasks**
-1. Add sanitized example outputs and “what to expect” notes.
-2. Cross-link to Authentication, Connectors, Solutions, Pages.
-3. Add Troubleshooting (permissions, missing deps, timeouts, rate limits).
+**Files**: `src/pacx/cli/login.py` (new) or extend `auth.py`.
 
-**Acceptance Criteria**
-- New users can perform end-to-end flow with copy/paste commands.
-- Screenshots or ASCII trees where helpful.
+**Behavior**
+- `ppx login --provider azure|github [other flags]` routes to appropriate subcommand.
+- If `--provider` omitted, and a default profile exists, infer provider and call its auth command with best-effort defaults.
 
-**Codex Prompt**
+**Acceptance**
+- Help text is clear; tests show azure/github routing works.
+
+**Codex prompt**
 ```text
-Expand Quick Start with runnable end-to-end flow and troubleshooting.
-Edit 01-getting-started.md, 03-cli-usage.md; add links and example outputs.
+Add ppx login alias:
+- Implement simple router command that delegates to auth azure/device or auth github based on --provider or current default profile.provider.
+- Keep docs minimal; link to full auth sections.
 ```
 
 ---
 
-## P2.2 Flesh out feature docs: Connectors, Solutions, Pages
-**Goal**: Complete, example-rich chapters for each major capability.
-**Files**: `docs/user-manual/04-power-pages.md`, `docs/user-manual/06-connectors.md`, `docs/user-manual/07-solutions.md`.
+## P2.2 Packaging updates (only if needed)
+**Goal**: Ensure dependencies are present and extras are meaningful.
 
-**Subtasks**
-1. Ensure each command has at least one example with flags and output.
-2. Add limitations/notes (long-running ops, quotas, retry semantics).
-3. Add “Verification” tips for each workflow.
+**Files**: `pyproject.toml`.
 
-**Acceptance Criteria**
-- Docs are task-oriented and self-contained.
-- No TODO placeholders remain.
+**Changes (only if missing)**
+- Ensure `httpx` already present (use it for OAuth HTTP calls).
+- Optional extra `[project.optional-dependencies] auth = ["keyring", "cryptography"]` (if not already present).
+- Do **not** add heavy OAuth deps unless necessary (we use HttpClient/httpx combo).
 
-**Codex Prompt**
+**Acceptance**
+- Build and tests pass in CI; no new CVEs (`pip-audit` stays green).
+
+**Codex prompt**
 ```text
-Finish feature docs with practical examples and notes.
-Edit 04-power-pages.md, 06-connectors.md, 07-solutions.md accordingly.
+Inspect pyproject.toml:
+- Confirm httpx installed.
+- If needed, add extra 'auth' with keyring and cryptography.
+- Do not add new HTTP libs; rely on existing HttpClient wrapper.
+
+Run packaging checks in CI.
 ```
 
 ---
 
-## P2.3 CI hardening: static analysis, safety, coverage
-**Goal**: Keep repo healthy by default.
-**Files**: `.github/workflows/*.yml`, `pyproject.toml` (if needed).
+# Validation & release
 
-**Subtasks**
-1. Add `pip-audit` (or `uv pip audit`) step; fail on high severity CVEs.
-2. Run `bandit -q -r src`; fail on high severity findings.
-3. Enforce coverage floor (e.g., 85%) with `pytest --cov`.
-4. Optional: Dependabot for Python and GitHub Actions updates.
+## V.1 Tests, smoke, and golden outputs
+**Goal**: Lock in behavior; prevent regressions.
 
-**Acceptance Criteria**
-- CI fails on critical security issues or coverage regression.
-- Workflow documented in README/CONTRIBUTING.
+**Tasks**
+- Add snapshot tests (optional) for help text of `ppx auth github --help`.
+- End-to-end smoke in CI job (can be mocked; ensure exit code 0 and expected messages appear).
 
-**Codex Prompt**
+**Codex prompt**
 ```text
-Harden CI with audit/bandit/coverage.
-Edit .github/workflows/ci.yml; add steps; tune thresholds.
-```
-
----
-
-## P2.4 Governance: Agents.md, PR/Issue templates, Code of Conduct
-**Goal**: Make contributing predictable and respectful.
-**Files**: `AGENTS.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*.md`, `CODE_OF_CONDUCT.md`.
-
-**Subtasks**
-1. Ensure Agents.md includes PR checklist, CI expectations, ADR pointers.
-2. Add/refresh PR & Issue templates (bug, feature).
-3. Ensure CoC present, linked from Agents.md and README.
-
-**Acceptance Criteria**
-- Templates render in GitHub UI.
-- Agents.md reflects current workflow and expectations.
-
-**Codex Prompt**
-```text
-Add/refresh governance docs and templates.
-Edit AGENTS.md; create .github templates; link CoC.
-```
-
----
-
-# Validation & Release
-
-## V.1 Smoke tests and golden outputs
-**Goal**: Prevent accidental CLI regressions.
-
-**Subtasks**
-1. Add golden/snapshot tests for key commands (env list, dv whoami, connector list).
-2. Normalize dynamic fields (timestamps/IDs) or snapshot with filters.
-
-**Acceptance Criteria**
-- Stable, reviewable text snapshots.
-- Tests pass across OS runners.
-
-**Codex Prompt**
-```text
-Add snapshot tests for key CLI commands with normalized outputs.
+Add snapshot tests for CLI help output and a smoke test invoking ppx auth github with mocked device flow endpoints.
 ```
 
 ---
 
 ## V.2 Changelog & version bump
-**Goal**: Document changes and cut a release.
-**Files**: `CHANGELOG.md`, workflow that publishes to PyPI.
+**Goal**: Document the new feature and cut a release.
 
-**Subtasks**
-1. Update CHANGELOG with highlights (security, UX, docs, new delete command).
-2. Bump version in `pyproject.toml`; tag release; ensure docs deploy.
+**Files**: `CHANGELOG.md`, `pyproject.toml`.
 
-**Acceptance Criteria**
-- Release notes reflect real changes; package published; docs updated.
+**Tasks**
+- Add entry “feat(auth): GitHub OAuth with unified CLI login” + highlights (device & auth-code, secure storage, docs).
+- Bump minor/major version as agreed (e.g., 0.x → 1.0 if this is the last blocker).
 
-**Codex Prompt**
+**Codex prompt**
 ```text
-Prepare release: update CHANGELOG, bump version, tag, verify publish & docs deploy.
+Update CHANGELOG.md and bump version in pyproject.toml.
+Create a tag and verify publish/docs workflows pass.
 ```
 
 ---
 
-# Sprint Checklist (Maintainers)
+## Quick execution order (suggested)
 
-- [ ] P0.1 complete — config perms/encryption + docs + tests
-- [ ] P0.2 complete — error handling decorator + tests
-- [ ] P0.3 complete — config helpers + caching + tests
-- [ ] P1.1 complete — solution subcommands + docs + tests (deprecate `--action`)
-- [ ] P1.2 complete — power pages dedupe + tests
-- [ ] P1.3 complete — connector delete + docs + tests
-- [ ] P1.4 complete — docstrings & CLI help coverage
-- [ ] P2.1–P2.4 complete — docs, CI, governance
-- [ ] V.1–V.2 complete — snapshots + release
+1) P0.1 (config provider + sensitive fields)
+2) P0.2 (GitHubTokenProvider + tests)
+3) P0.3 (CLI command + tests)
+4) P0.4 (token resolution + tests)
+5) P1.1 (set_secret helper + tests)
+6) P1.2 (docs) & P1.3 (messaging)
+7) P2.1 (login alias) & P2.2 (packaging if needed)
+8) V.1/V.2 (smoke + release)
 
 ---
 
-## How to Use These Prompts
+## Copy-ready mega prompt (all-in-one, if you prefer)
 
-For each task:
-1. Open the repository in your coding agent.
-2. Paste the **Codex Prompt** for that task.
-3. Review the diff; iterate until **Acceptance Criteria** are met.
-4. Commit with a Conventional Commit message.
-5. Run the global validation commands and ensure everything is green.
+```text
+You are a senior Python engineer. Implement GitHub OAuth 2.0 support (device+auth code) with a unified CLI login for this repository. Keep changes small and additive.
 
+Scope
+- Add provider-aware Profile (azure|github), scopes list, and refresh_token (sensitive).
+- New src/pacx/auth/github.py with GitHubTokenProvider using HttpClient, supporting device flow and authorization code flow (+ optional refresh).
+- CLI: ppx auth github <profile> with flags for client-id, client-secret, scopes, web/device, redirect-uri, save-secret, set-default.
+- Token resolution: support provider="github" including env → keyring → config → provider flow.
+- Secure persistence via keyring (preferred) or encrypted config fallback (existing encryption).
+- Docs for GitHub OAuth; update error hints to mention ppx auth github.
+- Tests for provider, CLI, token resolution, and OAuth flows (respx).
+
+Files to create/edit
+- src/pacx/config.py (Profile fields; sensitive keys; defaults)
+- src/pacx/auth/github.py (new)
+- src/pacx/cli/auth_github.py (or extend existing auth module)
+- src/pacx/cli/__init__.py (register command)
+- src/pacx/cli/common.py or cli_utils.py (token resolution changes)
+- src/pacx/secrets.py (set_secret helper if missing)
+- tests/auth/test_github_oauth.py; tests/cli/test_auth_github_cli.py; tests/cli/test_token_resolution_github.py
+- docs/user-manual/02-authentication.md; docs/user-manual/10-github-oauth.md; docs/user-manual/03-cli-usage.md
+
+Acceptance
+- ruff/black/mypy/pytest all pass.
+- Device flow prints verification URL/code and returns token (mocked).
+- Auth code flow opens URL or prints it and exchanges code (mocked).
+- Tokens persisted securely (keyring when available).
+- `ppx auth github --help` is complete; error messages suggest ppx auth github on failures.
+- Docs build without warnings.
+
+Do not expose secrets; never print tokens. Keep commits atomic with Conventional Commits.
+```
