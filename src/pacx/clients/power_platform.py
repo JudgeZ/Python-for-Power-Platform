@@ -125,7 +125,7 @@ class PowerPlatformClient:
             if parsed.scheme and parsed.netloc:
                 next_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
             else:
-                next_path = link_str.lstrip("/")
+                next_path = parsed.path.lstrip("/") or None
             query_items = parse_qsl(parsed.query, keep_blank_values=True)
             next_params = dict(query_items) if query_items else None
 
