@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 from ..clients.dataverse import DataverseClient
 from .constants import DEFAULT_NATURAL_KEYS
@@ -40,6 +41,40 @@ def _key_for(record: Mapping[str, object], keys: Sequence[str]) -> tuple[str, ..
     return tuple(str(record.get(k, "")).lower() for k in keys)
 
 
+def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+    for key in ("@odata.nextLink", "odata.nextLink"):
+        value = payload.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _fetch_remote_records(
+    dv: DataverseClient,
+    entity: str,
+    *,
+    select: str,
+    filter_expr: str | None,
+    top: int,
+) -> list[Mapping[str, object]]:
+    payload = dv.list_records(entity, select=select, filter=filter_expr, top=top)
+    records = [
+        cast(Mapping[str, object], obj)
+        for obj in cast(Iterable[object], payload.get("value", []))
+        if isinstance(obj, Mapping)
+    ]
+    next_link = _extract_next_link(payload)
+    while next_link:
+        page = cast(dict[str, Any], dv.http.get(next_link).json())
+        records.extend(
+            cast(Mapping[str, object], obj)
+            for obj in cast(Iterable[object], page.get("value", []))
+            if isinstance(obj, Mapping)
+        )
+        next_link = _extract_next_link(page)
+    return records
+
+
 def diff_permissions(
     dv: DataverseClient,
     website_id: str,
@@ -57,16 +92,17 @@ def diff_permissions(
     for folder, entity in PERMISSION_FOLDERS.items():
         local_records = _load_local_records(base, folder)
         key_cols = keys.get(entity.lower(), ("adx_name",))
-        remote = dv.list_records(
+        remote = _fetch_remote_records(
+            dv,
             entity,
             select="*",
-            filter=(
+            filter_expr=(
                 f"_adx_websiteid_value eq {website_id}"
                 if "_adx_websiteid_value" in key_cols
                 else None
             ),
             top=5000,
-        ).get("value", [])
+        )
 
         local_map: dict[tuple[str, ...], Mapping[str, object]] = {
             _key_for(rec, key_cols): rec for rec in local_records

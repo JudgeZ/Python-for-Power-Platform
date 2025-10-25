@@ -47,6 +47,55 @@ def test_diff_permissions_engine(tmp_path, respx_mock, token_getter):
     assert diffs[0].action == "update"
 
 
+def test_diff_permissions_handles_pagination(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_name": "AllowAccounts",
+                        "_adx_websiteid_value": "site",
+                    }
+                ],
+                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions?$skiptoken=abc",
+            },
+        )
+    )
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions",
+        params={"$skiptoken": "abc"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_name": "Another",
+                        "_adx_websiteid_value": "site",
+                    }
+                ]
+            },
+        )
+    )
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webpageaccesscontrolrules"
+    ).mock(return_value=httpx.Response(200, json={"value": []}))
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_webroles").mock(
+        return_value=httpx.Response(200, json={"value": []})
+    )
+
+    diffs = diff_permissions(dv, "site", str(tmp_path))
+    names = {
+        entry.remote["adx_name"]
+        for entry in diffs
+        if entry.entityset == "adx_entitypermissions" and entry.remote
+    }
+    assert names == {"AllowAccounts", "Another"}
+
+
 def test_diff_permissions_cli(tmp_path, respx_mock, token_getter, monkeypatch):
     site = Path(tmp_path)
     (site / "entitypermissions").mkdir()
