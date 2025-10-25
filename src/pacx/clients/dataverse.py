@@ -262,7 +262,7 @@ class DataverseClient:
             # Heuristic: look for progress >= 100 or state indicating completion
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, int | float) and v >= 100:
+                if isinstance(v, (int, float)) and v >= 100:
                     return True
             state = str(s.get("statecode") or s.get("status") or "").lower()
             return state in {"completed", "succeeded", "failed"}
@@ -270,7 +270,7 @@ class DataverseClient:
         def get_progress(s: dict[str, Any]) -> int | None:
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, int | float):
+                if isinstance(v, (int, float)):
                     return int(v)
             return None
 
