@@ -314,3 +314,57 @@ def test_pages_diff_permissions_lists_plan(monkeypatch, cli_runner, tmp_path):
         "adx_webpages": ["adx_name"],
         "adx_webfiles": ["filename"],
     }
+
+
+def test_pages_upload_rejects_string_key_config(monkeypatch, cli_runner, tmp_path):
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
+    monkeypatch.setattr("pacx.cli.pages.PowerPagesClient", StubPowerPagesClient)
+
+    site_dir = tmp_path / "site"
+    site_dir.mkdir()
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "pages",
+            "upload",
+            "--website-id",
+            "site123",
+            "--src",
+            str(site_dir),
+            "--key-config",
+            json.dumps({"adx_webpages": "adx_name"}),
+        ],
+        env={"DATAVERSE_HOST": "example.crm.dynamics.com"},
+    )
+
+    assert result.exit_code == 2
+    assert "must map to an array of column names" in result.stderr
+
+
+def test_pages_diff_permissions_rejects_string_key_config(monkeypatch, cli_runner, tmp_path):
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr("pacx.cli.pages.DataverseClient", StubDataverseClient)
+    monkeypatch.setattr("pacx.cli.pages.PowerPagesClient", StubPowerPagesClient)
+
+    site_dir = tmp_path / "site"
+    site_dir.mkdir()
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "pages",
+            "diff-permissions",
+            "--website-id",
+            "site123",
+            "--src",
+            str(site_dir),
+            "--key-config",
+            json.dumps({"adx_webpages": "adx_name"}),
+        ],
+        env={"DATAVERSE_HOST": "example.crm.dynamics.com"},
+    )
+
+    assert result.exit_code == 2
+    assert "must map to an array of column names" in result.stderr

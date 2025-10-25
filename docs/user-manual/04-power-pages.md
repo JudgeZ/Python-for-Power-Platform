@@ -30,6 +30,7 @@ ppx pages upload --website-id <GUID> --src site_dump --host <DV> \
   * `skip-existing`: seed new entities while leaving anything already provisioned in Dataverse intact, e.g. populating a new sandbox: `ppx pages upload --strategy skip-existing --src site_dump`.
   * `create-only`: fail instead of updating existing rows, letting you validate that the target really is empty before the first deployment.
 * Natural keys default to the manifest values, but `--key-config` (inline JSON or file) can override per entity.
+  * Supply a JSON object that maps entity logical names to arrays of column names, e.g. `{"adx_webpages": ["adx_name"]}`.
 * After an upload, rerun `ppx pages download` and compare `manifest.json` with the pre-upload version (`git diff site_dump/manifest.json`) to verify that checksums and key metadata match expectations.
 
 ## Diff permissions
@@ -39,6 +40,7 @@ ppx pages diff-permissions --website-id <GUID> --src site_dump --host <DV>
 ```
 
 Generates a plan grouped by entity (`adx_entitypermissions`, `adx_webpageaccesscontrolrules`, `adx_webroles`) identifying `create`, `update`, and `delete` operations needed to align Dataverse with the local export.
+Pass `--key-config` with the same JSON object structure as uploads when overriding natural keys.
 
 ### Provider options & key overrides
 
