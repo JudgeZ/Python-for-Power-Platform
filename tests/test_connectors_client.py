@@ -17,6 +17,52 @@ def test_list_apis(respx_mock, token_getter):
     assert len(data["value"]) == 2
 
 
+def test_iter_apis_follows_pagination(respx_mock, token_getter):
+    client = ConnectorsClient(token_getter)
+
+    first_page = respx_mock.get(
+        "https://api.powerplatform.com/powerapps/environments/ENV/apis",
+        params={"api-version": "2022-03-01-preview", "$top": 1},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [{"name": "first"}],
+                "@odata.nextLink": "https://api.powerplatform.com/powerapps/environments/ENV/apis?$skiptoken=abc",
+            },
+        )
+    )
+
+    second_page = respx_mock.get(
+        "https://api.powerplatform.com/powerapps/environments/ENV/apis",
+        params={"api-version": "2022-03-01-preview", "$skiptoken": "abc"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [{"name": "second"}],
+                "@odata.nextLink": "https://api.powerplatform.com/powerapps/environments/ENV/apis?$skiptoken=def",
+            },
+        )
+    )
+
+    third_page = respx_mock.get(
+        "https://api.powerplatform.com/powerapps/environments/ENV/apis",
+        params={"api-version": "2022-03-01-preview", "$skiptoken": "def"},
+    ).mock(return_value=httpx.Response(200, json={"value": [{"name": "third"}]}))
+
+    pages = list(client.iter_apis("ENV", top=1))
+
+    assert [item["name"] for page in pages for item in page] == [
+        "first",
+        "second",
+        "third",
+    ]
+    assert first_page.called
+    assert second_page.called
+    assert third_page.called
+
+
 def test_get_api(respx_mock, token_getter):
     c = ConnectorsClient(token_getter)
     respx_mock.get(

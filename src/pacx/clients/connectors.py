@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Callable, cast
+from urllib.parse import parse_qs, urlparse
 
 from ..http_client import HttpClient
 
@@ -58,6 +60,63 @@ class ConnectorsClient:
             params["$skiptoken"] = skiptoken
         resp = self.http.get(f"powerapps/environments/{environment_id}/apis", params=params)
         return cast(dict[str, Any], resp.json())
+
+    @staticmethod
+    def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+        for key in ("@odata.nextLink", "odata.nextLink"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
+
+    @staticmethod
+    def _extract_skiptoken(link: str) -> str | None:
+        parsed = urlparse(link)
+        query = parse_qs(parsed.query)
+        for key in ("$skiptoken", "skiptoken"):
+            tokens = query.get(key)
+            if tokens:
+                token = tokens[0]
+                if isinstance(token, str) and token:
+                    return token
+        return None
+
+    @staticmethod
+    def _coerce_items(payload: Mapping[str, object]) -> list[dict[str, Any]]:
+        raw_items = payload.get("value", [])
+        if not isinstance(raw_items, Iterable):
+            return []
+        items: list[dict[str, Any]] = []
+        for obj in raw_items:
+            if isinstance(obj, Mapping):
+                items.append(dict(obj))
+        return items
+
+    def iter_apis(
+        self, environment_id: str, *, top: int | None = None
+    ) -> Iterator[list[dict[str, Any]]]:
+        """Yield connector pages by following ``@odata.nextLink`` pointers.
+
+        Args:
+            environment_id: Target environment unique name.
+            top: Optional page size override sent on the initial request.
+
+        Yields:
+            Lists of connector definitions from each page returned by the
+            service.
+        """
+
+        payload = self.list_apis(environment_id, top=top)
+        while True:
+            yield self._coerce_items(payload)
+            next_link = self._extract_next_link(payload)
+            if not next_link:
+                break
+            skiptoken = self._extract_skiptoken(next_link)
+            if skiptoken:
+                payload = self.list_apis(environment_id, skiptoken=skiptoken)
+            else:
+                payload = cast(dict[str, Any], self.http.get(next_link).json())
 
     def get_api(self, environment_id: str, api_name: str) -> dict[str, Any]:
         """Fetch a connector definition from an environment by logical name.
