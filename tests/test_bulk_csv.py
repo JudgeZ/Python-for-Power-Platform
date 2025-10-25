@@ -7,6 +7,7 @@ import pytest
 
 import httpx
 
+from pacx.batch import BatchSendResult
 from pacx.bulk_csv import bulk_csv_upsert
 from pacx.clients.dataverse import DataverseClient
 
@@ -131,3 +132,44 @@ def test_bulk_csv_sanitizes_ids_before_batch(monkeypatch, tmp_path, token_getter
 
     assert captured_ops is not None
     assert captured_ops[0]["url"].endswith("accounts(ABC)")
+
+
+def test_bulk_csv_aggregates_attempts_across_chunks(monkeypatch, tmp_path, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    csvp = tmp_path / "data.csv"
+    with open(csvp, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["id", "name"])
+        writer.writerow(["1", "First"])
+        writer.writerow(["2", "Second"])
+
+    responses = [
+        BatchSendResult(
+            operations=[{"status_code": 204, "operation_index": 0}],
+            retry_counts={0: 1},
+            attempts=2,
+        ),
+        BatchSendResult(
+            operations=[{"status_code": 204, "operation_index": 0}],
+            retry_counts={},
+            attempts=3,
+        ),
+    ]
+    call_index = 0
+
+    def fake_send_batch(dv_arg, ops):
+        nonlocal call_index
+        assert dv_arg is dv
+        assert call_index < len(responses)
+        response = responses[call_index]
+        call_index += 1
+        return response
+
+    monkeypatch.setattr("pacx.bulk_csv.send_batch", fake_send_batch)
+
+    result = bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=1)
+
+    assert call_index == 2
+    assert result.stats.total_rows == 2
+    assert result.stats.attempts == sum(r.attempts for r in responses)
+    assert result.stats.retry_invocations == 1
