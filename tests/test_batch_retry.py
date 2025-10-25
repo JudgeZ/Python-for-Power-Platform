@@ -99,6 +99,7 @@ def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter)
 
         first_part, second_part = segments
         assert "Content-Type: application/http" in first_part
+        assert first_part.startswith("Content-Type: application/http")
         assert "GET /api/data/v9.2/accounts?$top=1 HTTP/1.1" in first_part
         assert "multipart/mixed" not in first_part
         assert "Content-ID: 1" in first_part
@@ -107,6 +108,18 @@ def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter)
         assert second_part.count("--changeset_") >= 2
         assert "PATCH /api/data/v9.2/accounts(1) HTTP/1.1" in second_part
         assert "Content-ID: 2" in second_part
+        nested_boundary_match = re.search(r"boundary=(changeset_[^;\s]+)", second_part)
+        assert nested_boundary_match is not None
+        nested_boundary = nested_boundary_match.group(1)
+        request_chunks = [
+            chunk.strip()
+            for chunk in second_part.split(f"--{nested_boundary}")
+            if chunk.strip().startswith("Content-Type: application/http")
+        ]
+        assert len(request_chunks) == 1
+        for chunk in request_chunks:
+            assert chunk.startswith("Content-Type: application/http")
+        assert second_part.strip().endswith(f"--{nested_boundary}--")
 
         return httpx.Response(
             200,

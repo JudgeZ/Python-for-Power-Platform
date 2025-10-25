@@ -57,6 +57,27 @@ def test_build_batch_mixed_get_and_write_operations():
     get_occurrences = re.findall(get_pattern, payload)
     assert get_occurrences == ["1", "4"], payload
 
+    # Ensure the segments under the batch boundary are correctly ordered and scoped.
+    parts = [
+        segment.strip()
+        for segment in payload.split(f"--{batch_id}")
+        if segment.strip() and segment.strip() != "--"
+    ]
+    assert len(parts) == 3
+
+    first_segment, changeset_segment, last_segment = parts
+    assert first_segment.startswith("Content-Type: application/http")
+    assert "multipart/mixed" not in first_segment
+    assert "GET /api/data/v9.2/accounts?$top=1 HTTP/1.1" in first_segment
+
+    assert changeset_segment.startswith("Content-Type: multipart/mixed; boundary=")
+    assert changeset_segment.count("--changeset_") == 3
+    assert "GET" not in changeset_segment
+
+    assert last_segment.startswith("Content-Type: application/http")
+    assert "multipart/mixed" not in last_segment
+    assert "GET /api/data/v9.2/accounts?$skip=1 HTTP/1.1" in last_segment
+
     # Ensure the changeset is closed and the full batch terminator is present.
     assert f"--{changeset_boundary}--" in payload
     assert payload.rstrip().endswith(f"--{batch_id}--")
