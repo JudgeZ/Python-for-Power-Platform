@@ -21,6 +21,7 @@ def _resolve_destination(root: Path, src_root: Path) -> Path:
     component, *remainder_parts = root.parts
     mapped = COMPONENT_MAP.get(component, "Other")
     remainder = Path(*remainder_parts) if remainder_parts else Path(root.name)
+    src_root = src_root.resolve(strict=False)
     candidate = (src_root / mapped / remainder).resolve(strict=False)
 
     try:
