@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Mapping
-from typing import Any, Callable, cast
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from types import TracebackType
+from typing import Any, cast
 from urllib.parse import parse_qs, urlparse
 
 from ..http_client import HttpClient
@@ -37,7 +38,12 @@ class ConnectorsClient:
     def __enter__(self) -> ConnectorsClient:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self.close()
 
     def list_apis(

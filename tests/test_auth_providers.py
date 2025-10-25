@@ -4,7 +4,8 @@ import types
 
 import pytest
 
-from pacx.auth.azure_ad import AzureADTokenProvider, msal as original_msal
+from pacx.auth.azure_ad import AzureADTokenProvider
+from pacx.auth.azure_ad import msal as original_msal
 from pacx.auth.base import StaticTokenProvider
 from pacx.errors import AuthError
 
@@ -27,6 +28,8 @@ class StubPublicApp:
         self.authority = authority
         self.flows: list[dict[str, str]] = []
         self.device_flow_started = False
+        self.refresh_calls: list[str] = []
+        self.interactive_calls = 0
 
     def get_accounts(self) -> list[dict[str, str]]:
         return []
@@ -36,6 +39,12 @@ class StubPublicApp:
     ) -> dict[str, str] | None:
         return None
 
+    def acquire_token_by_refresh_token(
+        self, refresh_token: str, scopes: list[str]
+    ) -> dict[str, str] | None:
+        self.refresh_calls.append(refresh_token)
+        return None
+
     def initiate_device_flow(self, scopes: list[str]) -> dict[str, str]:
         self.device_flow_started = True
         return {"user_code": "ABC", "message": "Go to example"}
@@ -43,6 +52,10 @@ class StubPublicApp:
     def acquire_token_by_device_flow(self, flow: dict[str, str]) -> dict[str, str]:
         self.flows.append(flow)
         return {"access_token": "device-token"}
+
+    def acquire_token_interactive(self, scopes: list[str]) -> dict[str, str]:
+        self.interactive_calls += 1
+        return {"access_token": "interactive-token"}
 
 
 @pytest.fixture
@@ -66,11 +79,11 @@ def test_azure_ad_token_provider_confidential_flow(stub_msal: types.SimpleNamesp
         client_id="app-id",
         scopes=["https://graph.microsoft.com/.default"],
         # Bandit B106: placeholder credential for test double.
-        client_secret="dummy-secret",  # nosec B106
+        client_secret="dummy-secret",  # noqa: S106
     )
     token = provider.get_token()
     # Bandit B105: deterministic stub output.
-    assert token == "confidential-token"  # nosec B105
+    assert token == "confidential-token"  # noqa: S105
 
 
 def test_azure_ad_token_provider_device_flow(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -89,7 +102,7 @@ def test_azure_ad_token_provider_device_flow(monkeypatch: pytest.MonkeyPatch) ->
     )
     token = provider.get_token()
     # Bandit B105: deterministic stub output.
-    assert token == "device-token"  # nosec B105
+    assert token == "device-token"  # noqa: S105
 
 
 def test_azure_ad_token_provider_requires_msal(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import base64
 import logging
-from typing import Any, Callable, cast
+from collections.abc import Callable
+from types import TracebackType
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from ..http_client import HttpClient
@@ -74,7 +76,12 @@ class DataverseClient:
     def __enter__(self) -> DataverseClient:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self.close()
 
     # ---- Solution operations ----
@@ -255,7 +262,7 @@ class DataverseClient:
             # Heuristic: look for progress >= 100 or state indicating completion
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, (int, float)) and v >= 100:
+                if isinstance(v, int | float) and v >= 100:
                     return True
             state = str(s.get("statecode") or s.get("status") or "").lower()
             return state in {"completed", "succeeded", "failed"}
@@ -263,7 +270,7 @@ class DataverseClient:
         def get_progress(s: dict[str, Any]) -> int | None:
             for k in ("progress", "percent", "percentagecomplete"):
                 v = s.get(k)
-                if isinstance(v, (int, float)):
+                if isinstance(v, int | float):
                     return int(v)
             return None
 
