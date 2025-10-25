@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Callable, cast
+from urllib.parse import parse_qsl, urlparse
 
 from ..http_client import HttpClient
 from ..models.power_platform import CloudFlow, EnvironmentSummary, FlowRun, PowerApp
@@ -73,21 +74,59 @@ class PowerPlatformClient:
             params["$top"] = top
         if skiptoken:
             params["$skiptoken"] = skiptoken
-        resp = self.http.get(f"powerapps/environments/{environment_id}/apps", params=params)
-        data = cast(dict[str, Any], resp.json())
-        return [PowerApp.model_validate(o) for o in data.get("value", [])]
+        items = self._collect_paginated(
+            f"powerapps/environments/{environment_id}/apps",
+            params=params,
+            next_link_field="@odata.nextLink",
+        )
+        return [PowerApp.model_validate(o) for o in items]
 
     def list_cloud_flows(self, environment_id: str, **filters: Any) -> list[CloudFlow]:
         params: dict[str, Any] = {"api-version": self.api_version}
         params.update({k: v for k, v in filters.items() if v is not None})
-        resp = self.http.get(
-            f"powerautomate/environments/{environment_id}/cloudFlows", params=params
+        items = self._collect_paginated(
+            f"powerautomate/environments/{environment_id}/cloudFlows",
+            params=params,
+            next_link_field="@odata.nextLink",
         )
-        data = cast(dict[str, Any], resp.json()) if resp.text else {"value": []}
-        return [CloudFlow.model_validate(o) for o in data.get("value", [])]
+        return [CloudFlow.model_validate(o) for o in items]
 
     def list_flow_runs(self, environment_id: str, workflow_id: str) -> list[FlowRun]:
         params = {"api-version": self.api_version, "workflowId": workflow_id}
-        resp = self.http.get(f"powerautomate/environments/{environment_id}/flowRuns", params=params)
-        data = cast(dict[str, Any], resp.json()) if resp.text else {"value": []}
-        return [FlowRun.model_validate(o) for o in data.get("value", [])]
+        items = self._collect_paginated(
+            f"powerautomate/environments/{environment_id}/flowRuns",
+            params=params,
+            next_link_field="workflowRun@odata.nextLink",
+        )
+        return [FlowRun.model_validate(o) for o in items]
+
+    def _collect_paginated(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        next_link_field: str,
+    ) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        next_path: str | None = path
+        next_params: dict[str, Any] | None = params
+
+        while next_path:
+            resp = self.http.get(next_path, params=next_params)
+            payload = cast(dict[str, Any], resp.json()) if resp.text else {}
+            values = cast(list[dict[str, Any]], payload.get("value", []))
+            results.extend(values)
+
+            link = payload.get(next_link_field)
+            if not link:
+                break
+            link_str = cast(str, link)
+            parsed = urlparse(link_str)
+            if parsed.scheme and parsed.netloc:
+                next_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            else:
+                next_path = parsed.path.lstrip("/") or None
+            query_items = parse_qsl(parsed.query, keep_blank_values=True)
+            next_params = dict(query_items) if query_items else None
+
+        return results

@@ -42,16 +42,16 @@ class StubPowerPlatformClient:
     def __init__(self, token_getter, api_version: str | None = None) -> None:
         self.token = token_getter()
         self.api_version = api_version
-        self.apps_calls: list[tuple[str, int | None]] = []
+        self.apps_calls: list[str] = []
         self.flows_calls: list[str] = []
         StubPowerPlatformClient.instances.append(self)
 
     def list_environments(self) -> Iterable[StubEnvironment]:
         return [StubEnvironment("env-1"), StubEnvironment("env-2", location="eu")]
 
-    def list_apps(self, environment_id: str, top: int | None = None) -> Iterable[StubSummary]:
-        self.apps_calls.append((environment_id, top))
-        return [StubSummary("app-1")]
+    def list_apps(self, environment_id: str) -> Iterable[StubSummary]:
+        self.apps_calls.append(environment_id)
+        return [StubSummary("app-1"), StubSummary("app-2")]
 
     def list_cloud_flows(self, environment_id: str) -> Iterable[StubSummary]:
         self.flows_calls.append(environment_id)
@@ -84,11 +84,12 @@ def test_list_apps_and_flows(cli_runner, cli_app) -> None:
 
     result_apps = cli_runner.invoke(
         app,
-        ["apps", "--environment-id", "ENV", "--top", "2"],
+        ["apps", "--environment-id", "ENV"],
         env={"PACX_ACCESS_TOKEN": "token"},
     )
     assert result_apps.exit_code == 0
     assert "app-1" in result_apps.stdout
+    assert "app-2" in result_apps.stdout
 
     result_flows = cli_runner.invoke(
         app,
