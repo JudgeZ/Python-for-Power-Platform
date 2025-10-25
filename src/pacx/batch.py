@@ -30,12 +30,24 @@ def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
     import uuid
 
     batch_id = f"batch_{uuid.uuid4()}"
-    changeset_id = f"changeset_{uuid.uuid4()}"
     batch_lines: list[str] = []
+    pending_writes: list[tuple[dict[str, str], str]] = []
 
-    batch_lines.append(f"--{batch_id}")
-    batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
-    batch_lines.append("")
+    def flush_writes() -> None:
+        if not pending_writes:
+            return
+        changeset_id = f"changeset_{uuid.uuid4()}"
+        batch_lines.append(f"--{batch_id}")
+        batch_lines.append(f"Content-Type: multipart/mixed; boundary={changeset_id}")
+        batch_lines.append("")
+        for headers, request_text in pending_writes:
+            batch_lines.append(f"--{changeset_id}")
+            batch_lines.append(_encode_part(headers, request_text))
+            batch_lines.append("")
+        batch_lines.append(f"--{changeset_id}--")
+        batch_lines.append("")
+        pending_writes.clear()
+
     for i, op in enumerate(ops, start=1):
         body = op.get("body")
         method = op["method"].upper()
@@ -48,11 +60,16 @@ def build_batch(ops: list[dict[str, Any]]) -> tuple[str, bytes]:
         req_lines = [f"{method} {url} HTTP/1.1", "Content-Type: application/json; charset=utf-8"]
         req_lines.append("")
         req_lines.append(json.dumps(body) if body is not None else "")
-        part = _encode_part(cs_headers, "\r\n".join(req_lines))
-        batch_lines.append(part)
-        batch_lines.append("")
-    batch_lines.append(f"--{changeset_id}--")
-    batch_lines.append("")
+        request_text = "\r\n".join(req_lines)
+        if method == "GET":
+            flush_writes()
+            batch_lines.append(f"--{batch_id}")
+            batch_lines.append(_encode_part(cs_headers, request_text))
+            batch_lines.append("")
+        else:
+            pending_writes.append((cs_headers, request_text))
+
+    flush_writes()
     batch_lines.append(f"--{batch_id}--")
     batch_lines.append("")
 
