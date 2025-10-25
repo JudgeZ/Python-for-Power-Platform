@@ -15,6 +15,43 @@ import httpx
 from ..clients.dataverse import DataverseClient
 
 
+def _sanitize_filename(name: object, *, default: str) -> str:
+    """Return a safe filename derived from *name* constrained to a basename."""
+
+    fallback = str(default or "file.bin").strip() or "file.bin"
+    fallback = fallback.replace("\\", "/")
+    fallback_parts = [part for part in fallback.split("/") if part not in {"", ".", ".."}]
+    fallback_name = fallback_parts[-1] if fallback_parts else "file.bin"
+    if fallback_name in {"", ".", ".."}:
+        fallback_name = "file.bin"
+
+    candidate = str(name or "").strip()
+    if not candidate:
+        return fallback_name
+    candidate = candidate.replace("\\", "/")
+    parts = [part for part in candidate.split("/") if part not in {"", ".", ".."}]
+    if not parts:
+        return fallback_name
+    basename = parts[-1]
+    if basename in {"", ".", ".."}:
+        return fallback_name
+    return basename
+
+
+def _derive_export_path(base_dir: Path, output_root: Path, name: str) -> Path:
+    """Join *name* within *base_dir* and ensure the result stays under *output_root*."""
+
+    target = (base_dir / name).resolve()
+    root = output_root.resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as exc:  # pragma: no cover - defensive guard
+        raise ValueError(
+            f"Refusing to export '{name}' outside of {root}: {target}"
+        ) from exc
+    return target
+
+
 @dataclass(slots=True)
 class ProviderFile:
     """Metadata for a file emitted by a binary provider."""
@@ -76,8 +113,10 @@ class AnnotationBinaryProvider:
     def export(
         self, ctx: ProviderContext, options: Mapping[str, object] | None = None
     ) -> ProviderResult:
+        output_root = ctx.output_dir.resolve()
         out_dir = ctx.output_dir / "files_bin"
         out_dir.mkdir(parents=True, exist_ok=True)
+        out_dir_resolved = out_dir.resolve()
         top_value = (options or {}).get("top", 50)
         try:
             top = int(cast(int | str, top_value))
@@ -97,19 +136,33 @@ class AnnotationBinaryProvider:
                 top=top,
             )
             for note in data.get("value", []):
-                fname = note.get("filename") or f"{note.get('annotationid')}.bin"
+                default_name = f"{note.get('annotationid')}".strip() or "file"
+                default_name = f"{default_name}.bin"
+                fname = _sanitize_filename(note.get("filename"), default=default_name)
                 document = note.get("documentbody")
                 if not document:
                     result.skipped += 1
                     continue
                 raw = base64.b64decode(str(document))
-                target = out_dir / fname
+                try:
+                    target = _derive_export_path(out_dir_resolved, output_root, fname)
+                except ValueError as exc:
+                    result.errors.append(str(exc))
+                    continue
                 target.write_bytes(raw)
                 checksum = hashlib.sha256(raw).hexdigest()
-                (out_dir / f"{fname}.sha256").write_text(checksum, encoding="utf-8")
+                try:
+                    checksum_path = _derive_export_path(
+                        out_dir_resolved, output_root, f"{fname}.sha256"
+                    )
+                except ValueError as exc:
+                    result.errors.append(str(exc))
+                    target.unlink(missing_ok=True)
+                    continue
+                checksum_path.write_text(checksum, encoding="utf-8")
                 result.files.append(
                     ProviderFile(
-                        path=target.relative_to(ctx.output_dir),
+                        path=target.relative_to(output_root),
                         checksum=checksum,
                         size=len(raw),
                         extra={"annotationid": str(note.get("annotationid"))},
@@ -142,8 +195,10 @@ class AzureBlobVirtualFileProvider:
         self, ctx: ProviderContext, options: Mapping[str, object] | None = None
     ) -> ProviderResult:
         result = ProviderResult(name=self.name)
+        output_root = ctx.output_dir.resolve()
         root = ctx.output_dir / "files_virtual"
         root.mkdir(parents=True, exist_ok=True)
+        root_resolved = root.resolve()
         opt = dict(options or {})
         path_field_raw = opt.get("path_field", "adx_virtualfilestorepath")
         path_field = str(path_field_raw)
@@ -175,14 +230,17 @@ class AzureBlobVirtualFileProvider:
                     or wf.get("adx_webfileid")
                     or "file.bin"
                 )
-                fname = str(name_source)
-                fname = fname.replace("/", "_")
-                target = root / fname
+                fname = _sanitize_filename(name_source, default="file.bin")
+                try:
+                    target = _derive_export_path(root_resolved, output_root, fname)
+                except ValueError as exc:
+                    result.errors.append(str(exc))
+                    continue
                 target.write_bytes(resp.content)
                 checksum = hashlib.sha256(resp.content).hexdigest()
                 result.files.append(
                     ProviderFile(
-                        path=target.relative_to(ctx.output_dir),
+                        path=target.relative_to(output_root),
                         checksum=checksum,
                         size=len(resp.content),
                         extra={"source": url},
