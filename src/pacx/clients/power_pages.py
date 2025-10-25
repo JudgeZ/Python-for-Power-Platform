@@ -312,7 +312,9 @@ class PowerPagesClient:
         for folder, entityset, key, select in sets:
             (out / folder).mkdir(parents=True, exist_ok=True)
             filter_expr = None
-            if "_adx_websiteid_value" in select:
+            if entityset == "adx_websites":
+                filter_expr = f"adx_websiteid eq {website_id}"
+            elif "_adx_websiteid_value" in select:
                 filter_expr = f"_adx_websiteid_value eq {website_id}"
             data = self._list_all_records(
                 entityset,

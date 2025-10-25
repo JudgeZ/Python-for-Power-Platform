@@ -71,6 +71,47 @@ def test_pages_download(tmp_path, respx_mock, token_getter):
     assert manifest["website_id"] == website_id
 
 
+def test_download_site_filters_websites(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    website_id = "00000000-0000-0000-0000-000000000000"
+    other_site_id = "11111111-1111-1111-1111-111111111111"
+
+    websites = [
+        {
+            "adx_websiteid": website_id,
+            "adx_name": "Requested",
+        },
+        {
+            "adx_websiteid": other_site_id,
+            "adx_name": "Other",
+        },
+    ]
+
+    def website_responder(request: httpx.Request) -> httpx.Response:
+        params = request.url.params
+        assert params.get("$filter") == f"adx_websiteid eq {website_id}"
+        filtered = [site for site in websites if site["adx_websiteid"] == website_id]
+        return httpx.Response(200, json={"value": filtered})
+
+    respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_websites").mock(
+        side_effect=website_responder
+    )
+
+    pp = PowerPagesClient(dv)
+    res = pp.download_site(
+        website_id,
+        tmp_path,
+        tables=["websites"],
+        include_files=False,
+    )
+
+    website_files = list((res.output_path / "websites").glob("*.json"))
+    assert len(website_files) == 1
+    data = json.loads(website_files[0].read_text(encoding="utf-8"))
+    assert data["adx_websiteid"] == website_id
+    assert data["adx_name"] == "Requested"
+
+
 def test_pages_download_handles_pagination(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     website_id = "00000000-0000-0000-0000-000000000000"
