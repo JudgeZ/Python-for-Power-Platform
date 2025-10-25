@@ -16,14 +16,16 @@ from ..clients.dataverse import DataverseClient
 
 
 def _sanitize_filename(name: object, *, default: str) -> str:
-    """Return a safe filename derived from *name* constrained to a basename."""
+    """Return a safe filename derived from *name* while preserving uniqueness."""
+
+    def _squash(parts: list[str]) -> str:
+        return "_".join(parts)
 
     fallback = str(default or "file.bin").strip() or "file.bin"
     fallback = fallback.replace("\\", "/")
     fallback_parts = [part for part in fallback.split("/") if part not in {"", ".", ".."}]
-    fallback_name = fallback_parts[-1] if fallback_parts else "file.bin"
-    if fallback_name in {"", ".", ".."}:
-        fallback_name = "file.bin"
+    fallback_name = _squash(fallback_parts) if fallback_parts else "file.bin"
+    fallback_name = fallback_name or "file.bin"
 
     candidate = str(name or "").strip()
     if not candidate:
@@ -32,10 +34,11 @@ def _sanitize_filename(name: object, *, default: str) -> str:
     parts = [part for part in candidate.split("/") if part not in {"", ".", ".."}]
     if not parts:
         return fallback_name
-    basename = parts[-1]
-    if basename in {"", ".", ".."}:
+    sanitized = _squash(parts)
+    sanitized = sanitized.strip() or fallback_name
+    if sanitized in {"", ".", ".."}:
         return fallback_name
-    return basename
+    return sanitized
 
 
 def _derive_export_path(base_dir: Path, output_root: Path, name: str) -> Path:

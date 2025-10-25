@@ -161,6 +161,79 @@ def test_download_with_azure_provider_sanitizes_paths(tmp_path, respx_mock, toke
     } == {Path("files_virtual", "evil.bin").as_posix()}
 
 
+def test_download_with_azure_provider_preserves_unique_paths(
+    tmp_path, respx_mock, token_getter
+):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles",
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_webfileid": "wf1",
+                        "adx_name": "logo.png",
+                        "adx_partialurl": "images/logo.png",
+                        "_adx_websiteid_value": "site",
+                        "adx_virtualfilestorepath": "https://storage/f/images/logo.png",
+                    },
+                    {
+                        "adx_webfileid": "wf2",
+                        "adx_name": "logo.png",
+                        "adx_partialurl": "header/logo.png",
+                        "_adx_websiteid_value": "site",
+                        "adx_virtualfilestorepath": "https://storage/f/header/logo.png",
+                    },
+                ]
+            },
+        )
+    )
+
+    for entity in (
+        "adx_websites",
+        "adx_webpages",
+        "adx_contentsnippets",
+        "adx_pagetemplates",
+        "adx_sitemarkers",
+    ):
+        respx_mock.get(
+            f"https://example.crm.dynamics.com/api/data/v9.2/{entity}",
+        ).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    first_blob = respx_mock.get("https://storage/f/images/logo.png").mock(
+        return_value=httpx.Response(200, content=b"img"),
+    )
+    second_blob = respx_mock.get("https://storage/f/header/logo.png").mock(
+        return_value=httpx.Response(200, content=b"hdr"),
+    )
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=False,
+        binary_providers=["azure"],
+    )
+
+    assert first_blob.called
+    assert second_blob.called
+    first_target = res.output_path / "files_virtual" / "images_logo.png"
+    second_target = res.output_path / "files_virtual" / "header_logo.png"
+    assert first_target.read_bytes() == b"img"
+    assert second_target.read_bytes() == b"hdr"
+
+    manifest = json.loads((res.output_path / "manifest.json").read_text())
+    azure_files = manifest["providers"]["azure-blob"]["files"]
+    assert {entry["path"] for entry in azure_files} == {
+        Path("files_virtual", "images_logo.png").as_posix(),
+        Path("files_virtual", "header_logo.png").as_posix(),
+    }
+
+
 def test_download_with_azure_provider_and_sas_query(monkeypatch, tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
