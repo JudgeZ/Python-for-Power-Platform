@@ -85,6 +85,8 @@ def test_annotation_provider_sanitizes_filename(tmp_path, respx_mock, token_gett
 
     payload_one = base64.b64encode(b"one").decode("ascii")
     payload_two = base64.b64encode(b"two").decode("ascii")
+    payload_three = base64.b64encode(b"three").decode("ascii")
+    payload_four = base64.b64encode(b"four").decode("ascii")
     respx_mock.get(
         "https://example.crm.dynamics.com/api/data/v9.2/annotations",
         params={
@@ -107,6 +109,16 @@ def test_annotation_provider_sanitizes_filename(tmp_path, respx_mock, token_gett
                         "filename": "..\\hidden\\config.json",
                         "documentbody": payload_two,
                     },
+                    {
+                        "annotationid": "n3",
+                        "filename": "..\\",
+                        "documentbody": payload_three,
+                    },
+                    {
+                        "annotationid": "n4",
+                        "filename": "./",
+                        "documentbody": payload_four,
+                    },
                 ]
             },
         )
@@ -126,6 +138,10 @@ def test_annotation_provider_sanitizes_filename(tmp_path, respx_mock, token_gett
         "logo.png.sha256",
         "config.json",
         "config.json.sha256",
+        "n3.bin",
+        "n3.bin.sha256",
+        "n4.bin",
+        "n4.bin.sha256",
     }
     assert {p.name for p in bin_dir.iterdir()} == expected_files
     # Ensure nothing escaped outside of the export directory.

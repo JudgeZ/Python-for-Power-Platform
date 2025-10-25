@@ -100,7 +100,7 @@ class AnnotationBinaryProvider:
                 fname = note.get("filename") or f"{note.get('annotationid')}.bin"
                 fname_raw = str(fname)
                 sanitized = Path(fname_raw.replace("\\", "/")).name
-                if not sanitized:
+                if sanitized in {"", ".", ".."}:
                     sanitized = f"{note.get('annotationid')}.bin"
                 document = note.get("documentbody")
                 if not document:
