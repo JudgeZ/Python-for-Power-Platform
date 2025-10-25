@@ -113,3 +113,4 @@ Packed (SolutionPackager-like) solution_src/src -> dist/contoso_solution_managed
   reverses the projection before zipping.
 * The `src/` projection mirrors SolutionPackager conventions, making it easy to diff between environments with Git. Clean up
   the staging tree after packaging to avoid stale files (`rm -rf solution_src`).
+* `unpack_to_source` rejects entries that would escape the destination tree, preventing Zip Slip-style traversal attacks when processing untrusted archives.
