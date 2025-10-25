@@ -1,8 +1,20 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
 import respx
 from typer.testing import CliRunner
+
+
+# Ensure the repository-local ``src`` directory is importable when the project is
+# not installed as a package. Pytest executes from the repository root where the
+# ``src`` layout is not on ``sys.path`` by default, so the pacx package would
+# otherwise be missing.
+SRC_PATH = Path(__file__).resolve().parents[1] / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
 
 @pytest.fixture
