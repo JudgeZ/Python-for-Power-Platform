@@ -1,5 +1,8 @@
 name: Publish
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,6 +12,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +38,9 @@ jobs:
           path: dist
 
   publish:
+    permissions:
+      contents: read
+      actions: read
     needs: build
     runs-on: ubuntu-latest
     strategy:
