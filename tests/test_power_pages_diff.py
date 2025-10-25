@@ -51,34 +51,31 @@ def test_diff_permissions_handles_pagination(tmp_path, respx_mock, token_getter)
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
 
     respx_mock.get("https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "value": [
-                    {
-                        "adx_name": "AllowAccounts",
-                        "_adx_websiteid_value": "site",
-                    }
-                ],
-                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions?$skiptoken=abc",
-            },
-        )
-    )
-    respx_mock.get(
-        "https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions",
-        params={"$skiptoken": "abc"},
-    ).mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "value": [
-                    {
-                        "adx_name": "Another",
-                        "_adx_websiteid_value": "site",
-                    }
-                ]
-            },
-        )
+        side_effect=[
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "adx_name": "AllowAccounts",
+                            "_adx_websiteid_value": "site",
+                        }
+                    ],
+                    "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/adx_entitypermissions?$skiptoken=abc",
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {
+                            "adx_name": "Another",
+                            "_adx_websiteid_value": "site",
+                        }
+                    ]
+                },
+            ),
+        ]
     )
     respx_mock.get(
         "https://example.crm.dynamics.com/api/data/v9.2/adx_webpageaccesscontrolrules"
