@@ -80,7 +80,10 @@ def get_secret(spec: SecretSpec) -> str | None:
             return None
         credential_factory, secret_client_cls = resolved
         try:
-            vault_url, secret_name = spec.ref.split(":", 1)
+            # The vault URL itself may contain colon characters (e.g. the
+            # ``https://`` scheme or custom ports). Split from the right so the
+            # final segment is always treated as the secret name.
+            vault_url, secret_name = spec.ref.rsplit(":", 1)
         except ValueError:
             return None
         credential = credential_factory()
