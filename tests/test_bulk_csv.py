@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import types
 
 import pytest
 
@@ -107,3 +108,26 @@ def test_bulk_csv_row_index_matches_csv_line_with_skipped_rows(tmp_path, respx_m
 
     assert len(result.operations) == 1
     assert result.operations[0].row_index == 3
+
+
+def test_bulk_csv_sanitizes_ids_before_batch(monkeypatch, tmp_path, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    csvp = tmp_path / "data.csv"
+    with open(csvp, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["id", "name"])
+        writer.writerow([" {ABC} ", "Alpha"])
+
+    captured_ops: list[dict[str, object]] | None = None
+
+    def fake_send_batch(dv_arg, ops):
+        nonlocal captured_ops
+        captured_ops = ops
+        return types.SimpleNamespace(operations=[], retry_counts={}, attempts=1)
+
+    monkeypatch.setattr("pacx.bulk_csv.send_batch", fake_send_batch)
+
+    bulk_csv_upsert(dv, "accounts", str(csvp), id_column="id", chunk_size=1)
+
+    assert captured_ops is not None
+    assert captured_ops[0]["url"].endswith("accounts(ABC)")

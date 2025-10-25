@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .batch import BatchSendResult, send_batch
 from .clients.dataverse import DataverseClient
 from .odata import build_alternate_key_segment
+from .utils.guid import sanitize_guid
 
 
 @dataclass
@@ -138,7 +139,14 @@ def bulk_csv_upsert(
         ops: list[dict[str, Any]] = []
         op_row_numbers: list[int] = []
         for row_number, row in group:
-            rid = row.get(id_column)
+            rid_raw = row.get(id_column)
+            rid: str | None
+            if isinstance(rid_raw, str):
+                rid = sanitize_guid(rid_raw)
+            elif rid_raw is None:
+                rid = None
+            else:
+                rid = str(rid_raw)
             body = {k: v for k, v in row.items() if k != id_column and v not in ("", None)}
             if rid:
                 ops.append(
