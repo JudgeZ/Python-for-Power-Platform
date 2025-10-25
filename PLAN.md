@@ -359,6 +359,16 @@ Create a tag and verify publish/docs workflows pass.
 
 ## Quick execution order (suggested)
 
+### Status
+- [ ] **P0.1 (Active)** – Config/provider updates are still pending while GitHub-specific modules have not been introduced, so the task remains open.
+- [ ] P0.2
+- [ ] P0.3
+- [ ] P0.4
+- [ ] P1.1
+- [ ] P1.2 / P1.3
+- [ ] P2.1 / P2.2
+- [ ] V.1 / V.2
+
 1) P0.1 (config provider + sensitive fields)
 2) P0.2 (GitHubTokenProvider + tests)
 3) P0.3 (CLI command + tests)
