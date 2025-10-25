@@ -411,6 +411,7 @@ class PowerPagesClient:
                     key_values = {col: obj[col] for col in natural}
                     key_segment = build_alternate_key_segment(key_values)
                     path = f"{entityset}({key_segment})"
+                    headers = {"If-Match": "*"}
                     if strategy == "create-only":
                         try:
                             self.dv.http.get(path)
@@ -443,9 +444,9 @@ class PowerPagesClient:
                             self.dv.create_record(entityset, obj)
                             continue
                         merged = {**current, **obj}
-                        self.dv.http.patch(path, json=merged)
+                        self.dv.http.patch(path, headers=headers, json=merged)
                     else:
-                        self.dv.http.patch(path, json=obj)
+                        self.dv.http.patch(path, headers=headers, json=obj)
                     continue
 
                 if strategy == "skip-existing":

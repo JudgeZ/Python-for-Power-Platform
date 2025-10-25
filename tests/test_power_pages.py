@@ -138,11 +138,15 @@ def test_pages_upload_with_ids(tmp_path, respx_mock, token_getter):
         json.dumps({"adx_webfileid": "f1", "adx_name": "logo.png"}), encoding="utf-8"
     )
 
+    def assert_if_match(request: httpx.Request) -> httpx.Response:
+        assert request.headers.get("If-Match") == "*"
+        return httpx.Response(204)
+
     respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webpages(w1)").mock(
-        return_value=httpx.Response(204)
+        side_effect=assert_if_match
     )
     respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles(f1)").mock(
-        return_value=httpx.Response(204)
+        side_effect=assert_if_match
     )
 
     pp.upload_site("id", str(site))
@@ -167,7 +171,9 @@ def test_pages_upload_natural_keys(tmp_path, respx_mock, token_getter):
     )
 
     def responder(request: httpx.Request) -> httpx.Response:
-        assert expected_segment in request.url.path
+        raw_path = request.url.raw_path.decode("utf-8")
+        assert expected_segment in raw_path
+        assert request.headers.get("If-Match") == "*"
         return httpx.Response(204)
 
     respx_mock.patch(
@@ -201,6 +207,7 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
         body = json.loads(request.content.decode("utf-8"))
         assert body["adx_name"] == "New"
         assert body["adx_partialurl"] == "home"
+        assert request.headers.get("If-Match") == "*"
         return httpx.Response(204)
 
     respx_mock.patch(
