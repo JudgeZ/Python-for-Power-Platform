@@ -222,7 +222,6 @@ def _normalize_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
 @dataclass
 class Profile:
     name: str
-    provider: Literal["azure", "github"] = "azure"
     tenant_id: str | None = None
     client_id: str | None = None
     scope: str | None = None
@@ -234,6 +233,7 @@ class Profile:
     secret_backend: str | None = None
     secret_ref: str | None = None
     scopes: list[str] | None = None
+    provider: Literal["azure", "github"] = "azure"
 
 
 def _ensure_dir() -> None:
