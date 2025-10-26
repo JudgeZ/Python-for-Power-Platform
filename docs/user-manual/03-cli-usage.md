@@ -35,6 +35,17 @@ PACX reads defaults from the active profile (set via `ppx auth use`) and the per
 
 All commands support `--help`, which prints the description and option defaults drawn from the CLI docstrings. The regression tests in this repository verify that the help output stays informative.
 
+## Token resolution order
+
+Every CLI command eventually calls into the shared token resolver. The resolver walks multiple credential sources so that you can override cached values when needed:
+
+1. `PACX_ACCESS_TOKEN` — an explicit environment override always wins.
+2. Keyring or secret-store pointers (`token_backend` + `token_ref`) on the active profile.
+3. The encrypted config file (`~/.pacx/config.json`) when `PACX_CONFIG_ENCRYPTION_KEY` is configured.
+4. An interactive/refresh request via the Azure AD provider (device code, interactive browser, or client credentials).
+
+The final step persists refreshed tokens back to the profile so future commands can reuse them.
+
 ## Example workflows
 
 ### Authenticate with device code

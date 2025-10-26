@@ -77,66 +77,112 @@ TokenGetter = Callable[[], str]
 
 
 def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
+    """Resolve a callable that returns an access token.
+
+    Resolution order is:
+
+    1. Explicit environment override via ``PACX_ACCESS_TOKEN``.
+    2. Token secrets sourced from a configured backend (``token_backend``/``token_ref``).
+    3. Cached token stored in the encrypted config file.
+    4. Refresh/interactive acquisition via :class:`AzureADTokenProvider`.
+    """
+
     token = os.getenv("PACX_ACCESS_TOKEN")
     if token:
-        value = token
-        return lambda: value
+        def env_getter() -> str:
+            override = os.getenv("PACX_ACCESS_TOKEN")
+            return override or token
+
+        return env_getter
 
     cfg = config or ConfigStore().load()
-    if cfg.default_profile and cfg.profiles and cfg.default_profile in cfg.profiles:
-        try:
-            from ..auth.azure_ad import AzureADTokenProvider
-        except Exception as exc:  # pragma: no cover
-            raise typer.BadParameter(
-                "msal not installed; install pacx[auth] or set PACX_ACCESS_TOKEN"
-            ) from exc
-        profile = cfg.profiles[cfg.default_profile]
-        tenant_id = profile.tenant_id
-        client_id = profile.client_id
-        if not tenant_id or not client_id:
-            raise typer.BadParameter(
-                "Profile is missing tenant_id or client_id; run `ppx profile update` to fix."
-            )
-        scope = profile.scope
-        scopes = profile.scopes
-        scope_values: list[str]
-        if scope:
-            scope_values = [scope]
-        elif scopes:
-            scope_values = list(scopes)
-        else:
-            raise typer.BadParameter(
-                "Profile missing scopes; set scope or scopes on the default profile."
-            )
+    if not (cfg.default_profile and cfg.profiles and cfg.default_profile in cfg.profiles):
+        raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
 
-        client_secret = None
-        client_secret_env = profile.client_secret_env
-        if client_secret_env:
-            client_secret = os.getenv(client_secret_env)
-        secret_backend = profile.secret_backend
-        secret_ref = profile.secret_ref
-        if secret_backend and secret_ref and not client_secret:
-            secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
-            if secret:
-                client_secret = secret
-        raw_use_device_code = getattr(profile, "use_device_code", None)
-        legacy_device_code = bool(getattr(profile, "_legacy_device_code_default", False))
-        if raw_use_device_code is None:
-            use_device_code = client_secret is None
-        elif legacy_device_code and client_secret is None:
-            use_device_code = True
-        else:
-            use_device_code = bool(raw_use_device_code)
-
-        provider = AzureADTokenProvider(
-            tenant_id=tenant_id,
-            client_id=client_id,
-            scopes=scope_values,
-            client_secret=client_secret,
-            use_device_code=use_device_code,
+    profile = cfg.profiles[cfg.default_profile]
+    tenant_id = profile.tenant_id
+    client_id = profile.client_id
+    if not tenant_id or not client_id:
+        raise typer.BadParameter(
+            "Profile is missing tenant_id or client_id; run `ppx profile update` to fix."
         )
-        return provider.get_token
-    raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
+    scope = profile.scope
+    scopes = profile.scopes
+    scope_values: list[str]
+    if scope:
+        scope_values = [scope]
+    elif scopes:
+        scope_values = list(scopes)
+    else:
+        raise typer.BadParameter(
+            "Profile missing scopes; set scope or scopes on the default profile."
+        )
+
+    client_secret = None
+    client_secret_env = profile.client_secret_env
+    if client_secret_env:
+        client_secret = os.getenv(client_secret_env)
+    secret_backend = profile.secret_backend
+    secret_ref = profile.secret_ref
+    if secret_backend and secret_ref and not client_secret:
+        secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
+        if secret:
+            client_secret = secret
+    raw_use_device_code = getattr(profile, "use_device_code", None)
+    legacy_device_code = bool(getattr(profile, "_legacy_device_code_default", False))
+    if raw_use_device_code is None:
+        use_device_code = client_secret is None
+    elif legacy_device_code and client_secret is None:
+        use_device_code = True
+    else:
+        use_device_code = bool(raw_use_device_code)
+
+    token_backend = getattr(profile, "token_backend", None)
+    token_ref = getattr(profile, "token_ref", None)
+    token_spec: SecretSpec | None = None
+    if token_backend and token_ref:
+        token_spec = SecretSpec(backend=str(token_backend), ref=str(token_ref))
+
+    provider: "AzureADTokenProvider" | None = None
+
+    def _get_provider() -> "AzureADTokenProvider":
+        nonlocal provider
+        if provider is None:
+            try:
+                from ..auth.azure_ad import AzureADTokenProvider
+            except Exception as exc:  # pragma: no cover
+                raise typer.BadParameter(
+                    "msal not installed; install pacx[auth] or set PACX_ACCESS_TOKEN"
+                ) from exc
+            provider = AzureADTokenProvider(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                scopes=scope_values,
+                client_secret=client_secret,
+                use_device_code=use_device_code,
+                profile=profile,
+                store_factory=ConfigStore,
+            )
+        return provider
+
+    def getter() -> str:
+        override = os.getenv("PACX_ACCESS_TOKEN")
+        if override:
+            return override
+        if token_spec is not None:
+            secret_token = get_secret(token_spec)
+            if secret_token:
+                return secret_token
+        cached_token = profile.access_token
+        if cached_token:
+            return cached_token
+        result = _get_provider().get_token()
+        # Provider persists refreshed credentials back onto the profile.
+        if profile.access_token:
+            return profile.access_token
+        return result
+
+    return getter
 
 
 @overload
