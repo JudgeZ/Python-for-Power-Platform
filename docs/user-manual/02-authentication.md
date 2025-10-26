@@ -1,6 +1,7 @@
 
 # Authentication
 
-- **Device code**: `ppx auth device ...`
-- **Client credentials**: `ppx auth client ...`
-- **Secret backends**: env, keyring, Key Vault (see flags for `ppx auth client`).
+- **Device code**: `ppx auth create ... --flow device`
+- **Interactive browser**: `ppx auth create ... --flow web`
+- **Client credentials**: `ppx auth create ... --flow client-credential`
+- **Secret backends**: env, keyring, Key Vault (see flags for `ppx auth create --flow client-credential`).

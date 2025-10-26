@@ -51,12 +51,14 @@ def handle_cli_errors(
                 "Restore the original key by exporting PACX_CONFIG_ENCRYPTION_KEY before rerunning the command."
             )
             console.print(
-                "If the key is lost, back up and remove the encrypted config (default ~/.pacx/config.json) then run `ppx auth device` to recreate credentials."
+                "If the key is lost, back up and remove the encrypted config (default ~/.pacx/config.json) then run `ppx auth create NAME --flow device` to recreate credentials."
             )
             raise typer.Exit(1) from None
         except AuthError as exc:
             console.print(f"[red]Error:[/red] Authentication failed: {exc}")
-            console.print("Run `ppx auth device` or `ppx auth secret` to refresh credentials.")
+            console.print(
+                "Run `ppx auth create NAME --flow device` or `ppx auth create NAME --flow client-credential` to refresh credentials."
+            )
             raise typer.Exit(1) from None
         except PacxError as exc:
             console.print(f"[red]Error:[/red] {exc}")
@@ -117,12 +119,21 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
             secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
             if secret:
                 client_secret = secret
+        raw_use_device_code = getattr(profile, "use_device_code", None)
+        legacy_device_code = bool(getattr(profile, "_legacy_device_code_default", False))
+        if raw_use_device_code is None:
+            use_device_code = client_secret is None
+        elif legacy_device_code and client_secret is None:
+            use_device_code = True
+        else:
+            use_device_code = bool(raw_use_device_code)
+
         provider = AzureADTokenProvider(
             tenant_id=tenant_id,
             client_id=client_id,
             scopes=scope_values,
             client_secret=client_secret,
-            use_device_code=(client_secret is None),
+            use_device_code=use_device_code,
         )
         return provider.get_token
     raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")

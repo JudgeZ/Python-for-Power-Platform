@@ -17,6 +17,7 @@ from . import (
     profile,
     solution,
 )
+from .auth import auth_create
 from .power_platform import PowerPlatformClient
 
 app = typer.Typer(help="PACX CLI")
@@ -98,6 +99,7 @@ def common(ctx: typer.Context) -> None:
 __all__ = [
     "app",
     "auth",
+    "auth_create",
     "connectors",
     "dataverse",
     "doctor",

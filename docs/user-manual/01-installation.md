@@ -49,11 +49,13 @@ Use `ppx profile show` to review stored profiles at any time.
 Run the device code flow to bootstrap a reusable profile named `demo` and mark it as active once the browser challenge finishes:
 
 ```shell
-(.venv) $ ppx auth device demo \
+(.venv) $ ppx auth create demo \
     --tenant-id 00000000-0000-0000-0000-000000000000 \
-    --client-id 11111111-1111-1111-1111-111111111111
+    --client-id 11111111-1111-1111-1111-111111111111 \
+    --flow device
 Open https://microsoft.com/devicelogin and enter ABCD-EFGH to authenticate.
-Profile demo configured. It will use device code on demand.
+Profile demo configured and set as the default profile.
+Profile demo ready for device code flow.
 
 (.venv) $ ppx auth use demo
 Default profile set to demo.
