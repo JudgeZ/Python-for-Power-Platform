@@ -13,6 +13,14 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Protocol, cast
 
+from .secrets import (
+    SecretSpec,
+    build_refresh_token_keyring_ref,
+    delete_keyring_secret,
+    get_secret,
+    store_keyring_secret,
+)
+
 
 class FernetProtocol(Protocol):
     def __init__(self, key: bytes) -> None: ...
@@ -186,6 +194,7 @@ def _ensure_secure_permissions(path: Path) -> None:
 
 def _encrypt_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
     payload = dict(profile)
+    _persist_refresh_token_with_keyring(payload)
     for key in _SENSITIVE_KEYS:
         value = payload.get(key)
         if isinstance(value, str):
@@ -199,7 +208,35 @@ def _decrypt_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
         value = payload.get(key)
         if isinstance(value, str):
             payload[key] = decrypt_field(value)
+    token_backend = payload.get("token_backend")
+    token_ref = payload.get("token_ref")
+    if token_backend == "keyring" and isinstance(token_ref, str):  # noqa: S105
+        secret = get_secret(SecretSpec(backend="keyring", ref=token_ref))
+        if secret:
+            payload["refresh_token"] = secret
     return payload
+
+
+def _persist_refresh_token_with_keyring(payload: dict[str, Any]) -> None:
+    refresh_token = payload.get("refresh_token")
+    if not isinstance(refresh_token, str) or not refresh_token:
+        return
+    name_raw = payload.get("name")
+    if not isinstance(name_raw, str) or not name_raw:
+        return
+    ref = build_refresh_token_keyring_ref(name_raw)
+    success, reason = store_keyring_secret(ref, refresh_token)
+    if success:
+        payload.pop("refresh_token", None)
+        payload["token_backend"] = "keyring"  # noqa: S105
+        payload["token_ref"] = ref
+        return
+    payload.pop("token_backend", None)
+    payload.pop("token_ref", None)
+    logger.warning(
+        "Keyring unavailable; storing refresh token in encrypted config",
+        extra={"pacx_profile": name_raw, "pacx_reason": reason, "pacx_storage": "config"},
+    )
 
 
 @dataclass
@@ -295,8 +332,15 @@ def upsert_profile(p: Profile, set_default: bool = False) -> None:
 
 def delete_profile(name: str) -> None:
     cfg = load_config()
-    if name in cfg.get("profiles", {}):
-        del cfg["profiles"][name]
+    profiles = cfg.get("profiles", {})
+    profile_data = profiles.get(name)
+    if isinstance(profile_data, dict):
+        backend = profile_data.get("token_backend")
+        ref = profile_data.get("token_ref")
+        if backend == "keyring" and isinstance(ref, str):
+            delete_keyring_secret(ref)
+    if name in profiles:
+        del profiles[name]
     if cfg.get("default") == name:
         cfg["default"] = None
     save_config(cfg)
@@ -368,7 +412,7 @@ class ConfigStore:
             details = {k: v for k, v in data.items() if k != "name" and k in profile_fields}
             profile = Profile(name=name, **details)
             if "use_device_code" not in data:
-                setattr(profile, "_legacy_device_code_default", True)
+                profile._legacy_device_code_default = True  # type: ignore[attr-defined]
             profs[name] = profile
 
         default_raw = raw.get("default")
