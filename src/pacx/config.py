@@ -21,13 +21,6 @@ from .secrets import (
     store_keyring_secret,
 )
 
-_SAFE_KEYRING_FAILURE_CODES = frozenset({
-    "module-unavailable",
-    "setter-missing",
-    "invalid-ref",
-})
-
-
 def _profile_log_hint(name: str | None) -> str:
     """Return a deterministic but redacted hint for logging profile identifiers."""
 
@@ -39,13 +32,14 @@ def _profile_log_hint(name: str | None) -> str:
 
 
 def _sanitize_keyring_failure_reason(reason: str | None) -> str:
-    """Return a log-safe, non-sensitive constant describing keyring failure.
+    """Return a log-safe, non-sensitive constant describing keyring failure."""
 
-    This will always return one of a small set of hardcoded strings.
-    Never includes error details from external sources.
-    """
-    if reason in _SAFE_KEYRING_FAILURE_CODES:
-        return reason
+    if reason == "module-unavailable":
+        return "module-unavailable"
+    if reason == "setter-missing":
+        return "setter-missing"
+    if reason == "invalid-ref":
+        return "invalid-ref"
     if reason is not None and reason.startswith("error:"):
         return "error"
     return "unavailable"
@@ -237,12 +231,41 @@ def _decrypt_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
         value = payload.get(key)
         if isinstance(value, str):
             payload[key] = decrypt_field(value)
-    token_backend = payload.get("token_backend")
-    token_ref = payload.get("token_ref")
-    if token_backend == "keyring" and isinstance(token_ref, str):  # noqa: S105
-        secret = get_secret(SecretSpec(backend="keyring", ref=token_ref))
-        if secret:
-            payload["refresh_token"] = secret
+    name_raw = payload.get("name")
+    refresh_backend = payload.get("refresh_token_backend")
+    refresh_ref = payload.get("refresh_token_ref")
+    legacy_backend = payload.get("token_backend")
+    legacy_ref = payload.get("token_ref")
+
+    secret_spec: SecretSpec | None = None
+    if refresh_backend == "keyring" and isinstance(refresh_ref, str):  # noqa: S105
+        secret_spec = SecretSpec(backend="keyring", ref=refresh_ref)
+    elif (
+        refresh_backend is None
+        and legacy_backend == "keyring"
+        and isinstance(legacy_ref, str)
+        and ":refresh-token:" in legacy_ref
+    ):
+        secret_spec = SecretSpec(backend="keyring", ref=legacy_ref)
+
+    if secret_spec is not None:
+        try:
+            secret = get_secret(secret_spec)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            sanitized_reason = _sanitize_keyring_failure_reason(
+                f"error:{exc.__class__.__name__}"
+            )
+            logger.warning(
+                "Keyring lookup failed; leaving refresh token unset",
+                extra={
+                    "pacx_profile_hint": _profile_log_hint(cast(str | None, name_raw)),
+                    "pacx_reason": sanitized_reason,
+                    "pacx_storage": "keyring",
+                },
+            )
+        else:
+            if secret:
+                payload["refresh_token"] = secret
     return payload
 
 
@@ -257,11 +280,11 @@ def _persist_refresh_token_with_keyring(payload: dict[str, Any]) -> None:
     success, reason = store_keyring_secret(ref, refresh_token)
     if success:
         payload.pop("refresh_token", None)
-        payload["token_backend"] = "keyring"  # noqa: S105
-        payload["token_ref"] = ref
+        payload["refresh_token_backend"] = "keyring"  # noqa: S105
+        payload["refresh_token_ref"] = ref
         return
-    payload.pop("token_backend", None)
-    payload.pop("token_ref", None)
+    payload.pop("refresh_token_backend", None)
+    payload.pop("refresh_token_ref", None)
     sanitized_reason = _sanitize_keyring_failure_reason(reason)
     logger.warning(
         "Keyring unavailable; storing refresh token in encrypted config",
@@ -283,6 +306,8 @@ class Profile:
     environment_id: str | None = None
     access_token: str | None = None
     refresh_token: str | None = None
+    refresh_token_backend: str | None = None
+    refresh_token_ref: str | None = None
     client_secret_env: str | None = None
     secret_backend: str | None = None
     secret_ref: str | None = None
@@ -369,10 +394,21 @@ def delete_profile(name: str) -> None:
     profiles = cfg.get("profiles", {})
     profile_data = profiles.get(name)
     if isinstance(profile_data, dict):
-        backend = profile_data.get("token_backend")
-        ref = profile_data.get("token_ref")
-        if backend == "keyring" and isinstance(ref, str):
-            delete_keyring_secret(ref)
+        refs_to_delete: set[str] = set()
+        backend = profile_data.get("refresh_token_backend")
+        ref = profile_data.get("refresh_token_ref")
+        if backend == "keyring" and isinstance(ref, str):  # noqa: S105
+            refs_to_delete.add(ref)
+        legacy_backend = profile_data.get("token_backend")
+        legacy_ref = profile_data.get("token_ref")
+        if (
+            legacy_backend == "keyring"
+            and isinstance(legacy_ref, str)
+            and ":refresh-token:" in legacy_ref
+        ):
+            refs_to_delete.add(legacy_ref)
+        for ref_to_delete in refs_to_delete:
+            delete_keyring_secret(ref_to_delete)
     if name in profiles:
         del profiles[name]
     if cfg.get("default") == name:

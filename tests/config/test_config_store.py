@@ -112,7 +112,12 @@ def test_refresh_token_persisted_to_keyring(
 
     path = tmp_path / "config.json"
     store = ConfigStore(path=path)
-    profile = Profile(name="keyring-profile", refresh_token="r-token")  # noqa: S106
+    profile = Profile(
+        name="keyring-profile",
+        refresh_token="r-token",  # noqa: S106
+        token_backend="keyvault",
+        token_ref="kv:access-token",
+    )
     cfg = ConfigData(default_profile="keyring-profile", profiles={"keyring-profile": profile})
 
     caplog.set_level("WARNING")
@@ -121,16 +126,26 @@ def test_refresh_token_persisted_to_keyring(
     raw = json.loads(path.read_text(encoding="utf-8"))
     stored_profile = raw["profiles"]["keyring-profile"]
     assert "refresh_token" not in stored_profile
-    assert stored_profile["token_backend"] == "keyring"  # noqa: S105
-    assert stored_profile["token_ref"] == "pacx:refresh-token:keyring-profile"  # noqa: S105
+    assert stored_profile["refresh_token_backend"] == "keyring"  # noqa: S105
+    assert (
+        stored_profile["refresh_token_ref"]
+        == "pacx:refresh-token:keyring-profile"
+    )  # noqa: S105
+    # Access-token metadata is preserved when persisting refresh tokens.
+    assert stored_profile["token_backend"] == "keyvault"
+    assert stored_profile["token_ref"] == "kv:access-token"
     assert stub.storage[("pacx", "refresh-token:keyring-profile")] == "r-token"
     assert not any("Keyring unavailable" in message for message in caplog.messages)
 
     loaded = store.load()
     keyring_profile = loaded.profiles["keyring-profile"]
     assert keyring_profile.refresh_token == "r-token"  # noqa: S105
-    assert keyring_profile.token_backend == "keyring"  # noqa: S105
-    assert keyring_profile.token_ref == "pacx:refresh-token:keyring-profile"  # noqa: S105
+    assert keyring_profile.refresh_token_backend == "keyring"  # noqa: S105
+    assert (
+        keyring_profile.refresh_token_ref == "pacx:refresh-token:keyring-profile"
+    )  # noqa: S105
+    assert keyring_profile.token_backend == "keyvault"
+    assert keyring_profile.token_ref == "kv:access-token"
 
 
 def test_refresh_token_fallback_logs_warning(
@@ -149,8 +164,8 @@ def test_refresh_token_fallback_logs_warning(
     raw = json.loads(path.read_text(encoding="utf-8"))
     stored_profile = raw["profiles"]["no-keyring"]
     assert stored_profile["refresh_token"] == "fallback-token"  # noqa: S105
-    assert stored_profile.get("token_backend") is None
-    assert stored_profile.get("token_ref") is None
+    assert stored_profile.get("refresh_token_backend") is None
+    assert stored_profile.get("refresh_token_ref") is None
     warning_records = [
         record for record in caplog.records if "Keyring unavailable" in record.getMessage()
     ]
@@ -183,6 +198,49 @@ def test_refresh_token_fallback_redacts_dynamic_reason(
     assert warning_record.pacx_reason == "error"
     assert warning_record.pacx_profile_hint == config_module._profile_log_hint("error-keyring")
     assert not hasattr(warning_record, "pacx_profile")
+
+
+def test_load_refresh_token_handles_keyring_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps(
+            {
+                "default": "error-profile",
+                "profiles": {
+                    "error-profile": {
+                        "name": "error-profile",
+                        "refresh_token_backend": "keyring",  # noqa: S105
+                        "refresh_token_ref": "pacx:refresh-token:error-profile",  # noqa: S105
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def failing_get_secret(spec: object) -> str:  # noqa: ARG001
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("pacx.config.get_secret", failing_get_secret)
+
+    store = ConfigStore(path=path)
+    caplog.set_level("WARNING")
+
+    cfg = store.load()
+
+    profile = cfg.profiles["error-profile"]
+    assert profile.refresh_token is None
+    assert profile.refresh_token_backend == "keyring"  # noqa: S105
+    assert profile.refresh_token_ref == "pacx:refresh-token:error-profile"  # noqa: S105
+
+    warning_record = next(
+        record for record in caplog.records if "Keyring lookup failed" in record.getMessage()
+    )
+    assert warning_record.pacx_reason == "error"
+    assert warning_record.pacx_profile_hint == config_module._profile_log_hint("error-profile")
+    assert warning_record.pacx_storage == "keyring"
 
 
 def test_delete_profile_removes_keyring_entry(
