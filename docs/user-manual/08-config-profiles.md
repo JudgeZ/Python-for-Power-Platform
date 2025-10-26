@@ -49,4 +49,4 @@ an encrypted config is read, the CLI now emits recovery guidance:
    existing secrets automatically.
 2. If the key is irretrievable, back up and remove the encrypted config file
    (`~/.pacx/config.json` unless `PACX_HOME` overrides it) and run
-   `ppx auth device` to bootstrap fresh credentials.
+   `ppx auth create NAME --flow device` to bootstrap fresh credentials.

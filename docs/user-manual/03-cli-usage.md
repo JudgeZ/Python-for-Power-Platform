@@ -9,7 +9,7 @@ Need a guided tour? Walk through the [end-to-end quick start](01-installation.md
 
 | Group | Description | Example |
 | --- | --- | --- |
-| `auth` | Configure and activate profiles used for authentication. | `ppx auth device my-profile --tenant-id ...` |
+| `auth` | Configure and activate profiles used for authentication. | `ppx auth create my-profile --tenant-id ... --client-id ...` |
 | `profile` | Inspect or change stored defaults such as the active environment or Dataverse host. | `ppx profile list` |
 | `dv` | Dataverse data access helpers (whoami, CRUD, bulk CSV). | `ppx dv list accounts --top 5` |
 | `connector` | Manage custom connector APIs within an environment. | `ppx connector list --environment-id ENV-ID` |
@@ -40,8 +40,9 @@ All commands support `--help`, which prints the description and option defaults 
 ### Authenticate with device code
 
 ```shell
-$ ppx auth device demo --tenant-id 00000000-0000-0000-0000-000000000000 --client-id 11111111-1111-1111-1111-111111111111
-Profile demo configured. It will use device code on demand.
+$ ppx auth create demo --tenant-id 00000000-0000-0000-0000-000000000000 --client-id 11111111-1111-1111-1111-111111111111 --flow device
+Profile demo configured and set as the default profile.
+Profile demo ready for device code flow.
 ```
 
 After running the command, set the newly created profile as default:

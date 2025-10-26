@@ -51,12 +51,14 @@ def handle_cli_errors(
                 "Restore the original key by exporting PACX_CONFIG_ENCRYPTION_KEY before rerunning the command."
             )
             console.print(
-                "If the key is lost, back up and remove the encrypted config (default ~/.pacx/config.json) then run `ppx auth device` to recreate credentials."
+                "If the key is lost, back up and remove the encrypted config (default ~/.pacx/config.json) then run `ppx auth create NAME --flow device` to recreate credentials."
             )
             raise typer.Exit(1) from None
         except AuthError as exc:
             console.print(f"[red]Error:[/red] Authentication failed: {exc}")
-            console.print("Run `ppx auth device` or `ppx auth secret` to refresh credentials.")
+            console.print(
+                "Run `ppx auth create NAME --flow device` or `ppx auth create NAME --flow client-credential` to refresh credentials."
+            )
             raise typer.Exit(1) from None
         except PacxError as exc:
             console.print(f"[red]Error:[/red] {exc}")

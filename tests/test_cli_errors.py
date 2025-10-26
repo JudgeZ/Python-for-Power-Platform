@@ -68,4 +68,4 @@ def test_encrypted_config_without_key_shows_recovery_steps(monkeypatch, tmp_path
 
     assert result.exit_code == 1
     assert "PACX_CONFIG_ENCRYPTION_KEY" in output
-    assert "ppx auth device" in output
+    assert "ppx auth create NAME --flow" in output
