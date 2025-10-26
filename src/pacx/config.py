@@ -364,7 +364,10 @@ class ConfigStore:
             if not isinstance(name, str) or not isinstance(data, dict):
                 continue
             details = {k: v for k, v in data.items() if k != "name" and k in profile_fields}
-            profs[name] = Profile(name=name, **details)
+            profile = Profile(name=name, **details)
+            if "use_device_code" not in data:
+                setattr(profile, "_legacy_device_code_default", True)
+            profs[name] = profile
 
         default_raw = raw.get("default")
         default_profile = default_raw if isinstance(default_raw, str) else None

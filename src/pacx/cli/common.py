@@ -119,9 +119,14 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
             secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
             if secret:
                 client_secret = secret
-        use_device_code = getattr(profile, "use_device_code", None)
-        if use_device_code is None:
+        raw_use_device_code = getattr(profile, "use_device_code", None)
+        legacy_device_code = bool(getattr(profile, "_legacy_device_code_default", False))
+        if raw_use_device_code is None:
             use_device_code = client_secret is None
+        elif legacy_device_code and client_secret is None:
+            use_device_code = True
+        else:
+            use_device_code = bool(raw_use_device_code)
 
         provider = AzureADTokenProvider(
             tenant_id=tenant_id,
