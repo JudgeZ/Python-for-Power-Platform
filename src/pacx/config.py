@@ -21,6 +21,24 @@ from .secrets import (
     store_keyring_secret,
 )
 
+_SAFE_KEYRING_FAILURE_CODES = frozenset({
+    "module-unavailable",
+    "setter-missing",
+    "invalid-ref",
+})
+
+
+def _sanitize_keyring_failure_reason(reason: str | None) -> str:
+    """Return a log-safe keyring failure reason."""
+
+    if reason is None:
+        return "unknown"
+    if reason in _SAFE_KEYRING_FAILURE_CODES:
+        return reason
+    if reason.startswith("error:"):
+        return "error"
+    return "unexpected"
+
 
 class FernetProtocol(Protocol):
     def __init__(self, key: bytes) -> None: ...
@@ -233,9 +251,14 @@ def _persist_refresh_token_with_keyring(payload: dict[str, Any]) -> None:
         return
     payload.pop("token_backend", None)
     payload.pop("token_ref", None)
+    sanitized_reason = _sanitize_keyring_failure_reason(reason)
     logger.warning(
         "Keyring unavailable; storing refresh token in encrypted config",
-        extra={"pacx_profile": name_raw, "pacx_reason": reason, "pacx_storage": "config"},
+        extra={
+            "pacx_profile": name_raw,
+            "pacx_reason": sanitized_reason,
+            "pacx_storage": "config",
+        },
     )
 
 

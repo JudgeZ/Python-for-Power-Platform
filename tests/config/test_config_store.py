@@ -151,7 +151,33 @@ def test_refresh_token_fallback_logs_warning(
     assert stored_profile["refresh_token"] == "fallback-token"  # noqa: S105
     assert stored_profile.get("token_backend") is None
     assert stored_profile.get("token_ref") is None
-    assert any("Keyring unavailable" in message for message in caplog.messages)
+    warning_records = [
+        record for record in caplog.records if "Keyring unavailable" in record.getMessage()
+    ]
+    assert warning_records
+    assert warning_records[-1].pacx_reason == "module-unavailable"
+
+
+def test_refresh_token_fallback_redacts_dynamic_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def failing_store(ref: str, secret: str) -> tuple[bool, str | None]:  # noqa: ARG001
+        return False, "error:RuntimeError"
+
+    monkeypatch.setattr("pacx.config.store_keyring_secret", failing_store)
+
+    path = tmp_path / "config.json"
+    store = ConfigStore(path=path)
+    profile = Profile(name="error-keyring", refresh_token="fallback-token")  # noqa: S106
+    cfg = ConfigData(default_profile="error-keyring", profiles={"error-keyring": profile})
+
+    caplog.set_level("WARNING")
+    store.save(cfg)
+
+    warning_record = next(
+        record for record in caplog.records if "Keyring unavailable" in record.getMessage()
+    )
+    assert warning_record.pacx_reason == "error"
 
 
 def test_delete_profile_removes_keyring_entry(
