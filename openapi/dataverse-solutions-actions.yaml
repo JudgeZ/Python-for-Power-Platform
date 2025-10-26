@@ -2,19 +2,30 @@ openapi: 3.0.3
 info:
   title: Dataverse Web API - Solutions & Publishing
   version: v9.2
-  description: Unbound actions for working with solutions and publishing via Microsoft Dataverse Web API.
+  description: Unbound actions for ImportSolution, ExportSolution, PublishAllXml, and OData $batch.
 servers:
   - url: https://{org}.crm.dynamics.com/api/data/v9.2
     variables:
       org:
         default: exampleorg
-        description: Your Dataverse org subdomain (e.g., contoso)
+        description: Your Dataverse org subdomain
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://{org}.crm.dynamics.com/.default: Dataverse org default scope
+security:
+  - oauth2: [https://{org}.crm.dynamics.com/.default]
 paths:
   /ImportSolution:
     post:
       summary: ImportSolution
-      description: Import a solution ZIP to Dataverse.
-      operationId: dv_importSolution
+      operationId: dv_importSolution_action
       requestBody:
         required: true
         content:
@@ -22,18 +33,17 @@ paths:
             schema:
               type: object
               properties:
+                CustomizationFile: { type: string, format: byte }
+                ImportJobId: { type: string, format: uuid }
                 OverwriteUnmanagedCustomizations: { type: boolean }
                 PublishWorkflows: { type: boolean }
-                CustomizationFile: { type: string, format: byte, description: Base64-encoded ZIP file bytes }
-                ImportJobId: { type: string, format: uuid }
               required: [CustomizationFile]
       responses:
-        "204": { description: No Content - Import started/completed }
+        "204": { description: No Content }
   /ExportSolution:
     post:
       summary: ExportSolution
-      description: Export a solution; response body includes ExportSolutionFile (base64 ZIP).
-      operationId: dv_exportSolution
+      operationId: dv_exportSolution_action
       requestBody:
         required: true
         content:
@@ -56,34 +66,17 @@ paths:
   /PublishAllXml:
     post:
       summary: PublishAllXml
-      description: Publish all changes to solution components.
-      operationId: dv_publishAllXml
+      operationId: dv_publishAllXml_action
       responses:
         "204": { description: No Content }
   /$batch:
     post:
       summary: Batch
-      description: Issue a multipart/mixed OData $batch request with optional change sets for transactional writes.
-      operationId: dv_batch
+      operationId: dv_batch_action
       requestBody:
         required: true
         content:
           multipart/mixed:
-            schema:
-              type: string
-              description: Raw OData batch payload per OData 4.01 spec.
+            schema: { type: string, description: Raw OData batch payload }
       responses:
         "200": { description: OK }
-components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://{org}.crm.dynamics.com/.default: Delegated permissions for your Dataverse org resource
-security:
-  - azureAd:
-    - https://{org}.crm.dynamics.com/.default

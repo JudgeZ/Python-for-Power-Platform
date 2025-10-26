@@ -1,15 +1,31 @@
 openapi: 3.0.3
 info:
-  title: Power Platform Governance - Rule Based Policies (DLP)
-  version: 2022-03-01-preview
-  description: Endpoints for managing tenant-level Data Loss Prevention (DLP) rule-based policies.
+  title: Power Platform Governance - DLP & Cross-Tenant Reports
+  version: 0.3.0
+  description: |
+    Data Loss Prevention (DLP) rule-based policies and Cross-Tenant Connection Reports.
 servers:
   - url: https://api.powerplatform.com
+tags:
+  - name: Rule Based Policies
+  - name: Cross-Tenant Reports
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /governance/ruleBasedPolicies:
     get:
-      summary: List rule based policies
-      description: List rule based DLP policies available in the tenant.
+      tags: [Rule Based Policies]
+      summary: List rule based DLP policies
       operationId: governance_listRuleBasedPolicies
       parameters:
         - name: api-version
@@ -18,7 +34,7 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: The list of policies.
+          description: Policies
           content:
             application/json:
               schema:
@@ -28,8 +44,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Policy" }
     post:
+      tags: [Rule Based Policies]
       summary: Create rule based policy
-      description: Create a new rule based DLP policy.
       operationId: governance_createRuleBasedPolicy
       parameters:
         - name: api-version
@@ -43,14 +59,14 @@ paths:
             schema: { $ref: "#/components/schemas/PolicyRequest" }
       responses:
         "200":
-          description: The details of the policy.
+          description: Created policy
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/RuleAssignment" }
+              schema: { $ref: "#/components/schemas/Policy" }
   /governance/ruleBasedPolicies/{policyId}:
     get:
+      tags: [Rule Based Policies]
       summary: Get rule based policy by ID
-      description: Get details about a specific rule based DLP policy.
       operationId: governance_getRuleBasedPolicy
       parameters:
         - name: policyId
@@ -63,13 +79,13 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: The details of the policy.
+          description: Policy
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Policy" }
     put:
-      summary: Update rule based policy by ID
-      description: Update an existing rule based DLP policy.
+      tags: [Rule Based Policies]
+      summary: Update rule based policy
       operationId: governance_updateRuleBasedPolicy
       parameters:
         - name: policyId
@@ -87,14 +103,14 @@ paths:
             schema: { $ref: "#/components/schemas/PolicyRequest" }
       responses:
         "200":
-          description: The details of the policy.
+          description: Updated policy
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/RuleAssignment" }
+              schema: { $ref: "#/components/schemas/Policy" }
   /governance/ruleBasedPolicies/{policyId}/assignments:
     get:
-      summary: List rule based policy assignments (by policy)
-      description: List rule assignments for a specific DLP policy.
+      tags: [Rule Based Policies]
+      summary: List assignments for a policy
       operationId: governance_listAssignmentsByPolicy
       parameters:
         - name: policyId
@@ -111,7 +127,7 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: A list of policy assignments for the specified policy.
+          description: Assignments
           content:
             application/json:
               schema:
@@ -122,8 +138,8 @@ paths:
                     items: { $ref: "#/components/schemas/RuleAssignment" }
   /governance/ruleBasedPolicies/assignments:
     get:
-      summary: List rule based policy assignments
-      description: List all rule based DLP policy assignments in the tenant.
+      tags: [Rule Based Policies]
+      summary: List all policy assignments
       operationId: governance_listRuleAssignments
       parameters:
         - name: includeRuleSetCounts
@@ -136,7 +152,7 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: A list of policy assignments.
+          description: Assignments
           content:
             application/json:
               schema:
@@ -147,8 +163,8 @@ paths:
                     items: { $ref: "#/components/schemas/RuleAssignment" }
   /governance/ruleBasedPolicies/environmentGroups/{environmentGroupId}/assignments:
     get:
-      summary: List rule based policy assignments by environment group
-      description: List rule assignments for a specific environment group.
+      tags: [Rule Based Policies]
+      summary: List assignments for an environment group
       operationId: governance_listAssignmentsByEnvironmentGroup
       parameters:
         - name: environmentGroupId
@@ -165,7 +181,7 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: A list of policy assignments for the specified environment group.
+          description: Assignments
           content:
             application/json:
               schema:
@@ -176,8 +192,8 @@ paths:
                     items: { $ref: "#/components/schemas/RuleAssignment" }
   /governance/ruleBasedPolicies/environments/{environmentId}/assignments:
     get:
-      summary: List rule based policy assignments by environment
-      description: List rule assignments for a specific environment.
+      tags: [Rule Based Policies]
+      summary: List assignments for an environment
       operationId: governance_listAssignmentsByEnvironment
       parameters:
         - name: environmentId
@@ -194,7 +210,7 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: A list of policy assignments for the specified environment.
+          description: Assignments
           content:
             application/json:
               schema:
@@ -203,16 +219,122 @@ paths:
                   value:
                     type: array
                     items: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/{policyId}/environmentGroups/{groupId}/assignments:
+    post:
+      tags: [Rule Based Policies]
+      summary: Assign policy to environment group
+      operationId: governance_assignPolicyToEnvironmentGroup
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: groupId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: Assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/{policyId}/environments/{environmentId}/assignments:
+    post:
+      tags: [Rule Based Policies]
+      summary: Assign policy to environment
+      operationId: governance_assignPolicyToEnvironment
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: Assignment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/crossTenantConnectionReports:
+    get:
+      tags: [Cross-Tenant Reports]
+      summary: List cross-tenant connection reports
+      operationId: governance_listCrossTenantConnectionReports
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/CrossTenantReport" }
+    post:
+      tags: [Cross-Tenant Reports]
+      summary: Create cross-tenant connection report
+      operationId: governance_createCrossTenantConnectionReport
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CrossTenantReportRequest" }
+      responses:
+        "202": { description: Accepted - report generation started }
+  /governance/crossTenantConnectionReports/{reportId}:
+    get:
+      tags: [Cross-Tenant Reports]
+      summary: Get cross-tenant connection report
+      operationId: governance_getCrossTenantConnectionReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CrossTenantReport" }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     RuleSet:
       type: object
@@ -243,6 +365,14 @@ components:
         resourceType: { type: string }
         ruleSetCount: { type: integer }
         tenantId: { type: string }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default
+    CrossTenantReportRequest:
+      type: object
+      additionalProperties: true
+    CrossTenantReport:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [Queued, Running, Succeeded, Failed] }
+        createdTime: { type: string, format: date-time }
+        completedTime: { type: string, format: date-time }
+        downloadUri: { type: string }

@@ -1,18 +1,32 @@
 openapi: 3.0.3
 info:
   title: Power Platform Custom Connectors Admin API
-  version: 0.2.1
-  description: Manage custom connectors via Power Platform admin API.
+  version: 0.3.0
+  description: |
+    Manage custom connectors via the Power Platform Admin API.
+    Supports list, get, create/update from an OpenAPI definition, and delete.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Custom Connectors
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /powerapps/environments/{environmentId}/apis:
     get:
       tags: [Custom Connectors]
       summary: List custom connectors (APIs)
-      description: List custom connectors in a given environment.
+      description: List custom connectors in a given environment with optional paging.
       operationId: connectors_listApis
       parameters:
         - name: environmentId
@@ -106,20 +120,31 @@ paths:
                       required: [format, value]
                       properties:
                         format: { type: string, enum: [swagger, openapi] }
-                        value: { type: string, description: "Raw OpenAPI/Swagger text" }
+                        value: { type: string, description: "Raw OpenAPI or Swagger text" }
       responses:
         "200": { description: Updated }
         "201": { description: Created }
+    delete:
+      tags: [Custom Connectors]
+      summary: Delete connector
+      description: Delete a custom connector by name.
+      operationId: connectors_deleteApi
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: apiName
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "204": { description: Deleted }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     Connector:
       type: object
@@ -127,6 +152,3 @@ components:
       properties:
         name: { type: string }
         properties: { type: object, additionalProperties: true }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default

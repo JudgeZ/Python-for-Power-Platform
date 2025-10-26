@@ -2,14 +2,25 @@ openapi: 3.0.3
 info:
   title: Power Automate - Runs & Actions (read-only)
   version: 2022-03-01-preview
-  description: Read-only reporting endpoints for Power Automate flow runs and actions.
+  description: Read-only reporting endpoints for cloud flow runs and actions.
 servers:
   - url: https://api.powerplatform.com
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /powerautomate/environments/{environmentId}/flowRuns:
     get:
       summary: List flow runs
-      description: Retrieve flow run history for a specific cloud flow.
       operationId: powerAutomate_listFlowRuns
       parameters:
         - name: environmentId
@@ -36,12 +47,10 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/FlowRun" }
                   nextLink: { type: string }
-        "204":
-          description: No content
+        "204": { description: No content }
   /powerautomate/environments/{environmentId}/flowActions:
     get:
       summary: List flow actions
-      description: Retrieve flow actions (steps) within cloud flows, with optional filters.
       operationId: powerAutomate_listFlowActions
       parameters:
         - name: environmentId
@@ -92,18 +101,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/FlowAction" }
                   nextLink: { type: string }
-        "204":
-          description: No content
+        "204": { description: No content }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     FlowRun:
       type: object
@@ -122,6 +121,3 @@ components:
         connector: { type: string }
         workflowId: { type: string }
         actionType: { type: string }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default

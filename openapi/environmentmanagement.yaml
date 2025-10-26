@@ -2,14 +2,57 @@ openapi: 3.0.3
 info:
   title: Power Platform - Environment Management
   version: 2022-03-01-preview
-  description: Endpoints for managing Power Platform environments and environment groups.
+  description: Manage Power Platform environments and environment groups.
 servers:
   - url: https://api.powerplatform.com
+tags:
+  - name: Environment Management
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+  schemas:
+    Environment:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        region: { type: string }
+        createdTime: { type: string, format: date-time }
+        createdBy: { type: object, additionalProperties: true }
+    EnvironmentGroup:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        description: { type: string }
+        parentGroupId: { type: string, format: uuid }
+        childrenGroupIds:
+          type: array
+          items: { type: string, format: uuid }
+    OperationExecutionResult:
+      type: object
+      additionalProperties: true
+      properties:
+        operationId: { type: string }
+        status: { type: string, enum: [Queued, Running, Succeeded, Failed] }
+        message: { type: string }
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /environmentmanagement/environments:
     get:
-      summary: List Environments For User
-      description: Retrieve a list of environments available to the user.
+      tags: [Environment Management]
+      summary: List environments for user
       operationId: environmentManagement_listEnvironments
       parameters:
         - name: api-version
@@ -30,8 +73,8 @@ paths:
                   nextLink: { type: string }
   /environmentmanagement/environments/{environmentId}:
     get:
-      summary: Get Environment
-      description: Retrieve details of a specific environment.
+      tags: [Environment Management]
+      summary: Get environment
       operationId: environmentManagement_getEnvironment
       parameters:
         - name: environmentId
@@ -44,13 +87,13 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: Environment details
+          description: Environment
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Environment" }
     delete:
-      summary: Delete Environment
-      description: Delete an environment by ID.
+      tags: [Environment Management]
+      summary: Delete environment
       operationId: environmentManagement_deleteEnvironment
       parameters:
         - name: environmentId
@@ -66,12 +109,17 @@ paths:
           required: true
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "202": { description: Deletion accepted }
+        "202":
+          description: Deletion accepted
+          headers:
+            Operation-Location:
+              description: Polling URL for the long-running operation
+              schema: { type: string, format: uri }
         "204": { description: Deleted }
   /environmentmanagement/environmentGroups:
     get:
-      summary: List Environment Groups
-      description: Retrieve a list of environment groups.
+      tags: [Environment Management]
+      summary: List environment groups
       operationId: environmentManagement_listEnvironmentGroups
       parameters:
         - name: api-version
@@ -90,8 +138,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/EnvironmentGroup" }
     post:
-      summary: Create Environment Group
-      description: Create a new environment group.
+      tags: [Environment Management]
+      summary: Create environment group
       operationId: environmentManagement_createEnvironmentGroup
       parameters:
         - name: api-version
@@ -107,8 +155,8 @@ paths:
         "200": { description: Created }
   /environmentmanagement/environmentGroups/{groupId}:
     get:
-      summary: Get Environment Group
-      description: Retrieve details of a specific environment group.
+      tags: [Environment Management]
+      summary: Get environment group
       operationId: environmentManagement_getEnvironmentGroup
       parameters:
         - name: groupId
@@ -121,28 +169,13 @@ paths:
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: Environment group details
+          description: Environment group
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvironmentGroup" }
-    delete:
-      summary: Delete Environment Group
-      description: Delete an environment group by ID.
-      operationId: environmentManagement_deleteEnvironmentGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "202": { description: Deletion accepted }
     patch:
-      summary: Update Environment Group
-      description: Update the properties of an environment group.
+      tags: [Environment Management]
+      summary: Update environment group
       operationId: environmentManagement_updateEnvironmentGroup
       parameters:
         - name: groupId
@@ -160,10 +193,30 @@ paths:
             schema: { $ref: "#/components/schemas/EnvironmentGroup" }
       responses:
         "200": { description: Updated }
+    delete:
+      tags: [Environment Management]
+      summary: Delete environment group
+      operationId: environmentManagement_deleteEnvironmentGroup
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "202":
+          description: Deletion accepted
+          headers:
+            Operation-Location:
+              description: Polling URL for the long-running operation
+              schema: { type: string, format: uri }
   /environmentmanagement/environmentGroups/{groupId}/addEnvironment/{environmentId}:
     post:
-      summary: Add Environment To Group
-      description: Add an environment to a specified environment group.
+      tags: [Environment Management]
+      summary: Add environment to group
       operationId: environmentManagement_addEnvironmentToGroup
       parameters:
         - name: groupId
@@ -179,12 +232,17 @@ paths:
           required: true
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "202": { description: Accepted }
+        "202": 
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: Polling URL for the long-running operation
+              schema: { type: string, format: uri }
         "204": { description: No Content }
   /environmentmanagement/environmentGroups/{groupId}/removeEnvironment/{environmentId}:
     post:
-      summary: Remove Environment From Group
-      description: Remove an environment from a specified environment group.
+      tags: [Environment Management]
+      summary: Remove environment from group
       operationId: environmentManagement_removeEnvironmentFromGroup
       parameters:
         - name: groupId
@@ -200,12 +258,17 @@ paths:
           required: true
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "202": { description: Accepted }
+        "202": 
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: Polling URL for the long-running operation
+              schema: { type: string, format: uri }
         "204": { description: No Content }
   /environmentmanagement/environments/{environmentId}/settings:
     get:
-      summary: List Environment Management Settings
-      description: List environment management settings for the specified environment.
+      tags: [Environment Management]
+      summary: List environment management settings
       operationId: environmentManagement_listSettings
       parameters:
         - name: environmentId
@@ -223,8 +286,8 @@ paths:
             application/json:
               schema: { type: object }
     post:
-      summary: Create Environment Management Settings
-      description: Create a new environment management setting for the environment.
+      tags: [Environment Management]
+      summary: Create environment management settings
       operationId: environmentManagement_createSettings
       parameters:
         - name: environmentId
@@ -243,8 +306,8 @@ paths:
       responses:
         "200": { description: OK }
     patch:
-      summary: Update Environment Management Settings
-      description: Update fields on the environment management settings.
+      tags: [Environment Management]
+      summary: Update environment management settings
       operationId: environmentManagement_updateSettings
       parameters:
         - name: environmentId
@@ -264,7 +327,8 @@ paths:
         "200": { description: OK }
   /environmentmanagement/environments/{environmentId}/governancesetting/enablemanaged:
     post:
-      summary: Enable Managed Environment
+      tags: [Environment Management]
+      summary: Enable managed environment
       description: Opt-in the environment to become a managed environment.
       operationId: environmentManagement_enableManagedEnvironment
       parameters:
@@ -272,42 +336,28 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - name: ValidateOnly
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: ValidateProperties
+          in: query
+          required: false
+          schema: { type: boolean }
         - name: api-version
           in: query
           required: true
           schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "200": { description: OK }
-components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
-  schemas:
-    Environment:
-      type: object
-      properties:
-        id: { type: string }
-        name: { type: string }
-        type: { type: string }
-        region: { type: string }
-        createdTime: { type: string, format: date-time }
-        createdBy: { type: object, additionalProperties: true }
-    EnvironmentGroup:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        displayName: { type: string }
-        description: { type: string }
-        parentGroupId: { type: string, format: uuid }
-        childrenGroupIds:
-          type: array
-          items: { type: string, format: uuid }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default
+        "201":
+          description: Created - operation accepted and created
+          headers:
+            Operation-Location:
+              description: Polling URL for the long-running operation
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OperationExecutionResult" }
+        "400": { description: Bad Request }
+        "401": { description: Unauthorized }
+        "404": { description: Not Found }

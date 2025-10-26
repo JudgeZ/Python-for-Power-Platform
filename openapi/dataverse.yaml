@@ -1,16 +1,53 @@
 openapi: 3.0.3
 info:
-  title: Microsoft Dataverse Web API (v9.2 umbrella)
-  version: 0.4.1
+  title: Microsoft Dataverse Web API (v9.2)
+  version: 0.5.0
   description: |
-    Generic OData v4 schema for Dataverse operations (v9.2), including Solutions, WhoAmI,
-    generic entity CRUD, $batch, and annotations listing for web file binaries.
+    Dataverse OData v4: Solutions, Publish, WhoAmI, generic entity CRUD, annotations (documentbody),
+    and $batch with per-operation results (HTTP 200). Upsert supports alternate keys and If-Match/If-None-Match.
 servers:
-  - url: https://{host}/api/data/v9.2
+  - url: https://{org}.crm.dynamics.com/api/data/v9.2
     variables:
-      host:
-        default: yourorg.crm.dynamics.com
-        description: Dataverse organization host (e.g., contoso.crm.dynamics.com)
+      org:
+        default: yourorg
+        description: Dataverse org subdomain (e.g., contoso)
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://{org}.crm.dynamics.com/.default: Dataverse org default scope
+  parameters:
+    PreferContinueOnError:
+      name: Prefer
+      in: header
+      required: false
+      schema: { type: string, enum: ["odata.continue-on-error"] }
+      description: Continue other operations when one fails in $batch.
+    PreferReturnRepresentation:
+      name: Prefer
+      in: header
+      required: false
+      schema: { type: string, enum: ["return=representation"] }
+      description: Return representation to distinguish update (200) vs create (201).
+    IfMatchAny:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string, enum: ["*"] }
+      description: Force update-only behavior for PATCH.
+    IfNoneMatchAny:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string, enum: ["*"] }
+      description: Force create-only behavior for PATCH.
+security:
+  - oauth2: [https://{org}.crm.dynamics.com/.default]
 paths:
   /solutions:
     get:
@@ -37,7 +74,7 @@ paths:
                   value:
                     type: array
                     items: { $ref: "#/components/schemas/Solution" }
-                  @odata.nextLink: { type: string }
+                  "@odata.nextLink": { type: string }
   /ExportSolution:
     post:
       summary: Export solution
@@ -70,12 +107,12 @@ paths:
   /PublishAllXml:
     post:
       summary: Publish all customizations
-      operationId: dv_publishAll
+      operationId: dv_publishAllXml
       responses:
         "204": { description: Published }
-  /WhoAmI():
+  /WhoAmI:
     get:
-      summary: WhoAmI (current user/identity)
+      summary: WhoAmI (current user)
       operationId: dv_whoAmI
       responses:
         "200":
@@ -85,20 +122,26 @@ paths:
               schema: { type: object, additionalProperties: true }
   /$batch:
     post:
-      summary: OData $batch
+      summary: OData $batch (per-operation results)
       operationId: dv_batch
+      parameters:
+        - $ref: "#/components/parameters/PreferContinueOnError"
       requestBody:
         required: true
         content:
           multipart/mixed:
             schema:
               type: string
-              description: "Raw multipart/mixed body per OData v4 $batch spec."
+              description: Raw multipart/mixed body per OData v4 spec.
       responses:
-        "202": { description: Accepted }
+        "200":
+          description: OK (multipart/mixed with per-op results)
+          content:
+            multipart/mixed:
+              schema: { type: string }
   /annotations:
     get:
-      summary: List annotations (Notes) – includes documentbody for file/binary
+      summary: List annotations (Notes) including documentbody (file)
       operationId: dv_listAnnotations
       parameters:
         - name: $select
@@ -123,13 +166,9 @@ paths:
                     items: { type: object, additionalProperties: true }
   /{entityset}:
     post:
-      summary: Create record (generic)
+      summary: Create record
       operationId: dv_createRecord
-      parameters:
-        - name: entityset
-          in: path
-          required: true
-          schema: { type: string, example: "accounts" }
+      parameters: []
       requestBody:
         required: true
         content:
@@ -137,14 +176,14 @@ paths:
             schema: { type: object, additionalProperties: true }
       responses:
         "204": { description: Created (Location/OData-EntityId header contains url) }
+        "201":
+          description: Created (representation) when Prefer return=representation is used
+          content:
+            application/json: { schema: { type: object } }
     get:
-      summary: List records (generic)
+      summary: List records
       operationId: dv_listRecords
       parameters:
-        - name: entityset
-          in: path
-          required: true
-          schema: { type: string }
         - name: $select
           in: query
           schema: { type: string }
@@ -168,19 +207,15 @@ paths:
                   value:
                     type: array
                     items: { type: object, additionalProperties: true }
-  /{entityset}({id}):
+  /{entityset}({key}):
     get:
-      summary: Get record (generic)
+      summary: Get record by key (GUID or alternate key expression)
       operationId: dv_getRecord
       parameters:
-        - name: entityset
+        - name: key
           in: path
           required: true
           schema: { type: string }
-        - name: id
-          in: path
-          required: true
-          schema: { type: string, example: "00000000-0000-0000-0000-000000000001" }
       responses:
         "200":
           description: Record
@@ -188,48 +223,37 @@ paths:
             application/json:
               schema: { type: object, additionalProperties: true }
     patch:
-      summary: Update record (generic)
-      operationId: dv_updateRecord
+      summary: Upsert/Update record
+      description: >
+        PATCH using primary GUID or alternate key (e.g., /accounts(accountnumber='ABC123')).
+        Use If-Match: * for update-only; If-None-Match: * for create-only.
+      operationId: dv_upsertRecord
       parameters:
-        - name: entityset
-          in: path
-          required: true
-          schema: { type: string }
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
+        - $ref: "#/components/parameters/IfMatchAny"
+        - $ref: "#/components/parameters/IfNoneMatchAny"
+        - $ref: "#/components/parameters/PreferReturnRepresentation"
       requestBody:
         required: true
         content:
           application/json:
             schema: { type: object, additionalProperties: true }
       responses:
-        "204": { description: Updated }
+        "204": { description: Updated (no content) }
+        "200":
+          description: Updated (representation) when Prefer return=representation is used
+          content:
+            application/json: { schema: { type: object } }
+        "201":
+          description: Created (representation) when Prefer return=representation is used and record created
+          content:
+            application/json: { schema: { type: object } }
+        "412": { description: Precondition Failed if If-None-Match used and record exists }
     delete:
-      summary: Delete record (generic)
+      summary: Delete record
       operationId: dv_deleteRecord
-      parameters:
-        - name: entityset
-          in: path
-          required: true
-          schema: { type: string }
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
       responses:
         "204": { description: Deleted }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://{host}/.default: Delegated permissions for your Dataverse org resource
   schemas:
     Solution:
       type: object
@@ -243,7 +267,7 @@ components:
       type: object
       required: [SolutionName, Managed]
       properties:
-        SolutionName: { type: string, description: Unique solution name }
+        SolutionName: { type: string }
         Managed: { type: boolean }
     ImportSolutionRequest:
       type: object
@@ -252,11 +276,8 @@ components:
         CustomizationFile:
           type: string
           format: byte
-          description: Base64-encoded ZIP of the solution
+          description: Base64-encoded solution ZIP
         ImportJobId:
           type: string
           format: uuid
           description: Optional job id to track long-running import
-security:
-  - azureAd:
-    - https://{host}/.default

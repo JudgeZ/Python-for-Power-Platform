@@ -1,18 +1,29 @@
 openapi: 3.0.3
 info:
   title: Power Automate Admin API
-  version: 0.2.1
-  description: Admin endpoints for cloud flows and runs under api.powerplatform.com.
+  version: 0.3.0
+  description: Admin endpoints for cloud flows and flow runs under api.powerplatform.com.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Power Automate (Admin)
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /powerautomate/environments/{environmentId}/cloudFlows:
     get:
       tags: [Power Automate (Admin)]
       summary: List cloud flows
-      description: Retrieve cloud flows with optional filters.
       operationId: powerAutomate_listCloudFlows
       parameters:
         - name: environmentId
@@ -67,14 +78,12 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/CloudFlow" }
                   nextLink: { type: string }
-        "204":
-          description: No content
+        "204": { description: No content }
   /powerautomate/environments/{environmentId}/flowRuns:
     get:
       tags: [Power Automate (Admin)]
       summary: List flow runs by workflow ID
-      description: Retrieve flow run history for a specific cloud flow.
-      operationId: powerAutomate_listFlowRuns
+      operationId: powerAutomate_listFlowRuns_admin
       parameters:
         - name: environmentId
           in: path
@@ -100,18 +109,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/FlowRun" }
                   nextLink: { type: string }
-        "204":
-          description: No content
+        "204": { description: No content }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     CloudFlow:
       type: object
@@ -129,6 +128,3 @@ components:
         status: { type: string }
         startTime: { type: string, format: date-time }
         endTime: { type: string, format: date-time }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default

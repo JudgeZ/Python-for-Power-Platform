@@ -1,18 +1,30 @@
 openapi: 3.0.3
 info:
   title: Power Apps Administrative API
-  version: 0.2.1
-  description: Admin-facing endpoints for Power Apps under api.powerplatform.com.
+  version: 0.3.0
+  description: Admin endpoints for Power Apps under api.powerplatform.com.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Power Apps (Admin)
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Power Platform API default scope
+security:
+  - oauth2: [https://api.powerplatform.com/.default]
 paths:
   /powerapps/environments/{environmentId}/apps:
     get:
       tags: [Power Apps (Admin)]
       summary: List apps
-      description: List all Power Apps in a given environment.
+      description: List all Power Apps in a given environment with optional paging.
       operationId: powerApps_listApps
       parameters:
         - name: environmentId
@@ -69,15 +81,6 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PowerApp" }
 components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     PowerApp:
       type: object
@@ -87,6 +90,3 @@ components:
         name: { type: string }
         type: { type: string }
         properties: { type: object, additionalProperties: true }
-security:
-  - azureAd:
-    - https://api.powerplatform.com/.default

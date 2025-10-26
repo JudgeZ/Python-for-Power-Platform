@@ -1,20 +1,44 @@
 openapi: 3.0.3
 info:
   title: Power Apps Checker Web API
-  version: "1.0/2.0"
+  version: 1.0/2.0
   description: |
-    Power Apps checker service for solution static analysis.
-    Rulesets/rules use api-version=2.0; upload/analyze/status use api-version=1.0.
+    Power Apps Checker: list rulesets/rules, upload solutions, start analysis, poll status.
 servers:
   - url: https://{geography}.api.advisor.powerapps.com/api
     variables:
       geography:
         default: unitedstates
         enum: [unitedstates, europe, asia, australia, japan, india, canada, southamerica, unitedkingdom, france, germany, unitedarabemirates, switzerland, southafrica, korea, norway, singapore, sweden, poland, italy]
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
+          scopes:
+            https://api.advisor.powerapps.com/.default: Power Apps Checker default scope
+  parameters:
+    XMsTenantId:
+      name: x-ms-tenant-id
+      in: header
+      required: true
+      description: Azure AD tenant ID (GUID)
+      schema: { type: string, format: uuid }
+    XMsCorrelationId:
+      name: x-ms-correlation-id
+      in: header
+      required: true
+      description: Correlation ID (GUID) for tracking the request
+      schema: { type: string, format: uuid }
+security:
+  - oauth2: [https://api.advisor.powerapps.com/.default]
 paths:
   /ruleset:
     get:
-      summary: Retrieve list of rulesets
+      summary: List rulesets
       operationId: checker_listRulesets
       parameters:
         - name: api-version
@@ -36,7 +60,7 @@ paths:
         "204": { description: No Content }
   /rules:
     get:
-      summary: Retrieve list of rules
+      summary: List rules
       operationId: checker_listRules
       parameters:
         - name: api-version
@@ -53,9 +77,11 @@ paths:
                 items: { type: object }
   /upload:
     post:
-      summary: Upload a file for analysis (<= 30 MB)
+      summary: Upload file for analysis
       operationId: checker_upload
       parameters:
+        - $ref: '#/components/parameters/XMsTenantId'
+        - $ref: '#/components/parameters/XMsCorrelationId'
         - name: api-version
           in: query
           required: false
@@ -73,7 +99,7 @@ paths:
               required: [file]
       responses:
         "200":
-          description: OK - returns array of SAS URLs for uploaded files
+          description: OK (array of SAS URLs)
           content:
             application/json:
               schema:
@@ -81,10 +107,11 @@ paths:
                 items: { type: string }
   /analyze:
     post:
-      summary: Invoke analysis
-      description: Initiate an analysis job; poll the returned Location for status.
+      summary: Start analysis
       operationId: checker_analyze
       parameters:
+        - $ref: '#/components/parameters/XMsTenantId'
+        - $ref: '#/components/parameters/XMsCorrelationId'
         - name: api-version
           in: query
           required: false
@@ -96,21 +123,23 @@ paths:
             schema:
               type: object
               properties:
-                files: { type: array, items: { type: string }, description: SAS URLs or upload-returned URLs }
+                files: { type: array, items: { type: string } }
                 rulesetIds: { type: array, items: { type: string, format: uuid } }
                 exclude: { type: array, items: { type: string } }
               required: [files]
       responses:
         "202":
-          description: Accepted - Location header contains status URL
+          description: Accepted - poll Location header for status
           headers:
             Location:
               schema: { type: string }
   /status/{runId}:
     get:
-      summary: Check analysis status
+      summary: Get analysis status
       operationId: checker_status
       parameters:
+        - $ref: '#/components/parameters/XMsTenantId'
+        - $ref: '#/components/parameters/XMsCorrelationId'
         - name: runId
           in: path
           required: true
@@ -127,20 +156,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: { type: string, enum: ["InProgress","Finished","FinishedWithErrors","Failed"] }
+                  status: { type: string, enum: [InProgress, Finished, FinishedWithErrors, Failed] }
                   progress: { type: integer }
                   resultFileUris: { type: array, items: { type: string } }
         "202": { description: Still processing }
-components:
-  securitySchemes:
-    azureAd:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
-          scopes:
-            https://api.advisor.powerapps.com/.default: Default delegated permissions for Power Apps Checker
-security:
-  - azureAd:
-    - https://api.advisor.powerapps.com/.default
