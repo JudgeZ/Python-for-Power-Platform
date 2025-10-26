@@ -39,15 +39,16 @@ def _profile_log_hint(name: str | None) -> str:
 
 
 def _sanitize_keyring_failure_reason(reason: str | None) -> str:
-    """Return a log-safe keyring failure reason."""
+    """Return a log-safe, non-sensitive constant describing keyring failure.
 
-    if reason is None:
-        return "unknown"
+    This will always return one of a small set of hardcoded strings.
+    Never includes error details from external sources.
+    """
     if reason in _SAFE_KEYRING_FAILURE_CODES:
         return reason
-    if reason.startswith("error:"):
+    if reason is not None and reason.startswith("error:"):
         return "error"
-    return "unexpected"
+    return "unavailable"
 
 
 class FernetProtocol(Protocol):
