@@ -1,0 +1,232 @@
+
+openapi: 3.0.3
+info:
+  title: Microsoft Power Platform Admin API (Consolidated)
+  version: 0.3.0
+  description: |
+    High-level administration endpoints under api.powerplatform.com.
+    Includes environment management, Power Apps admin, and Power Automate admin surfaces.
+    Note: API versions and shapes evolve; verify api-version parameter per tenant.
+servers:
+  - url: https://api.powerplatform.com
+tags:
+  - name: Environment Management
+  - name: Power Apps (Admin)
+  - name: Power Automate (Admin)
+
+paths:
+  /environmentmanagement/environments:
+    get:
+      tags: [Environment Management]
+      summary: List environments
+      operationId: ppEnv_listEnvironments
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: A list of environments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/EnvironmentSummary" }
+                  nextLink: { type: string }
+
+  /environmentmanagement/environments/{environmentId}:
+    get:
+      tags: [Environment Management]
+      summary: Get environment
+      operationId: ppEnv_getEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Environment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvironmentSummary" }
+    delete:
+      tags: [Environment Management]
+      summary: Delete environment
+      operationId: ppEnv_deleteEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: ValidateOnly
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "202": { description: Deletion accepted }
+        "204": { description: Deleted }
+
+  /powerapps/environments/{environmentId}/apps:
+    get:
+      tags: [Power Apps (Admin)]
+      summary: List Power Apps
+      operationId: ppApps_list
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: $top
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+        - name: $skiptoken
+          in: query
+          required: false
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: List of apps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/PowerApp" }
+                  nextLink: { type: string }
+
+  /powerautomate/environments/{environmentId}/cloudFlows:
+    get:
+      tags: [Power Automate (Admin)]
+      summary: List cloud flows
+      operationId: ppFlows_list
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+        - name: ownerId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: createdOnStartDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: createdOnEndDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Flows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/CloudFlow" }
+                  nextLink: { type: string }
+
+  /powerautomate/environments/{environmentId}/flowRuns:
+    get:
+      tags: [Power Automate (Admin)]
+      summary: List flow runs by workflow
+      operationId: ppFlowRuns_listByWorkflow
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: workflowId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Flow runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlowRun" }
+                  nextLink: { type: string }
+
+components:
+  schemas:
+    EnvironmentSummary:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string }
+        environmentType:
+          type: string
+          description: Environment kind (Sandbox/Production/Trial/etc.)
+        properties:
+          type: object
+          additionalProperties: true
+
+    PowerApp:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        properties:
+          type: object
+          additionalProperties: true
+
+    CloudFlow:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        properties:
+          type: object
+          additionalProperties: true
+
+    FlowRun:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }

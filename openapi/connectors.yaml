@@ -1,0 +1,115 @@
+
+openapi: 3.0.3
+info:
+  title: Power Platform Custom Connectors Admin API
+  version: 0.2.0
+  description: Manage custom connectors via admin surface.
+servers:
+  - url: https://api.powerplatform.com
+tags:
+  - name: Custom Connectors
+
+paths:
+  /powerapps/environments/{environmentId}/apis:
+    get:
+      tags: [Custom Connectors]
+      summary: List custom connectors (APIs)
+      operationId: connectors_list
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+        - name: $top
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+        - name: $skiptoken
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Connector list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+
+  /powerapps/environments/{environmentId}/apis/{apiName}:
+    get:
+      tags: [Custom Connectors]
+      summary: Get connector
+      operationId: connectors_get
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: apiName
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Connector
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    put:
+      tags: [Custom Connectors]
+      summary: Create or update connector (from OpenAPI)
+      operationId: connectors_put
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: apiName
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, properties]
+              properties:
+                name: { type: string }
+                properties:
+                  type: object
+                  required: [displayName, apiDefinition]
+                  properties:
+                    displayName: { type: string }
+                    iconBrandColor: { type: string }
+                    apiDefinition:
+                      type: object
+                      required: [format, value]
+                      properties:
+                        format: { type: string, enum: [swagger, openapi] }
+                        value: { type: string, description: "Raw OpenAPI/Swagger text" }
+      responses:
+        "200": { description: Updated }
+        "201": { description: Created }

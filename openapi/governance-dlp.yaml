@@ -1,0 +1,50 @@
+
+openapi: 3.0.3
+info:
+  title: Power Platform Governance - Rule Based Policies (DLP)
+  version: "2022-03-01-preview"
+servers:
+  - url: https://api.powerplatform.com
+paths:
+  /governance/ruleBasedPolicies:
+    get:
+      summary: List Rule Based Policies
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: {type: object}
+  /governance/ruleBasedPolicies/environments/{environmentId}/assignments:
+    get:
+      summary: List Rule Assignments By Environment Id
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: includeRuleSetCounts
+          in: query
+          required: true
+          schema: {type: boolean}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object

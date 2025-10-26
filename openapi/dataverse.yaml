@@ -1,0 +1,297 @@
+
+openapi: 3.0.3
+info:
+  title: Microsoft Dataverse Web API (v9.2 umbrella)
+  version: 0.4.0
+  description: |
+    Generic OData v4 schema for Dataverse operations (v9.2), including Solutions, WhoAmI,
+    generic entity CRUD, $batch, and annotations listing for web file binaries.
+servers:
+  - url: https://{host}/api/data/v9.2
+    variables:
+      host:
+        default: yourorg.crm.dynamics.com
+        description: Dataverse organization host (e.g., contoso.crm.dynamics.com)
+tags:
+  - name: Solutions
+  - name: Core (OData)
+  - name: Utilities
+
+paths:
+  /solutions:
+    get:
+      tags: [Solutions]
+      summary: List solutions
+      operationId: dv_listSolutions
+      parameters:
+        - name: $select
+          in: query
+          schema: { type: string }
+        - name: $filter
+          in: query
+          schema: { type: string }
+        - name: $top
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5000 }
+      responses:
+        "200":
+          description: Solutions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/Solution" }
+                  @odata.nextLink: { type: string }
+
+  /ExportSolution:
+    post:
+      tags: [Solutions]
+      summary: Export solution
+      operationId: dv_exportSolution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExportSolutionRequest" }
+      responses:
+        "200":
+          description: Export payload (base64 zip)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ExportSolutionFile:
+                    type: string
+                    format: byte
+
+  /ImportSolution:
+    post:
+      tags: [Solutions]
+      summary: Import solution
+      operationId: dv_importSolution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImportSolutionRequest" }
+      responses:
+        "204": { description: Accepted/Completed }
+
+  /PublishAllXml:
+    post:
+      tags: [Solutions]
+      summary: Publish all customizations
+      operationId: dv_publishAll
+      responses:
+        "204": { description: Published }
+
+  /WhoAmI():
+    get:
+      tags: [Utilities]
+      summary: WhoAmI (current user/identity)
+      operationId: dv_whoAmI
+      responses:
+        "200":
+          description: Identity payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /$batch:
+    post:
+      tags: [Core (OData)]
+      summary: OData $batch
+      operationId: dv_batch
+      requestBody:
+        required: true
+        content:
+          multipart/mixed:
+            schema:
+              type: string
+              description: "Raw multipart/mixed body per OData v4 $batch spec."
+      responses:
+        "202": { description: Accepted }
+
+  /annotations:
+    get:
+      tags: [Utilities]
+      summary: List annotations (Notes) – includes documentbody for file/binary
+      operationId: dv_listAnnotations
+      parameters:
+        - name: $select
+          in: query
+          schema: { type: string, default: "annotationid,filename,documentbody,_objectid_value" }
+        - name: $filter
+          in: query
+          schema: { type: string }
+        - name: $top
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: Annotations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+
+  /{entityset}:
+    post:
+      tags: [Core (OData)]
+      summary: Create record (generic)
+      operationId: dv_createRecord
+      parameters:
+        - name: entityset
+          in: path
+          required: true
+          schema: { type: string, example: "accounts" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "204": { description: Created (Location/OData-EntityId header contains url) }
+
+    get:
+      tags: [Core (OData)]
+      summary: List records (generic)
+      operationId: dv_listRecords
+      parameters:
+        - name: entityset
+          in: path
+          required: true
+          schema: { type: string }
+        - name: $select
+          in: query
+          schema: { type: string }
+        - name: $filter
+          in: query
+          schema: { type: string }
+        - name: $orderby
+          in: query
+          schema: { type: string }
+        - name: $top
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5000 }
+      responses:
+        "200":
+          description: Records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+
+  /{entityset}({id}):
+    get:
+      tags: [Core (OData)]
+      summary: Get record (generic)
+      operationId: dv_getRecord
+      parameters:
+        - name: entityset
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, example: "00000000-0000-0000-0000-000000000001" }
+      responses:
+        "200":
+          description: Record
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+    patch:
+      tags: [Core (OData)]
+      summary: Update record (generic)
+      operationId: dv_updateRecord
+      parameters:
+        - name: entityset
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "204": { description: Updated }
+    delete:
+      tags: [Core (OData)]
+      summary: Delete record (generic)
+      operationId: dv_deleteRecord
+      parameters:
+        - name: entityset
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Deleted }
+
+components:
+  schemas:
+    Solution:
+      type: object
+      additionalProperties: true
+      properties:
+        solutionid: { type: string, format: uuid }
+        uniquename: { type: string }
+        friendlyname: { type: string }
+        version: { type: string }
+
+    ExportSolutionRequest:
+      type: object
+      required: [SolutionName, Managed]
+      properties:
+        SolutionName:
+          type: string
+          description: Unique solution name
+        Managed:
+          type: boolean
+
+    ImportSolutionRequest:
+      type: object
+      required: [CustomizationFile]
+      properties:
+        CustomizationFile:
+          type: string
+          format: byte
+          description: "Base64-encoded ZIP of the solution"
+        ImportJobId:
+          type: string
+          format: uuid
+          description: "Optional job id to track long-running import"

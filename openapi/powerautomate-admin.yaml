@@ -1,0 +1,89 @@
+
+openapi: 3.0.3
+info:
+  title: Power Automate Admin API
+  version: 0.2.0
+  description: Admin endpoints for Cloud Flows and Runs under api.powerplatform.com.
+servers:
+  - url: https://api.powerplatform.com
+tags:
+  - name: Power Automate (Admin)
+
+paths:
+  /powerautomate/environments/{environmentId}/cloudFlows:
+    get:
+      tags: [Power Automate (Admin)]
+      summary: List cloud flows
+      operationId: pa_listCloudFlows
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Cloud flows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/CloudFlow" }
+
+  /powerautomate/environments/{environmentId}/flowRuns:
+    get:
+      tags: [Power Automate (Admin)]
+      summary: List flow runs by workflow Id
+      operationId: pa_listFlowRuns
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: workflowId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Flow runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlowRun" }
+
+components:
+  schemas:
+    CloudFlow:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        properties:
+          type: object
+          additionalProperties: true
+
+    FlowRun:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }

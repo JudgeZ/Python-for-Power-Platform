@@ -1,0 +1,62 @@
+
+openapi: 3.0.3
+info:
+  title: Power Automate - Runs & Actions (read-only)
+  version: "2022-03-01-preview"
+servers:
+  - url: https://api.powerplatform.com
+paths:
+  /powerautomate/environments/{environmentId}/flowRuns:
+    get:
+      summary: List Flow Runs
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: workflowId
+          in: query
+          required: true
+          schema: {type: string}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /powerautomate/environments/{environmentId}/flowActions:
+    get:
+      summary: List Flow Actions
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: workflowId
+          in: query
+          required: false
+          schema: {type: string}
+        - name: connector
+          in: query
+          required: false
+          schema: {type: string}
+        - name: isTrigger
+          in: query
+          required: false
+          schema: {type: boolean}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object

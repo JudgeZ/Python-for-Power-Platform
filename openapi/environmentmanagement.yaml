@@ -1,0 +1,121 @@
+
+openapi: 3.0.3
+info:
+  title: Power Platform - Environment Management
+  version: "2022-03-01-preview"
+servers:
+  - url: https://api.powerplatform.com
+paths:
+  /environmentmanagement/environments:
+    get:
+      summary: List Environments For User
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Environment"
+  /environmentmanagement/environmentGroups:
+    post:
+      summary: Create Environment Group
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnvironmentGroup"
+      responses:
+        "200":
+          description: Created
+  /environmentmanagement/environments/{environmentId}/settings:
+    get:
+      summary: List Environment Management Settings
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: Create Environment Management Settings
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: OK
+  /environmentmanagement/environments/{environmentId}/governancesetting/enablemanaged:
+    post:
+      summary: Enable Managed Environment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: api-version
+          in: query
+          required: true
+          schema: {type: string, enum: ["2022-03-01-preview"]}
+      responses:
+        "200":
+          description: OK
+components:
+  schemas:
+    Environment:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        type: {type: string}
+        region: {type: string}
+        createdTime: {type: string, format: date-time}
+        createdBy: {type: object}
+    EnvironmentGroup:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        displayName: {type: string}
+        description: {type: string}
+        parentGroupId: {type: string, format: uuid}
+        childrenGroupIds:
+          type: array
+          items: {type: string, format: uuid}

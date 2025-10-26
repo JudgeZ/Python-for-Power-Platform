@@ -1,0 +1,128 @@
+
+openapi: 3.0.3
+info:
+  title: Power Apps Checker Web API
+  version: "1.0/2.0"
+servers:
+  - url: https://{geography}.api.advisor.powerapps.com/api
+    variables:
+      geography:
+        default: unitedstates
+        enum: [unitedstates, europe, asia, australia, japan, india, canada, southamerica, unitedkingdom, france, germany, unitedarabemirates, switzerland, southafrica, korea, norway, singapore, sweden, poland, italy]
+paths:
+  /ruleset:
+    get:
+      summary: Retrieve list of rulesets
+      parameters:
+        - name: api-version
+          in: query
+          required: false
+          schema: {type: string, default: "2.0"}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: {type: string, format: uuid}
+                    name: {type: string}
+        "204":
+          description: No Content
+  /rules:
+    get:
+      summary: Retrieve list of rules
+      parameters:
+        - name: api-version
+          in: query
+          required: false
+          schema: {type: string, default: "2.0"}
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /upload:
+    post:
+      summary: Upload a file for analysis (<= 30 MB)
+      parameters:
+        - name: api-version
+          in: query
+          required: false
+          schema: {type: string, default: "1.0"}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "200":
+          description: OK - returns array of SAS URLs for uploaded files
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: string}
+  /analyze:
+    post:
+      summary: Invoke analysis
+      parameters:
+        - name: api-version
+          in: query
+          required: false
+          schema: {type: string, default: "1.0"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                files: {type: array, items: {type: string}}
+                rulesetIds: {type: array, items: {type: string, format: uuid}}
+                exclude: {type: array, items: {type: string}}
+              required: [files]
+      responses:
+        "202":
+          description: Accepted - Location header contains status URL
+          headers:
+            Location:
+              schema: {type: string}
+  /status/{runId}:
+    get:
+      summary: Check analysis status
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: api-version
+          in: query
+          required: false
+          schema: {type: string, default: "1.0"}
+      responses:
+        "200":
+          description: Finished
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: {type: string}
+                  progress: {type: integer}
+                  resultFileUris: {type: array, items: {type: string}}
+        "202":
+          description: Still processing

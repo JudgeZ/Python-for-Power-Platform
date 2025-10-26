@@ -1,0 +1,75 @@
+
+openapi: 3.0.3
+info:
+  title: Power Apps Administrative API
+  version: 0.2.0
+  description: Admin-facing endpoints for Power Apps under api.powerplatform.com.
+servers:
+  - url: https://api.powerplatform.com
+tags:
+  - name: Power Apps (Admin)
+
+paths:
+  /powerapps/environments/{environmentId}/apps:
+    get:
+      tags: [Power Apps (Admin)]
+      summary: List apps
+      operationId: powerapps_listApps
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: Apps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/PowerApp" }
+
+  /powerapps/environments/{environmentId}/apps/{appId}:
+    get:
+      tags: [Power Apps (Admin)]
+      summary: Get app by id
+      operationId: powerapps_getApp
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: appId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
+      responses:
+        "200":
+          description: App details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PowerApp" }
+
+components:
+  schemas:
+    PowerApp:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        properties:
+          type: object
+          additionalProperties: true
