@@ -28,6 +28,16 @@ _SAFE_KEYRING_FAILURE_CODES = frozenset({
 })
 
 
+def _profile_log_hint(name: str | None) -> str:
+    """Return a deterministic but redacted hint for logging profile identifiers."""
+
+    if not name:
+        return "unknown"
+    digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+    # Truncate to keep log payloads compact while remaining non-reversible.
+    return f"hash:{digest[:12]}"
+
+
 def _sanitize_keyring_failure_reason(reason: str | None) -> str:
     """Return a log-safe keyring failure reason."""
 
@@ -255,7 +265,7 @@ def _persist_refresh_token_with_keyring(payload: dict[str, Any]) -> None:
     logger.warning(
         "Keyring unavailable; storing refresh token in encrypted config",
         extra={
-            "pacx_profile": name_raw,
+            "pacx_profile_hint": _profile_log_hint(name_raw),
             "pacx_reason": sanitized_reason,
             "pacx_storage": "config",
         },

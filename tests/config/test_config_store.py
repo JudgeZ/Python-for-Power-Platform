@@ -155,7 +155,10 @@ def test_refresh_token_fallback_logs_warning(
         record for record in caplog.records if "Keyring unavailable" in record.getMessage()
     ]
     assert warning_records
-    assert warning_records[-1].pacx_reason == "module-unavailable"
+    warning_record = warning_records[-1]
+    assert warning_record.pacx_reason == "module-unavailable"
+    assert warning_record.pacx_profile_hint == config_module._profile_log_hint("no-keyring")
+    assert not hasattr(warning_record, "pacx_profile")
 
 
 def test_refresh_token_fallback_redacts_dynamic_reason(
@@ -178,6 +181,8 @@ def test_refresh_token_fallback_redacts_dynamic_reason(
         record for record in caplog.records if "Keyring unavailable" in record.getMessage()
     )
     assert warning_record.pacx_reason == "error"
+    assert warning_record.pacx_profile_hint == config_module._profile_log_hint("error-keyring")
+    assert not hasattr(warning_record, "pacx_profile")
 
 
 def test_delete_profile_removes_keyring_entry(
