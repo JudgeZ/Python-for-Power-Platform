@@ -215,6 +215,8 @@ class Profile:
     client_secret_env: str | None = None
     secret_backend: str | None = None
     secret_ref: str | None = None
+    token_backend: str | None = None
+    token_ref: str | None = None
     scopes: list[str] | None = None
     use_device_code: bool = False
 

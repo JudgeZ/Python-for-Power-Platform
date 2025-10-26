@@ -70,3 +70,21 @@ def test_encryption_round_trip_covers_refresh_token(
     secure_profile = loaded.profiles["secure"]
     assert secure_profile.access_token == "access-token"  # noqa: S105
     assert secure_profile.refresh_token == "refresh-token"  # noqa: S105
+
+
+def test_token_secret_fields_round_trip(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    store = ConfigStore(path=path)
+    profile = Profile(
+        name="with-token-secret",
+        token_backend="keyring",
+        token_ref="ppx-token",
+    )
+    cfg = ConfigData(default_profile="with-token-secret", profiles={"with-token-secret": profile})
+
+    store.save(cfg)
+
+    loaded = store.load()
+    stored_profile = loaded.profiles["with-token-secret"]
+    assert stored_profile.token_backend == "keyring"
+    assert stored_profile.token_ref == "ppx-token"
