@@ -91,6 +91,54 @@ def test_get_token_getter_builds_provider(monkeypatch: pytest.MonkeyPatch) -> No
     assert common_module.get_token_getter(ctx) is getter
 
 
+def test_resolve_token_getter_honours_use_device_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
+
+    provider_kwargs: dict[str, object] = {}
+
+    class DummyProvider:
+        def __init__(self, **kwargs) -> None:
+            provider_kwargs.update(kwargs)
+
+        def get_token(self) -> str:
+            return "provider-token"
+
+    fake_module = types.ModuleType("pacx.auth.azure_ad")
+    fake_module.AzureADTokenProvider = DummyProvider
+
+    common_module = load_common_module()
+    import pacx.auth as auth_pkg
+
+    monkeypatch.setitem(sys.modules, "pacx.auth.azure_ad", fake_module)
+    monkeypatch.setattr(auth_pkg, "azure_ad", fake_module, raising=False)
+
+    config = ConfigData(
+        default_profile="default",
+        profiles={
+            "default": Profile(
+                name="default",
+                tenant_id="tenant",
+                client_id="client",
+                scope="api/.default",
+                use_device_code=False,
+            )
+        },
+    )
+
+    getter = common_module.resolve_token_getter(config=config)
+    assert getter() == "provider-token"
+    assert provider_kwargs.get("use_device_code") is False
+
+    provider_kwargs.clear()
+    config.profiles["default"].use_device_code = True
+
+    getter = common_module.resolve_token_getter(config=config)
+    assert getter() == "provider-token"
+    assert provider_kwargs.get("use_device_code") is True
+
+
 def test_get_token_getter_optional(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
 

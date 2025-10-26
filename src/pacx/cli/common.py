@@ -119,12 +119,16 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
             secret = get_secret(SecretSpec(backend=secret_backend, ref=secret_ref))
             if secret:
                 client_secret = secret
+        use_device_code = getattr(profile, "use_device_code", None)
+        if use_device_code is None:
+            use_device_code = client_secret is None
+
         provider = AzureADTokenProvider(
             tenant_id=tenant_id,
             client_id=client_id,
             scopes=scope_values,
             client_secret=client_secret,
-            use_device_code=(client_secret is None),
+            use_device_code=use_device_code,
         )
         return provider.get_token
     raise typer.BadParameter("No PACX_ACCESS_TOKEN and no default profile configured.")
