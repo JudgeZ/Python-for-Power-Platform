@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: PAC-lite API
+  version: 0.2.1
+  description: |
+    A minimal subset of Power Platform Admin APIs.
+servers:
+  - url: https://api.powerplatform.com
+paths:
+  /environmentmanagement/environments:
+    get:
+      summary: List environments
+      description: Retrieve a list of environments available to the user.
+      operationId: environmentManagement_listEnvironments
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: A list of environments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/Environment" }
+                  nextLink: { type: string }
+  /environmentmanagement/environments/{environmentId}:
+    get:
+      summary: Get environment by ID
+      description: Retrieve details of a specific environment.
+      operationId: environmentManagement_getEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: Environment details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Environment" }
+components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
+  schemas:
+    Environment:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        region: { type: string }
+        createdTime: { type: string, format: date-time }
+        createdBy: { type: object, additionalProperties: true }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

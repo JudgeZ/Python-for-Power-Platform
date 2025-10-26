@@ -1,24 +1,31 @@
-
 openapi: 3.0.3
 info:
   title: Power Apps Administrative API
-  version: 0.2.0
+  version: 0.2.1
   description: Admin-facing endpoints for Power Apps under api.powerplatform.com.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Power Apps (Admin)
-
 paths:
   /powerapps/environments/{environmentId}/apps:
     get:
       tags: [Power Apps (Admin)]
       summary: List apps
-      operationId: powerapps_listApps
+      description: List all Power Apps in a given environment.
+      operationId: powerApps_listApps
       parameters:
         - name: environmentId
           in: path
           required: true
+          schema: { type: string }
+        - name: $top
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+        - name: $skiptoken
+          in: query
+          required: false
           schema: { type: string }
         - name: api-version
           in: query
@@ -35,12 +42,13 @@ paths:
                   value:
                     type: array
                     items: { $ref: "#/components/schemas/PowerApp" }
-
+                  nextLink: { type: string }
   /powerapps/environments/{environmentId}/apps/{appId}:
     get:
       tags: [Power Apps (Admin)]
-      summary: Get app by id
-      operationId: powerapps_getApp
+      summary: Get app by ID
+      description: Get details of a specific Power App.
+      operationId: powerApps_getApp
       parameters:
         - name: environmentId
           in: path
@@ -60,8 +68,16 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PowerApp" }
-
 components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     PowerApp:
       type: object
@@ -70,6 +86,7 @@ components:
         id: { type: string }
         name: { type: string }
         type: { type: string }
-        properties:
-          type: object
-          additionalProperties: true
+        properties: { type: object, additionalProperties: true }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

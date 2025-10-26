@@ -1,11 +1,10 @@
-
 openapi: 3.0.3
 info:
   title: Power Pages Admin (via Power Platform API)
-  version: "2022-03-01-preview"
+  version: 2022-03-01-preview
   description: |
     Administrative endpoints for managing Power Pages websites using the Power Platform API.
-    This file includes commonly used operations (list, get, start/stop/restart, create, delete).
+    Includes list, get, start/stop/restart, create, and delete.
 servers:
   - url: https://api.powerplatform.com
 paths:
@@ -13,15 +12,20 @@ paths:
     get:
       summary: Get Websites
       description: List Power Pages websites in an environment.
+      operationId: powerPages_listWebsites
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
+        - name: skip
+          in: query
+          required: false
+          schema: { type: integer }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
           description: OK
@@ -29,146 +33,165 @@ paths:
             application/json:
               schema:
                 type: array
-                items:
-                  $ref: "#/components/schemas/WebsiteDto"
+                items: { $ref: "#/components/schemas/WebsiteDto" }
     post:
       summary: Create Website
+      description: Trigger the creation of a new website.
+      operationId: powerPages_createWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name: {type: string}
-                subdomain: {type: string}
-                templateName: {type: string}
-              required: [name, subdomain]
+              $ref: "#/components/schemas/NewWebsiteRequest"
       responses:
-        "202":
-          description: Accepted - creation in progress
+        "202": { description: Accepted - creation in progress }
   /powerpages/environments/{environmentId}/websites/{id}:
     get:
       summary: Get Website by ID
+      description: Get details of a Power Pages website by its ID.
+      operationId: powerPages_getWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
           description: OK
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/WebsiteDto"
+              schema: { $ref: "#/components/schemas/WebsiteDto" }
     delete:
       summary: Delete Website
+      description: Delete a Power Pages website by ID.
+      operationId: powerPages_deleteWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "202":
-          description: Accepted - deletion scheduled
+        "202": { description: Accepted - deletion scheduled }
   /powerpages/environments/{environmentId}/websites/{id}/start:
     post:
       summary: Start Website
+      description: Start a Power Pages website.
+      operationId: powerPages_startWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "200":
-          description: Started
+        "200": { description: Started }
   /powerpages/environments/{environmentId}/websites/{id}/stop:
     post:
       summary: Stop Website
+      description: Stop a Power Pages website.
+      operationId: powerPages_stopWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "200":
-          description: Stopped
+        "200": { description: Stopped }
   /powerpages/environments/{environmentId}/websites/{id}/restart:
     post:
       summary: Restart Website
+      description: Restart a Power Pages website.
+      operationId: powerPages_restartWebsite
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: id
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
-        "200":
-          description: Restarted
+        "200": { description: Restarted }
 components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     WebsiteDto:
       type: object
       properties:
-        id: {type: string}
-        name: {type: string}
-        environmentId: {type: string}
-        environmentName: {type: string}
-        websiteUrl: {type: string}
-        subdomain: {type: string}
-        status: {type: string}
-        siteVisibility: {type: string}
-        applicationUserAadAppId: {type: string}
-        templateName: {type: string}
-        dataverseInstanceUrl: {type: string}
-        dataverseOrganizationId: {type: string}
-        websiteRecordId: {type: string}
+        id: { type: string }
+        name: { type: string }
+        environmentId: { type: string }
+        environmentName: { type: string }
+        websiteUrl: { type: string }
+        subdomain: { type: string }
+        status: { type: string }
+        siteVisibility: { type: string }
+        applicationUserAadAppId: { type: string }
+        templateName: { type: string }
+        dataverseInstanceUrl: { type: string }
+        dataverseOrganizationId: { type: string }
+        websiteRecordId: { type: string }
+    NewWebsiteRequest:
+      type: object
+      required: [ name, subdomain ]
+      properties:
+        name: { type: string }
+        subdomain: { type: string }
+        templateName: { type: string }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

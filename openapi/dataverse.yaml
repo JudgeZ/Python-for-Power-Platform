@@ -1,8 +1,7 @@
-
 openapi: 3.0.3
 info:
   title: Microsoft Dataverse Web API (v9.2 umbrella)
-  version: 0.4.0
+  version: 0.4.1
   description: |
     Generic OData v4 schema for Dataverse operations (v9.2), including Solutions, WhoAmI,
     generic entity CRUD, $batch, and annotations listing for web file binaries.
@@ -12,15 +11,9 @@ servers:
       host:
         default: yourorg.crm.dynamics.com
         description: Dataverse organization host (e.g., contoso.crm.dynamics.com)
-tags:
-  - name: Solutions
-  - name: Core (OData)
-  - name: Utilities
-
 paths:
   /solutions:
     get:
-      tags: [Solutions]
       summary: List solutions
       operationId: dv_listSolutions
       parameters:
@@ -45,10 +38,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Solution" }
                   @odata.nextLink: { type: string }
-
   /ExportSolution:
     post:
-      tags: [Solutions]
       summary: Export solution
       operationId: dv_exportSolution
       requestBody:
@@ -64,13 +55,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  ExportSolutionFile:
-                    type: string
-                    format: byte
-
+                  ExportSolutionFile: { type: string, format: byte }
   /ImportSolution:
     post:
-      tags: [Solutions]
       summary: Import solution
       operationId: dv_importSolution
       requestBody:
@@ -80,18 +67,14 @@ paths:
             schema: { $ref: "#/components/schemas/ImportSolutionRequest" }
       responses:
         "204": { description: Accepted/Completed }
-
   /PublishAllXml:
     post:
-      tags: [Solutions]
       summary: Publish all customizations
       operationId: dv_publishAll
       responses:
         "204": { description: Published }
-
   /WhoAmI():
     get:
-      tags: [Utilities]
       summary: WhoAmI (current user/identity)
       operationId: dv_whoAmI
       responses:
@@ -99,13 +82,9 @@ paths:
           description: Identity payload
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: true
-
+              schema: { type: object, additionalProperties: true }
   /$batch:
     post:
-      tags: [Core (OData)]
       summary: OData $batch
       operationId: dv_batch
       requestBody:
@@ -117,10 +96,8 @@ paths:
               description: "Raw multipart/mixed body per OData v4 $batch spec."
       responses:
         "202": { description: Accepted }
-
   /annotations:
     get:
-      tags: [Utilities]
       summary: List annotations (Notes) – includes documentbody for file/binary
       operationId: dv_listAnnotations
       parameters:
@@ -143,13 +120,9 @@ paths:
                 properties:
                   value:
                     type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-
+                    items: { type: object, additionalProperties: true }
   /{entityset}:
     post:
-      tags: [Core (OData)]
       summary: Create record (generic)
       operationId: dv_createRecord
       parameters:
@@ -161,14 +134,10 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: true
+            schema: { type: object, additionalProperties: true }
       responses:
         "204": { description: Created (Location/OData-EntityId header contains url) }
-
     get:
-      tags: [Core (OData)]
       summary: List records (generic)
       operationId: dv_listRecords
       parameters:
@@ -198,13 +167,9 @@ paths:
                 properties:
                   value:
                     type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-
+                    items: { type: object, additionalProperties: true }
   /{entityset}({id}):
     get:
-      tags: [Core (OData)]
       summary: Get record (generic)
       operationId: dv_getRecord
       parameters:
@@ -221,11 +186,8 @@ paths:
           description: Record
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: true
+              schema: { type: object, additionalProperties: true }
     patch:
-      tags: [Core (OData)]
       summary: Update record (generic)
       operationId: dv_updateRecord
       parameters:
@@ -241,13 +203,10 @@ paths:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              additionalProperties: true
+            schema: { type: object, additionalProperties: true }
       responses:
         "204": { description: Updated }
     delete:
-      tags: [Core (OData)]
       summary: Delete record (generic)
       operationId: dv_deleteRecord
       parameters:
@@ -261,8 +220,16 @@ paths:
           schema: { type: string }
       responses:
         "204": { description: Deleted }
-
 components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://{host}/.default: Delegated permissions for your Dataverse org resource
   schemas:
     Solution:
       type: object
@@ -272,17 +239,12 @@ components:
         uniquename: { type: string }
         friendlyname: { type: string }
         version: { type: string }
-
     ExportSolutionRequest:
       type: object
       required: [SolutionName, Managed]
       properties:
-        SolutionName:
-          type: string
-          description: Unique solution name
-        Managed:
-          type: boolean
-
+        SolutionName: { type: string, description: Unique solution name }
+        Managed: { type: boolean }
     ImportSolutionRequest:
       type: object
       required: [CustomizationFile]
@@ -290,8 +252,11 @@ components:
         CustomizationFile:
           type: string
           format: byte
-          description: "Base64-encoded ZIP of the solution"
+          description: Base64-encoded ZIP of the solution
         ImportJobId:
           type: string
           format: uuid
-          description: "Optional job id to track long-running import"
+          description: Optional job id to track long-running import
+security:
+  - azureAd:
+    - https://{host}/.default

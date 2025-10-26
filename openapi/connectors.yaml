@@ -1,29 +1,24 @@
-
 openapi: 3.0.3
 info:
   title: Power Platform Custom Connectors Admin API
-  version: 0.2.0
-  description: Manage custom connectors via admin surface.
+  version: 0.2.1
+  description: Manage custom connectors via Power Platform admin API.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Custom Connectors
-
 paths:
   /powerapps/environments/{environmentId}/apis:
     get:
       tags: [Custom Connectors]
       summary: List custom connectors (APIs)
-      operationId: connectors_list
+      description: List custom connectors in a given environment.
+      operationId: connectors_listApis
       parameters:
         - name: environmentId
           in: path
           required: true
           schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, default: 2022-03-01-preview }
         - name: $top
           in: query
           required: false
@@ -32,6 +27,10 @@ paths:
           in: query
           required: false
           schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, default: 2022-03-01-preview }
       responses:
         "200":
           description: Connector list
@@ -42,15 +41,14 @@ paths:
                 properties:
                   value:
                     type: array
-                    items:
-                      type: object
-                      additionalProperties: true
-
+                    items: { $ref: "#/components/schemas/Connector" }
+                  nextLink: { type: string }
   /powerapps/environments/{environmentId}/apis/{apiName}:
     get:
       tags: [Custom Connectors]
       summary: Get connector
-      operationId: connectors_get
+      description: Get details of a custom connector by name.
+      operationId: connectors_getApi
       parameters:
         - name: environmentId
           in: path
@@ -69,13 +67,12 @@ paths:
           description: Connector
           content:
             application/json:
-              schema:
-                type: object
-                additionalProperties: true
+              schema: { $ref: "#/components/schemas/Connector" }
     put:
       tags: [Custom Connectors]
       summary: Create or update connector (from OpenAPI)
-      operationId: connectors_put
+      description: Create a new custom connector or update an existing one by supplying an OpenAPI definition.
+      operationId: connectors_createOrUpdateApi
       parameters:
         - name: environmentId
           in: path
@@ -113,3 +110,23 @@ paths:
       responses:
         "200": { description: Updated }
         "201": { description: Created }
+components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
+  schemas:
+    Connector:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        properties: { type: object, additionalProperties: true }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

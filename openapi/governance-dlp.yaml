@@ -1,22 +1,24 @@
-
 openapi: 3.0.3
 info:
   title: Power Platform Governance - Rule Based Policies (DLP)
-  version: "2022-03-01-preview"
+  version: 2022-03-01-preview
+  description: Endpoints for managing tenant-level Data Loss Prevention (DLP) rule-based policies.
 servers:
   - url: https://api.powerplatform.com
 paths:
   /governance/ruleBasedPolicies:
     get:
-      summary: List Rule Based Policies
+      summary: List rule based policies
+      description: List rule based DLP policies available in the tenant.
+      operationId: governance_listRuleBasedPolicies
       parameters:
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
-          description: OK
+          description: The list of policies.
           content:
             application/json:
               schema:
@@ -24,27 +26,223 @@ paths:
                 properties:
                   value:
                     type: array
-                    items: {type: object}
-  /governance/ruleBasedPolicies/environments/{environmentId}/assignments:
-    get:
-      summary: List Rule Assignments By Environment Id
+                    items: { $ref: "#/components/schemas/Policy" }
+    post:
+      summary: Create rule based policy
+      description: Create a new rule based DLP policy.
+      operationId: governance_createRuleBasedPolicy
       parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: {type: string}
-        - name: includeRuleSetCounts
-          in: query
-          required: true
-          schema: {type: boolean}
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyRequest" }
       responses:
         "200":
-          description: OK
+          description: The details of the policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/{policyId}:
+    get:
+      summary: Get rule based policy by ID
+      description: Get details about a specific rule based DLP policy.
+      operationId: governance_getRuleBasedPolicy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: The details of the policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Policy" }
+    put:
+      summary: Update rule based policy by ID
+      description: Update an existing rule based DLP policy.
+      operationId: governance_updateRuleBasedPolicy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PolicyRequest" }
+      responses:
+        "200":
+          description: The details of the policy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/{policyId}/assignments:
+    get:
+      summary: List rule based policy assignments (by policy)
+      description: List rule assignments for a specific DLP policy.
+      operationId: governance_listAssignmentsByPolicy
+      parameters:
+        - name: policyId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: includeRuleSetCounts
+          in: query
+          required: true
+          schema: { type: boolean }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: A list of policy assignments for the specified policy.
           content:
             application/json:
               schema:
                 type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/assignments:
+    get:
+      summary: List rule based policy assignments
+      description: List all rule based DLP policy assignments in the tenant.
+      operationId: governance_listRuleAssignments
+      parameters:
+        - name: includeRuleSetCounts
+          in: query
+          required: true
+          schema: { type: boolean }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: A list of policy assignments.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/environmentGroups/{environmentGroupId}/assignments:
+    get:
+      summary: List rule based policy assignments by environment group
+      description: List rule assignments for a specific environment group.
+      operationId: governance_listAssignmentsByEnvironmentGroup
+      parameters:
+        - name: environmentGroupId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: includeRuleSetCounts
+          in: query
+          required: true
+          schema: { type: boolean }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: A list of policy assignments for the specified environment group.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuleAssignment" }
+  /governance/ruleBasedPolicies/environments/{environmentId}/assignments:
+    get:
+      summary: List rule based policy assignments by environment
+      description: List rule assignments for a specific environment.
+      operationId: governance_listAssignmentsByEnvironment
+      parameters:
+        - name: environmentId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: includeRuleSetCounts
+          in: query
+          required: true
+          schema: { type: boolean }
+        - name: api-version
+          in: query
+          required: true
+          schema: { type: string, enum: ["2022-03-01-preview"] }
+      responses:
+        "200":
+          description: A list of policy assignments for the specified environment.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuleAssignment" }
+components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
+  schemas:
+    RuleSet:
+      type: object
+      properties:
+        id: { type: string }
+        inputs: { type: object }
+        version: { type: string }
+    PolicyRequest:
+      type: object
+      properties:
+        name: { type: string }
+        ruleSets:
+          type: array
+          items: { $ref: "#/components/schemas/RuleSet" }
+    Policy:
+      type: object
+      properties:
+        policyId: { type: string }
+        name: { type: string }
+        ruleSets:
+          type: array
+          items: { $ref: "#/components/schemas/RuleSet" }
+    RuleAssignment:
+      type: object
+      properties:
+        policyId: { type: string }
+        resourceId: { type: string }
+        resourceType: { type: string }
+        ruleSetCount: { type: integer }
+        tenantId: { type: string }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

@@ -1,27 +1,29 @@
-
 openapi: 3.0.3
 info:
   title: Power Automate - Runs & Actions (read-only)
-  version: "2022-03-01-preview"
+  version: 2022-03-01-preview
+  description: Read-only reporting endpoints for Power Automate flow runs and actions.
 servers:
   - url: https://api.powerplatform.com
 paths:
   /powerautomate/environments/{environmentId}/flowRuns:
     get:
-      summary: List Flow Runs
+      summary: List flow runs
+      description: Retrieve flow run history for a specific cloud flow.
+      operationId: powerAutomate_listFlowRuns
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: workflowId
           in: query
           required: true
-          schema: {type: string}
+          schema: { type: string, format: uuid }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
           description: OK
@@ -29,30 +31,55 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlowRun" }
+                  nextLink: { type: string }
+        "204":
+          description: No content
   /powerautomate/environments/{environmentId}/flowActions:
     get:
-      summary: List Flow Actions
+      summary: List flow actions
+      description: Retrieve flow actions (steps) within cloud flows, with optional filters.
+      operationId: powerAutomate_listFlowActions
       parameters:
         - name: environmentId
           in: path
           required: true
-          schema: {type: string}
+          schema: { type: string }
         - name: workflowId
           in: query
           required: false
-          schema: {type: string}
+          schema: { type: string, format: uuid }
+        - name: parentProcessStageId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
         - name: connector
           in: query
           required: false
-          schema: {type: string}
+          schema: { type: string }
         - name: isTrigger
           in: query
           required: false
-          schema: {type: boolean}
+          schema: { type: boolean }
+        - name: parameterName
+          in: query
+          required: false
+          schema: { type: string }
+        - name: parameterValue
+          in: query
+          required: false
+          schema: { type: string }
+        - name: exact
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
         - name: api-version
           in: query
           required: true
-          schema: {type: string, enum: ["2022-03-01-preview"]}
+          schema: { type: string, enum: ["2022-03-01-preview"] }
       responses:
         "200":
           description: OK
@@ -60,3 +87,41 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  value:
+                    type: array
+                    items: { $ref: "#/components/schemas/FlowAction" }
+                  nextLink: { type: string }
+        "204":
+          description: No content
+components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
+  schemas:
+    FlowRun:
+      type: object
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+    FlowAction:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        connector: { type: string }
+        workflowId: { type: string }
+        actionType: { type: string }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default

@@ -1,25 +1,56 @@
-
 openapi: 3.0.3
 info:
   title: Power Automate Admin API
-  version: 0.2.0
-  description: Admin endpoints for Cloud Flows and Runs under api.powerplatform.com.
+  version: 0.2.1
+  description: Admin endpoints for cloud flows and runs under api.powerplatform.com.
 servers:
   - url: https://api.powerplatform.com
 tags:
   - name: Power Automate (Admin)
-
 paths:
   /powerautomate/environments/{environmentId}/cloudFlows:
     get:
       tags: [Power Automate (Admin)]
       summary: List cloud flows
-      operationId: pa_listCloudFlows
+      description: Retrieve cloud flows with optional filters.
+      operationId: powerAutomate_listCloudFlows
       parameters:
         - name: environmentId
           in: path
           required: true
           schema: { type: string }
+        - name: workflowId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: resourceId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: createdBy
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: ownerId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: createdOnStartDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: createdOnEndDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: modifiedOnStartDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: modifiedOnEndDate
+          in: query
+          required: false
+          schema: { type: string, format: date }
         - name: api-version
           in: query
           required: true
@@ -35,12 +66,15 @@ paths:
                   value:
                     type: array
                     items: { $ref: "#/components/schemas/CloudFlow" }
-
+                  nextLink: { type: string }
+        "204":
+          description: No content
   /powerautomate/environments/{environmentId}/flowRuns:
     get:
       tags: [Power Automate (Admin)]
-      summary: List flow runs by workflow Id
-      operationId: pa_listFlowRuns
+      summary: List flow runs by workflow ID
+      description: Retrieve flow run history for a specific cloud flow.
+      operationId: powerAutomate_listFlowRuns
       parameters:
         - name: environmentId
           in: path
@@ -65,8 +99,19 @@ paths:
                   value:
                     type: array
                     items: { $ref: "#/components/schemas/FlowRun" }
-
+                  nextLink: { type: string }
+        "204":
+          description: No content
 components:
+  securitySchemes:
+    azureAd:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/authorize
+          tokenUrl: https://login.microsoftonline.com/{tenantId}/oauth2/v2.0/token
+          scopes:
+            https://api.powerplatform.com/.default: Default delegated permissions for Power Platform API
   schemas:
     CloudFlow:
       type: object
@@ -74,10 +119,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        properties:
-          type: object
-          additionalProperties: true
-
+        properties: { type: object, additionalProperties: true }
     FlowRun:
       type: object
       additionalProperties: true
@@ -87,3 +129,6 @@ components:
         status: { type: string }
         startTime: { type: string, format: date-time }
         endTime: { type: string, format: date-time }
+security:
+  - azureAd:
+    - https://api.powerplatform.com/.default
