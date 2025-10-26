@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, cast
+from collections.abc import Callable
+from types import TracebackType
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlparse
 
 from ..http_client import HttpClient
@@ -29,7 +31,12 @@ class PowerPlatformClient:
     def __enter__(self) -> PowerPlatformClient:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self.close()
 
     def list_environments(self) -> list[EnvironmentSummary]:

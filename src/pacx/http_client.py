@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Iterable
+from types import TracebackType
 from typing import Any
 
 import httpx
@@ -112,5 +113,10 @@ class HttpClient:
     def __enter__(self) -> HttpClient:
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self.close()
