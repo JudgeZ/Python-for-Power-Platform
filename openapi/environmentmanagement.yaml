@@ -2,362 +2,637 @@ openapi: 3.0.3
 info:
   title: Power Platform - Environment Management
   version: 2022-03-01-preview
-  description: Manage Power Platform environments and environment groups.
+  description: Environments, environment groups, operations, managed environments,
+    and settings.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
 servers:
-  - url: https://api.powerplatform.com
+- url: https://api.powerplatform.com
 tags:
-  - name: Environment Management
-components:
-  securitySchemes:
-    oauth2:
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
-          tokenUrl: https://login.microsoftonline.com/common/oauth2/v2.0/token
-          scopes:
-            https://api.powerplatform.com/.default: Power Platform API default scope
-  schemas:
-    Environment:
-      type: object
-      additionalProperties: true
-      properties:
-        id: { type: string }
-        name: { type: string }
-        type: { type: string }
-        region: { type: string }
-        createdTime: { type: string, format: date-time }
-        createdBy: { type: object, additionalProperties: true }
-    EnvironmentGroup:
-      type: object
-      additionalProperties: true
-      properties:
-        id: { type: string, format: uuid }
-        displayName: { type: string }
-        description: { type: string }
-        parentGroupId: { type: string, format: uuid }
-        childrenGroupIds:
-          type: array
-          items: { type: string, format: uuid }
-    OperationExecutionResult:
-      type: object
-      additionalProperties: true
-      properties:
-        operationId: { type: string }
-        status: { type: string, enum: [Queued, Running, Succeeded, Failed] }
-        message: { type: string }
-security:
-  - oauth2: [https://api.powerplatform.com/.default]
+- name: environmentmanagement.environments
+- name: environmentmanagement.environmentGroups
+- name: environmentmanagement.operations
+- name: environmentmanagement.managedGovernance
+- name: environmentmanagement.settings
 paths:
   /environmentmanagement/environments:
     get:
-      tags: [Environment Management]
       summary: List environments for user
-      operationId: environmentManagement_listEnvironments
+      operationId: Env_ListEnvironmentsForUser
+      tags:
+      - environmentmanagement.environments
       parameters:
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size
+      - name: $skiptoken
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Skip token
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  value:
-                    type: array
-                    items: { $ref: "#/components/schemas/Environment" }
-                  nextLink: { type: string }
+        '401':
+          description: Unauthorized
   /environmentmanagement/environments/{environmentId}:
     get:
-      tags: [Environment Management]
-      summary: Get environment
-      operationId: environmentManagement_getEnvironment
+      summary: Get environment by ID for user
+      operationId: Env_GetEnvironmentByIdForUser
+      tags:
+      - environmentmanagement.environments
       parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
       responses:
-        "200":
-          description: Environment
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Environment" }
-    delete:
-      tags: [Environment Management]
-      summary: Delete environment
-      operationId: environmentManagement_deleteEnvironment
-      parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: ValidateOnly
-          in: query
-          required: false
-          schema: { type: boolean }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "202":
-          description: Deletion accepted
-          headers:
-            Operation-Location:
-              description: Polling URL for the long-running operation
-              schema: { type: string, format: uri }
-        "204": { description: Deleted }
-  /environmentmanagement/environmentGroups:
-    get:
-      tags: [Environment Management]
-      summary: List environment groups
-      operationId: environmentManagement_listEnvironmentGroups
-      parameters:
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
               schema:
                 type: object
-                properties:
-                  value:
-                    type: array
-                    items: { $ref: "#/components/schemas/EnvironmentGroup" }
-    post:
-      tags: [Environment Management]
-      summary: Create environment group
-      operationId: environmentManagement_createEnvironmentGroup
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete environment by ID
+      operationId: Env_DeleteEnvironmentById
+      tags:
+      - environmentmanagement.environments
       parameters:
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      requestBody:
+      - name: environmentId
+        in: path
         required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EnvironmentGroup" }
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
       responses:
-        "200": { description: Created }
-  /environmentmanagement/environmentGroups/{groupId}:
-    get:
-      tags: [Environment Management]
-      summary: Get environment group
-      operationId: environmentManagement_getEnvironmentGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "200":
-          description: Environment group
+        '202':
+          description: Accepted
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/EnvironmentGroup" }
-    patch:
-      tags: [Environment Management]
-      summary: Update environment group
-      operationId: environmentManagement_updateEnvironmentGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/EnvironmentGroup" }
-      responses:
-        "200": { description: Updated }
-    delete:
-      tags: [Environment Management]
-      summary: Delete environment group
-      operationId: environmentManagement_deleteEnvironmentGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "202":
-          description: Deletion accepted
+              schema:
+                type: object
           headers:
             Operation-Location:
-              description: Polling URL for the long-running operation
-              schema: { type: string, format: uri }
-  /environmentmanagement/environmentGroups/{groupId}/addEnvironment/{environmentId}:
-    post:
-      tags: [Environment Management]
-      summary: Add environment to group
-      operationId: environmentManagement_addEnvironmentToGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "202": 
-          description: Accepted
-          headers:
-            Operation-Location:
-              description: Polling URL for the long-running operation
-              schema: { type: string, format: uri }
-        "204": { description: No Content }
-  /environmentmanagement/environmentGroups/{groupId}/removeEnvironment/{environmentId}:
-    post:
-      tags: [Environment Management]
-      summary: Remove environment from group
-      operationId: environmentManagement_removeEnvironmentFromGroup
-      parameters:
-        - name: groupId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "202": 
-          description: Accepted
-          headers:
-            Operation-Location:
-              description: Polling URL for the long-running operation
-              schema: { type: string, format: uri }
-        "204": { description: No Content }
-  /environmentmanagement/environments/{environmentId}/settings:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '404':
+          description: Not Found
+  /environmentmanagement/environments/{environmentId}/operations:
     get:
-      tags: [Environment Management]
-      summary: List environment management settings
-      operationId: environmentManagement_listSettings
+      summary: List operations for environment
+      operationId: Env_ListOperationsForEnvironment
+      tags:
+      - environmentmanagement.operations
       parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
       responses:
-        "200":
+        '200':
           description: OK
           content:
             application/json:
-              schema: { type: object }
-    post:
-      tags: [Environment Management]
-      summary: Create environment management settings
-      operationId: environmentManagement_createSettings
+              schema:
+                type: object
+  /environmentmanagement/operations/{operationId}:
+    get:
+      summary: Get operation by ID
+      operationId: Env_GetOperationById
+      tags:
+      - environmentmanagement.operations
       parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      requestBody:
+      - name: operationId
+        in: path
         required: true
-        content:
-          application/json:
-            schema: { type: object, additionalProperties: true }
-      responses:
-        "200": { description: OK }
-    patch:
-      tags: [Environment Management]
-      summary: Update environment management settings
-      operationId: environmentManagement_updateSettings
-      parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      requestBody:
+        schema:
+          type: string
+        description: Operation ID
+      - name: api-version
+        in: query
         required: true
-        content:
-          application/json:
-            schema: { type: object, additionalProperties: true }
+        schema:
+          type: string
+        description: API version
       responses:
-        "200": { description: OK }
-  /environmentmanagement/environments/{environmentId}/governancesetting/enablemanaged:
-    post:
-      tags: [Environment Management]
-      summary: Enable managed environment
-      description: Opt-in the environment to become a managed environment.
-      operationId: environmentManagement_enableManagedEnvironment
-      parameters:
-        - name: environmentId
-          in: path
-          required: true
-          schema: { type: string }
-        - name: ValidateOnly
-          in: query
-          required: false
-          schema: { type: boolean }
-        - name: ValidateProperties
-          in: query
-          required: false
-          schema: { type: boolean }
-        - name: api-version
-          in: query
-          required: true
-          schema: { type: string, enum: ["2022-03-01-preview"] }
-      responses:
-        "201":
-          description: Created - operation accepted and created
-          headers:
-            Operation-Location:
-              description: Polling URL for the long-running operation
-              schema: { type: string, format: uri }
+        '200':
+          description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/OperationExecutionResult" }
-        "400": { description: Bad Request }
-        "401": { description: Unauthorized }
-        "404": { description: Not Found }
+              schema:
+                type: object
+  /environmentmanagement/environmentGroups:
+    get:
+      summary: List environment groups
+      operationId: EnvGroups_ListEnvironmentGroups
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: Create environment group
+      operationId: EnvGroups_CreateEnvironmentGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /environmentmanagement/environmentGroups/{environmentGroupId}:
+    get:
+      summary: Get environment group
+      operationId: EnvGroups_GetEnvironmentGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete environment group
+      operationId: EnvGroups_DeleteEnvironmentGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '404':
+          description: Not Found
+    patch:
+      summary: Update environment group
+      operationId: EnvGroups_UpdateEnvironmentGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /environmentmanagement/environmentGroups/{environmentGroupId}/environments/{environmentId}/apply:
+    post:
+      summary: Add environment to group (apply)
+      operationId: EnvGroups_AddEnvironmentToGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /environmentmanagement/environmentGroups/{environmentGroupId}/environments/{environmentId}/revoke:
+    post:
+      summary: Remove environment from group (revoke)
+      operationId: EnvGroups_RemoveEnvironmentFromGroup
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /environmentmanagement/environmentGroups/{environmentGroupId}/operations/{operationId}:
+    get:
+      summary: Get environment group operation
+      operationId: EnvGroups_GetEnvironmentGroupOperation
+      tags:
+      - environmentmanagement.environmentGroups
+      parameters:
+      - name: environmentGroupId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment Group ID
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Operation ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /environmentmanagement/environments/{environmentId}/managedGovernance/enable:
+    post:
+      summary: Enable managed environment
+      operationId: ManagedGov_EnableManagedEnvironment
+      tags:
+      - environmentmanagement.managedGovernance
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '409':
+          description: Conflict
+        '400':
+          description: Bad Request
+  /environmentmanagement/environments/{environmentId}/managedGovernance/disable:
+    post:
+      summary: Disable managed environment
+      operationId: ManagedGov_DisableManagedEnvironment
+      tags:
+      - environmentmanagement.managedGovernance
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '409':
+          description: Conflict
+        '400':
+          description: Bad Request
+  /environmentmanagement/environments/{environmentId}/managementSettings:
+    get:
+      summary: List environment management settings
+      operationId: EnvSettings_ListEnvironmentManagementSettings
+      tags:
+      - environmentmanagement.settings
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: Create environment management settings
+      operationId: EnvSettings_CreateEnvironmentManagementSettings
+      tags:
+      - environmentmanagement.settings
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+  /environmentmanagement/environments/{environmentId}/managementSettings/{settingName}:
+    patch:
+      summary: Update environment management settings
+      operationId: EnvSettings_UpdateEnvironmentManagementSettings
+      tags:
+      - environmentmanagement.settings
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: settingName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Setting name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: .default
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      additionalProperties: true
+security:
+- oauth2Implicit:
+  - .default

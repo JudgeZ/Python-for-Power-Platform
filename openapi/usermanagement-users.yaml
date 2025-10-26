@@ -1,73 +1,29 @@
 openapi: 3.0.3
 info:
-  title: Power Platform - Power Apps (Admin)
+  title: Power Platform - User Management
   version: 2022-03-01-preview
-  description: Admin app listing and by-id.
+  description: Apply admin role.
   contact:
     name: Microsoft Power Platform APIs
     url: https://learn.microsoft.com/en-us/rest/api/power-platform/
 servers:
 - url: https://api.powerplatform.com
 tags:
-- name: powerapps.apps
+- name: usermanagement.users
 paths:
-  /powerapps/environments/{environmentId}/apps:
-    get:
-      summary: Get admin apps
-      operationId: PowerApps_GetAdminApps
+  /usermanagement/users/{userId}:applyAdminRole:
+    post:
+      summary: Apply admin role
+      operationId: UserMgmt_ApplyAdminRole
       tags:
-      - powerapps.apps
+      - usermanagement.users
       parameters:
-      - name: environmentId
+      - name: userId
         in: path
         required: true
         schema:
           type: string
-        description: Environment ID
-      - name: api-version
-        in: query
-        required: true
-        schema:
-          type: string
-        description: API version
-      - name: $top
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Page size
-      - name: $skiptoken
-        in: query
-        required: false
-        schema:
-          type: string
-        description: Skip token
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-  /powerapps/environments/{environmentId}/apps/{appId}:
-    get:
-      summary: Get admin app
-      operationId: PowerApps_GetAdminApp
-      tags:
-      - powerapps.apps
-      parameters:
-      - name: environmentId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Environment ID
-      - name: appId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: App ID
+        description: User object ID
       - name: api-version
         in: query
         required: true
@@ -75,14 +31,17 @@ paths:
           type: string
         description: API version
       responses:
-        '200':
-          description: OK
+        '202':
+          description: Accepted
           content:
             application/json:
               schema:
                 type: object
-        '404':
-          description: Not Found
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
 components:
   securitySchemes:
     oauth2Implicit:

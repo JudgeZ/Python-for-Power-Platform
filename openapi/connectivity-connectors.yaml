@@ -1,29 +1,23 @@
 openapi: 3.0.3
 info:
-  title: Power Platform - Power Apps (Admin)
+  title: Power Platform - Connectivity (Connectors)
   version: 2022-03-01-preview
-  description: Admin app listing and by-id.
+  description: Connector catalog endpoints.
   contact:
     name: Microsoft Power Platform APIs
     url: https://learn.microsoft.com/en-us/rest/api/power-platform/
 servers:
 - url: https://api.powerplatform.com
 tags:
-- name: powerapps.apps
+- name: connectivity.connectors
 paths:
-  /powerapps/environments/{environmentId}/apps:
+  /connectivity/connectors:
     get:
-      summary: Get admin apps
-      operationId: PowerApps_GetAdminApps
+      summary: List connectors
+      operationId: Connectivity_ListConnectors
       tags:
-      - powerapps.apps
+      - connectivity.connectors
       parameters:
-      - name: environmentId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Environment ID
       - name: api-version
         in: query
         required: true
@@ -49,25 +43,21 @@ paths:
             application/json:
               schema:
                 type: object
-  /powerapps/environments/{environmentId}/apps/{appId}:
+        '401':
+          description: Unauthorized
+  /connectivity/connectors/{connectorId}:
     get:
-      summary: Get admin app
-      operationId: PowerApps_GetAdminApp
+      summary: Get connector by ID
+      operationId: Connectivity_GetConnectorById
       tags:
-      - powerapps.apps
+      - connectivity.connectors
       parameters:
-      - name: environmentId
+      - name: connectorId
         in: path
         required: true
         schema:
           type: string
-        description: Environment ID
-      - name: appId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: App ID
+        description: Connector ID
       - name: api-version
         in: query
         required: true
@@ -83,6 +73,8 @@ paths:
                 type: object
         '404':
           description: Not Found
+        '401':
+          description: Unauthorized
 components:
   securitySchemes:
     oauth2Implicit:

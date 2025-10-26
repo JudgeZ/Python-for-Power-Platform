@@ -1,0 +1,272 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Power Automate
+  version: 2022-03-01-preview
+  description: Cloud flows, flow actions and flow runs.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+- url: https://api.powerplatform.com
+tags:
+- name: powerautomate.cloudFlows
+- name: powerautomate.flowActions
+- name: powerautomate.flowRuns
+paths:
+  /powerautomate/environments/{environmentId}/cloudFlows:
+    get:
+      summary: List cloud flows
+      operationId: PowerAutomate_ListCloudFlows
+      tags:
+      - powerautomate.cloudFlows
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: workflowId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter workflow ID (guid)
+      - name: resourceId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter resource ID (guid)
+      - name: createdBy
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Creator Dataverse ID (guid)
+      - name: ownerId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Owner Dataverse ID (guid)
+      - name: createdOnStartDate
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Created on or after (YYYY-MM-DD)
+      - name: createdOnEndDate
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Created on or before (YYYY-MM-DD)
+      - name: modifiedOnStartDate
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Modified on or after (YYYY-MM-DD)
+      - name: modifiedOnEndDate
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Modified on or before (YYYY-MM-DD)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+  /powerautomate/environments/{environmentId}/flowActions:
+    get:
+      summary: List flow actions
+      operationId: PowerAutomate_ListFlowActions
+      tags:
+      - powerautomate.flowActions
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: workflowId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Workflow ID (guid)
+      - name: parentProcessStageId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Parent process stage ID (guid)
+      - name: connector
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Connector name
+      - name: isTrigger
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Is trigger (boolean)
+      - name: parameterName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter parameter name
+      - name: parameterValue
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter parameter value
+      - name: exact
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Exact matching for parameter filters
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '500':
+          description: Internal Server Error
+  /powerautomate/environments/{environmentId}/flowRuns:
+    get:
+      summary: List flow runs
+      operationId: PowerAutomate_ListFlowRuns
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: workflowId
+        in: query
+        required: true
+        schema:
+          type: string
+        description: Workflow ID (guid)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: .default
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      additionalProperties: true
+security:
+- oauth2Implicit:
+  - .default

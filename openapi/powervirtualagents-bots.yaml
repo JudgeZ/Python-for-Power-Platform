@@ -1,22 +1,22 @@
 openapi: 3.0.3
 info:
-  title: Power Platform - Power Apps (Admin)
+  title: Power Platform - Power Virtual Agents (Bots)
   version: 2022-03-01-preview
-  description: Admin app listing and by-id.
+  description: Quarantine operations.
   contact:
     name: Microsoft Power Platform APIs
     url: https://learn.microsoft.com/en-us/rest/api/power-platform/
 servers:
 - url: https://api.powerplatform.com
 tags:
-- name: powerapps.apps
+- name: powervirtualagents.bots
 paths:
-  /powerapps/environments/{environmentId}/apps:
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/status:
     get:
-      summary: Get admin apps
-      operationId: PowerApps_GetAdminApps
+      summary: Get bot quarantine status
+      operationId: PVA_GetBotQuarantineStatus
       tags:
-      - powerapps.apps
+      - powervirtualagents.bots
       parameters:
       - name: environmentId
         in: path
@@ -24,50 +24,12 @@ paths:
         schema:
           type: string
         description: Environment ID
-      - name: api-version
-        in: query
-        required: true
-        schema:
-          type: string
-        description: API version
-      - name: $top
-        in: query
-        required: false
-        schema:
-          type: integer
-        description: Page size
-      - name: $skiptoken
-        in: query
-        required: false
-        schema:
-          type: string
-        description: Skip token
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-  /powerapps/environments/{environmentId}/apps/{appId}:
-    get:
-      summary: Get admin app
-      operationId: PowerApps_GetAdminApp
-      tags:
-      - powerapps.apps
-      parameters:
-      - name: environmentId
+      - name: botId
         in: path
         required: true
         schema:
           type: string
-        description: Environment ID
-      - name: appId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: App ID
+        description: Bot ID
       - name: api-version
         in: query
         required: true
@@ -81,8 +43,80 @@ paths:
             application/json:
               schema:
                 type: object
-        '404':
-          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/set:
+    post:
+      summary: Set bot as quarantined
+      operationId: PVA_SetBotAsQuarantined
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/unset:
+    post:
+      summary: Set bot as unquarantined
+      operationId: PVA_SetBotAsUnquarantined
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
 components:
   securitySchemes:
     oauth2Implicit:
