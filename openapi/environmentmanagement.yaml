@@ -119,6 +119,44 @@ paths:
                 type: object
         '404':
           description: Not Found
+    delete:
+      summary: Delete environment by ID
+      operationId: Env_DeleteEnvironmentById
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: ValidateOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+        description: Validate the delete without executing
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '404':
+          description: Not Found
   /environmentmanagement/environments/{environmentId}:copy:
     post:
       summary: Copy environment
@@ -319,44 +357,6 @@ paths:
           description: Not Found
         '409':
           description: Conflict
-    delete:
-      summary: Delete environment by ID
-      operationId: Env_DeleteEnvironmentById
-      tags:
-      - environmentmanagement.environments
-      parameters:
-      - name: environmentId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Environment ID
-      - name: api-version
-        in: query
-        required: true
-        schema:
-          type: string
-        description: API version
-      - name: ValidateOnly
-        in: query
-        required: false
-        schema:
-          type: boolean
-        description: Validate the delete without executing
-      responses:
-        '202':
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                type: object
-          headers:
-            Operation-Location:
-              description: URL of the long-running operation.
-              schema:
-                type: string
-        '404':
-          description: Not Found
   /environmentmanagement/environments/{environmentId}/operations:
     get:
       summary: List operations for environment
