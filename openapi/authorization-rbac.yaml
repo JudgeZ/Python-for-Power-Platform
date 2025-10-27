@@ -30,9 +30,143 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/RoleDefinitionListResult'
         '401':
           description: Unauthorized
+    post:
+      summary: Create custom role definition
+      operationId: RBAC_CreateRoleDefinition
+      tags:
+      - authorization.rbac
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      security:
+      - oauth2Implicit:
+        - Authorization.RBAC.Manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleDefinitionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDefinition'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict
+  /authorization/rbac/roleDefinitions/{roleDefinitionId}:
+    get:
+      summary: Get role definition
+      operationId: RBAC_GetRoleDefinition
+      tags:
+      - authorization.rbac
+      parameters:
+      - name: roleDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Role definition ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDefinition'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    patch:
+      summary: Update custom role definition
+      operationId: RBAC_UpdateRoleDefinition
+      tags:
+      - authorization.rbac
+      parameters:
+      - name: roleDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Role definition ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      security:
+      - oauth2Implicit:
+        - Authorization.RBAC.Manage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleDefinitionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDefinition'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+    delete:
+      summary: Delete custom role definition
+      operationId: RBAC_DeleteRoleDefinition
+      tags:
+      - authorization.rbac
+      parameters:
+      - name: roleDefinitionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Role definition ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      security:
+      - oauth2Implicit:
+        - Authorization.RBAC.Manage
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /authorization/rbac/roleAssignments:
     get:
       summary: List role assignments
@@ -64,7 +198,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/RoleAssignmentListResult'
         '401':
           description: Unauthorized
     post:
@@ -79,13 +213,16 @@ paths:
         schema:
           type: string
         description: API version
+      security:
+      - oauth2Implicit:
+        - Authorization.RBAC.Manage
       responses:
         '201':
           description: Created
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/RoleAssignment'
         '400':
           description: Bad Request
         '401':
@@ -97,6 +234,35 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateRoleAssignmentRequest'
   /authorization/rbac/roleAssignments/{assignmentId}:
+    get:
+      summary: Get role assignment
+      operationId: RBAC_GetRoleAssignment
+      tags:
+      - authorization.rbac
+      parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Role assignment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAssignment'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
     delete:
       summary: Delete role assignment
       operationId: RBAC_DeleteRoleAssignment
@@ -115,6 +281,9 @@ paths:
         schema:
           type: string
         description: API version
+      security:
+      - oauth2Implicit:
+        - Authorization.RBAC.Manage
       responses:
         '204':
           description: No Content
@@ -130,8 +299,66 @@ components:
         implicit:
           authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
           scopes:
-            .default: .default
+            .default: Dataverse default scope
+            Authorization.RBAC.Read: Read RBAC role definitions and assignments
+            Authorization.RBAC.Manage: Manage RBAC role definitions and assignments
   schemas:
+    RoleDefinitionListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleDefinition'
+        nextLink:
+          type: string
+      additionalProperties: false
+    RoleDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        isBuiltIn:
+          type: boolean
+          description: Indicates whether the role definition is built-in.
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermission'
+        assignableScopes:
+          type: array
+          items:
+            type: string
+      required:
+      - id
+      - name
+      - permissions
+      - assignableScopes
+      additionalProperties: true
+    RolePermission:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            type: string
+        notActions:
+          type: array
+          items:
+            type: string
+        dataActions:
+          type: array
+          items:
+            type: string
+        notDataActions:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
     Error:
       type: object
       properties:
@@ -164,6 +391,42 @@ components:
         instance:
           type: string
       additionalProperties: true
+    CreateRoleDefinitionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermission'
+        assignableScopes:
+          type: array
+          items:
+            type: string
+      required:
+      - name
+      - permissions
+      - assignableScopes
+      additionalProperties: false
+    UpdateRoleDefinitionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RolePermission'
+        assignableScopes:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
     CreateRoleAssignmentRequest:
       type: object
       properties:
@@ -177,6 +440,36 @@ components:
       - principalId
       - roleDefinitionId
       - scope
+    RoleAssignmentListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleAssignment'
+        nextLink:
+          type: string
+      additionalProperties: false
+    RoleAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+        principalId:
+          type: string
+        roleDefinitionId:
+          type: string
+        scope:
+          type: string
+        createdOn:
+          type: string
+          format: date-time
+      required:
+      - id
+      - principalId
+      - roleDefinitionId
+      - scope
+      additionalProperties: true
 security:
 - oauth2Implicit:
-  - .default
+  - Authorization.RBAC.Read

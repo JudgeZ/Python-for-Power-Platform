@@ -10,5 +10,7 @@
 - Include `respx` in the default dependency set so local pytest runs have the required mock tooling.
 - Allow Dataverse hosts passed to `DataverseClient` and CLI commands to include the scheme or bare hostname interchangeably.
 - Introduce `ppx auth create` for device, web, and client-credential flows while keeping legacy aliases with deprecation warnings.
+- Extend the RBAC OpenAPI spec with role definition CRUD endpoints, modeled
+  schemas, and explicit `Authorization.RBAC.*` scope requirements.
 
 - 0.2.0 Extended features
