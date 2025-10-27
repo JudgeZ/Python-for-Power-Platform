@@ -1,0 +1,505 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Tenant Settings
+  version: 2024-03-01-preview
+  description: >-
+    Tenant level controls covering maker onboarding, feature flighting,
+    and service throttling policies.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+  - url: https://api.powerplatform.com
+tags:
+  - name: tenantSettings
+  - name: tenantSettings.featureControl
+paths:
+  /tenantsettings:
+    get:
+      summary: Get tenant settings
+      operationId: TenantSettings_Get
+      tags:
+        - tenantSettings
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Tenant settings retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    patch:
+      summary: Update tenant settings
+      operationId: TenantSettings_Update
+      tags:
+        - tenantSettings
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantSettingsPatch'
+      responses:
+        '200':
+          description: Tenant settings updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantSettings'
+        '202':
+          description: Update accepted for asynchronous processing.
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+      security:
+        - oauth2Implicit:
+            - .default
+            - TenantSettings.Manage
+  /tenantsettings/requestAccess:
+    post:
+      summary: Request access to modify tenant settings
+      operationId: TenantSettings_RequestAccess
+      tags:
+        - tenantSettings
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantSettingsAccessRequest'
+      responses:
+        '202':
+          description: Access request submitted.
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /tenantsettings/featureControl:
+    get:
+      summary: List tenant feature controls
+      operationId: TenantSettings_FeatureControl_List
+      tags:
+        - tenantSettings.featureControl
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+      responses:
+        '200':
+          description: Feature controls retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFeatureControlList'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+  /tenantsettings/featureControl/{featureName}:
+    get:
+      summary: Get tenant feature control
+      operationId: TenantSettings_FeatureControl_Get
+      tags:
+        - tenantSettings.featureControl
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+        - $ref: '#/components/parameters/FeatureName'
+      responses:
+        '200':
+          description: Feature control retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFeatureControl'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    patch:
+      summary: Update tenant feature control
+      operationId: TenantSettings_FeatureControl_Update
+      tags:
+        - tenantSettings.featureControl
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+        - $ref: '#/components/parameters/FeatureName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantFeatureControlPatch'
+      responses:
+        '200':
+          description: Feature control updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantFeatureControl'
+        '202':
+          description: Update accepted for asynchronous processing.
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+      security:
+        - oauth2Implicit:
+            - .default
+            - TenantSettings.Manage
+  /tenantsettings/featureControl/{featureName}/requestAccess:
+    post:
+      summary: Request access to modify tenant feature control
+      operationId: TenantSettings_FeatureControl_RequestAccess
+      tags:
+        - tenantSettings.featureControl
+      parameters:
+        - $ref: '#/components/parameters/ApiVersion'
+        - $ref: '#/components/parameters/FeatureName'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantFeatureAccessRequest'
+      responses:
+        '202':
+          description: Access request submitted.
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+components:
+  parameters:
+    ApiVersion:
+      name: api-version
+      in: query
+      required: true
+      description: API version
+      schema:
+        type: string
+    FeatureName:
+      name: featureName
+      in: path
+      required: true
+      description: Feature identifier
+      schema:
+        type: string
+  responses:
+    ErrorResponse:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMessage'
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: Default access scope
+            TenantSettings.Read: Read tenant settings.
+            TenantSettings.Manage: Modify tenant settings.
+  schemas:
+    TenantSettings:
+      type: object
+      properties:
+        disableCommunitySharing:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disableDiscoverability:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disableNewsletterSignup:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disableSupportTickets:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disableTrialEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disableProductionEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disablePortalCustomDomains:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        disablePowerAppsEvaluationEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        allowedEnvironmentTypes:
+          $ref: '#/components/schemas/TenantStringArraySetting'
+        allowedBillingPolicies:
+          $ref: '#/components/schemas/TenantStringArraySetting'
+        powerAutomateRequests:
+          $ref: '#/components/schemas/TenantThrottlingSetting'
+        appInsightsInstrumentationKeys:
+          $ref: '#/components/schemas/TenantStringArraySetting'
+        apiThrottlingPolicy:
+          $ref: '#/components/schemas/TenantThrottlingSetting'
+        powerPagesMakerAccess:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        managedEnvironment:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        analyticsSharing:
+          $ref: '#/components/schemas/TenantBooleanSetting'
+        experimentalFeatures:
+          $ref: '#/components/schemas/TenantStringArraySetting'
+        makerOnboarding:
+          $ref: '#/components/schemas/TenantMakerOnboardingSetting'
+      additionalProperties: false
+    TenantSettingsPatch:
+      type: object
+      properties:
+        disableCommunitySharing:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disableDiscoverability:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disableNewsletterSignup:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disableSupportTickets:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disableTrialEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disableProductionEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disablePortalCustomDomains:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        disablePowerAppsEvaluationEnvironmentCreation:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        allowedEnvironmentTypes:
+          $ref: '#/components/schemas/TenantStringArraySettingUpdate'
+        allowedBillingPolicies:
+          $ref: '#/components/schemas/TenantStringArraySettingUpdate'
+        powerAutomateRequests:
+          $ref: '#/components/schemas/TenantThrottlingSettingUpdate'
+        appInsightsInstrumentationKeys:
+          $ref: '#/components/schemas/TenantStringArraySettingUpdate'
+        apiThrottlingPolicy:
+          $ref: '#/components/schemas/TenantThrottlingSettingUpdate'
+        powerPagesMakerAccess:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        managedEnvironment:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        analyticsSharing:
+          $ref: '#/components/schemas/TenantBooleanSettingUpdate'
+        experimentalFeatures:
+          $ref: '#/components/schemas/TenantStringArraySettingUpdate'
+        makerOnboarding:
+          $ref: '#/components/schemas/TenantMakerOnboardingSettingUpdate'
+      additionalProperties: false
+    TenantBooleanSetting:
+      type: object
+      properties:
+        value:
+          type: boolean
+        requestedValue:
+          type: boolean
+        effectiveValue:
+          type: boolean
+        state:
+          type: string
+          description: Current access state for the setting.
+        lastUpdatedOn:
+          type: string
+          format: date-time
+        requestedOn:
+          type: string
+          format: date-time
+        requestedBy:
+          type: string
+        justification:
+          type: string
+      additionalProperties: true
+    TenantBooleanSettingUpdate:
+      type: object
+      properties:
+        value:
+          type: boolean
+        justification:
+          type: string
+      additionalProperties: false
+    TenantStringArraySetting:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            type: string
+        requestedValue:
+          type: array
+          items:
+            type: string
+        effectiveValue:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+        lastUpdatedOn:
+          type: string
+          format: date-time
+        requestedOn:
+          type: string
+          format: date-time
+        justification:
+          type: string
+      additionalProperties: true
+    TenantStringArraySettingUpdate:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            type: string
+        justification:
+          type: string
+      additionalProperties: false
+    TenantThrottlingSetting:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/TenantThrottlingLimits'
+        requestedValue:
+          $ref: '#/components/schemas/TenantThrottlingLimits'
+        effectiveValue:
+          $ref: '#/components/schemas/TenantThrottlingLimits'
+        state:
+          type: string
+        lastUpdatedOn:
+          type: string
+          format: date-time
+        requestedOn:
+          type: string
+          format: date-time
+        justification:
+          type: string
+      additionalProperties: true
+    TenantThrottlingSettingUpdate:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/TenantThrottlingLimits'
+        justification:
+          type: string
+      additionalProperties: false
+    TenantThrottlingLimits:
+      type: object
+      properties:
+        limit:
+          type: integer
+          format: int64
+          description: Maximum number of requests allowed.
+        intervalInMinutes:
+          type: integer
+          format: int32
+          description: Interval over which the limit applies.
+        scope:
+          type: string
+          description: Scope for the throttling limit (user, tenant, flow, etc.).
+      additionalProperties: false
+    TenantMakerOnboardingSetting:
+      type: object
+      properties:
+        value:
+          type: string
+          description: Maker onboarding policy identifier.
+        allowedValues:
+          type: array
+          items:
+            type: string
+        requestedValue:
+          type: string
+        state:
+          type: string
+        lastUpdatedOn:
+          type: string
+          format: date-time
+      additionalProperties: true
+    TenantMakerOnboardingSettingUpdate:
+      type: object
+      properties:
+        value:
+          type: string
+        justification:
+          type: string
+      additionalProperties: false
+    TenantSettingsAccessRequest:
+      type: object
+      required:
+        - justification
+      properties:
+        justification:
+          type: string
+        requestedSettings:
+          type: array
+          description: Settings that require elevated access.
+          items:
+            type: string
+      additionalProperties: false
+    TenantFeatureControlList:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/TenantFeatureControl'
+        nextLink:
+          type: string
+      additionalProperties: false
+    TenantFeatureControl:
+      type: object
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        state:
+          type: string
+        value:
+          type: boolean
+        requestedValue:
+          type: boolean
+        effectiveValue:
+          type: boolean
+        lastUpdatedOn:
+          type: string
+          format: date-time
+        requestedOn:
+          type: string
+          format: date-time
+        justification:
+          type: string
+        environments:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+    TenantFeatureControlPatch:
+      type: object
+      properties:
+        value:
+          type: boolean
+        justification:
+          type: string
+      additionalProperties: false
+    TenantFeatureAccessRequest:
+      type: object
+      required:
+        - justification
+      properties:
+        justification:
+          type: string
+      additionalProperties: false
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+security:
+  - oauth2Implicit:
+      - .default
+      - TenantSettings.Read

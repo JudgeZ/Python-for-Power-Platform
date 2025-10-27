@@ -19,6 +19,362 @@ components:
           authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize
           scopes:
             .default: Dataverse Web API default scope
+  schemas:
+    ExportSolutionRequest:
+      type: object
+      description: Parameters for exporting a solution archive.
+      required:
+      - SolutionName
+      properties:
+        SolutionName:
+          type: string
+          description: Unique name of the solution to export.
+        Managed:
+          type: boolean
+          description: When true, export a managed solution package.
+          default: false
+        TargetVersion:
+          type: string
+          nullable: true
+          description: Deprecated target version override for the export.
+        ExportAutoNumberingSettings:
+          type: boolean
+          nullable: true
+          description: Include auto numbering settings in the export package.
+        ExportCalendarSettings:
+          type: boolean
+          nullable: true
+          description: Include calendar settings in the export package.
+        ExportCustomizationSettings:
+          type: boolean
+          nullable: true
+          description: Include customization settings in the export package.
+        ExportEmailTrackingSettings:
+          type: boolean
+          nullable: true
+          description: Include email tracking settings in the export package.
+        ExportGeneralSettings:
+          type: boolean
+          nullable: true
+          description: Include general organization settings in the export package.
+        ExportMarketingSettings:
+          type: boolean
+          nullable: true
+          description: Include marketing settings in the export package.
+        ExportOutlookSynchronizationSettings:
+          type: boolean
+          nullable: true
+          description: Include Outlook synchronization settings in the export package.
+        ExportRelationshipRoles:
+          type: boolean
+          nullable: true
+          description: Include relationship role settings in the export package.
+        ExportIsvConfig:
+          type: boolean
+          nullable: true
+          description: Include ISV.Config settings in the export package.
+        ExportSales:
+          type: boolean
+          nullable: true
+          description: Include sales settings in the export package.
+        ExportExternalApplications:
+          type: boolean
+          nullable: true
+          description: Include external applications metadata when available.
+        ExportComponentsParams:
+          type: object
+          nullable: true
+          description: Explicit solution components to export when not exporting the full solution.
+          additionalProperties: true
+      additionalProperties: false
+    ExportSolutionResponse:
+      type: object
+      description: Response payload returned when a solution export completes.
+      properties:
+        ExportSolutionFile:
+          type: string
+          format: byte
+          description: Base64 encoded ZIP file of the exported solution.
+      additionalProperties: true
+    ImportSolutionRequest:
+      type: object
+      description: Parameters controlling solution import behavior.
+      required:
+      - OverwriteUnmanagedCustomizations
+      - PublishWorkflows
+      - CustomizationFile
+      - ImportJobId
+      properties:
+        OverwriteUnmanagedCustomizations:
+          type: boolean
+          description: Overwrite unmanaged customizations that conflict with managed components.
+        PublishWorkflows:
+          type: boolean
+          description: Activate processes included in the import after completion.
+        CustomizationFile:
+          type: string
+          format: byte
+          description: Base64 encoded ZIP file containing the solution to import.
+        ImportJobId:
+          type: string
+          format: uuid
+          description: Identifier of the import job that tracks this operation.
+        ConvertToManaged:
+          type: boolean
+          nullable: true
+          description: Legacy flag retained for backwards compatibility.
+        SkipProductUpdateDependencies:
+          type: boolean
+          nullable: true
+          description: Skip enforcement of product update dependencies.
+        HoldingSolution:
+          type: boolean
+          nullable: true
+          description: Stage the import as a holding solution for upgrade scenarios.
+        SkipQueueRibbonJob:
+          type: boolean
+          nullable: true
+          description: Internal use only toggle for ribbon queue processing.
+        LayerDesiredOrder:
+          type: object
+          nullable: true
+          description: Desired layering instructions for solution components.
+          additionalProperties: true
+        ComponentParameters:
+          type: array
+          description: Entity records that override environment variable values or connection references during import.
+          items:
+            type: object
+            additionalProperties: true
+        IsTemplateMode:
+          type: boolean
+          nullable: true
+          description: Internal template mode flag.
+        TemplateSuffix:
+          type: string
+          nullable: true
+          description: Internal suffix applied when importing from a template.
+        SolutionParameters:
+          type: object
+          nullable: true
+          description: Additional solution parameters accepted by the platform.
+          additionalProperties: true
+        TemplateDisplayNamePrefix:
+          type: string
+          nullable: true
+          description: Internal display name prefix used with template mode imports.
+        StageAndUpgrade:
+          type: boolean
+          nullable: true
+          description: Import the package as a holding solution and immediately queue upgrade.
+        SchemaUpdatesOnly:
+          type: boolean
+          nullable: true
+          description: Apply schema-only updates when supported by the package.
+      additionalProperties: false
+    CloneAsPatchRequest:
+      type: object
+      description: Parameters used to create a patch from an existing solution.
+      required:
+      - ParentSolutionUniqueName
+      - DisplayName
+      - VersionNumber
+      properties:
+        ParentSolutionUniqueName:
+          type: string
+          description: Unique name of the parent solution.
+        DisplayName:
+          type: string
+          description: Friendly name for the new patch solution.
+        VersionNumber:
+          type: string
+          description: Version number for the patch. Must keep the parent major.minor version while incrementing build or revision.
+      additionalProperties: false
+    CloneAsPatchResponse:
+      type: object
+      description: Response payload when cloning a patch solution.
+      properties:
+        SolutionId:
+          type: string
+          format: uuid
+          description: Unique identifier of the cloned patch solution.
+      additionalProperties: true
+    CloneAsSolutionRequest:
+      type: object
+      description: Parameters used to promote a patch back into a primary solution.
+      required:
+      - ParentSolutionUniqueName
+      - DisplayName
+      - VersionNumber
+      properties:
+        ParentSolutionUniqueName:
+          type: string
+          description: Unique name of the parent solution to promote.
+        DisplayName:
+          type: string
+          description: Friendly display name for the cloned solution.
+        VersionNumber:
+          type: string
+          description: Version number for the cloned solution.
+      additionalProperties: false
+    CloneAsSolutionResponse:
+      type: object
+      description: Response payload when cloning a solution from a patch.
+      properties:
+        SolutionId:
+          type: string
+          format: uuid
+          description: Unique identifier of the cloned solution.
+      additionalProperties: true
+    DeleteAndPromoteRequest:
+      type: object
+      description: Parameters for deleting a patch and promoting its parent solution.
+      required:
+      - UniqueName
+      properties:
+        UniqueName:
+          type: string
+          description: Unique name of the solution being promoted.
+      additionalProperties: false
+    ApplySolutionUpgradeRequest:
+      type: object
+      description: Parameters for applying a staged solution upgrade.
+      required:
+      - SolutionName
+      properties:
+        SolutionName:
+          type: string
+          description: Unique name of the solution upgrade to apply.
+        DeleteHoldingSolution:
+          type: boolean
+          nullable: true
+          description: Remove the holding solution after the upgrade succeeds.
+      additionalProperties: false
+    StageSolutionRequest:
+      type: object
+      description: Parameters to stage a managed solution upgrade.
+      required:
+      - CustomizationFile
+      properties:
+        CustomizationFile:
+          type: string
+          format: byte
+          description: Base64 encoded ZIP file containing the managed solution to stage.
+        StageSolutionUploadId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Optional existing upload identifier when resuming a staged import.
+      additionalProperties: false
+    StageSolutionResponse:
+      type: object
+      description: Detailed information returned after staging a solution for upgrade.
+      properties:
+        StageSolutionResults:
+          $ref: '#/components/schemas/StageSolutionResults'
+      additionalProperties: false
+    StageSolutionResults:
+      type: object
+      description: Aggregated results from staging a solution, including validation details.
+      properties:
+        MissingDependencies:
+          type: array
+          description: Missing dependencies detected while staging the solution.
+          items:
+            type: object
+            additionalProperties: true
+        SolutionComponentsDetails:
+          type: array
+          description: Detailed information about solution components evaluated during staging.
+          items:
+            type: object
+            additionalProperties: true
+        SolutionDetails:
+          type: object
+          description: Metadata describing the staged solution.
+          additionalProperties: true
+        SolutionValidationResults:
+          type: array
+          description: Validation results for staged components.
+          items:
+            type: object
+            additionalProperties: true
+        StageSolutionStatus:
+          type: string
+          description: Status indicator for the staged solution operation.
+        StageSolutionUploadId:
+          type: string
+          format: uuid
+          description: Upload identifier associated with the staged solution.
+      additionalProperties: true
+    PublishAllXmlRequest:
+      type: object
+      description: Empty request body for publish-all customizations action.
+      additionalProperties: false
+    ExportSolutionAsManagedRequest:
+      allOf:
+      - $ref: '#/components/schemas/ExportSolutionRequest'
+      - type: object
+        properties:
+          Managed:
+            type: boolean
+            enum:
+            - true
+            description: Managed exports always set this flag to true.
+      description: Specialized export request that enforces managed packaging.
+    ExportSolutionUpgradeRequest:
+      type: object
+      description: Parameters for exporting a solution upgrade package.
+      required:
+      - SolutionName
+      properties:
+        SolutionName:
+          type: string
+          description: Unique name of the solution to export as an upgrade.
+        IncludeTranslations:
+          type: boolean
+          nullable: true
+          description: Include translation files in the upgrade package.
+        IncludeSales:
+          type: boolean
+          nullable: true
+          description: Include sales settings as part of the upgrade package.
+      additionalProperties: false
+    ExportTranslationRequest:
+      type: object
+      description: Request payload to export localized labels for a solution.
+      required:
+      - SolutionName
+      properties:
+        SolutionName:
+          type: string
+          description: Unique name of the solution whose translations are exported.
+      additionalProperties: false
+    ExportTranslationResponse:
+      type: object
+      description: Response payload containing the translation export data.
+      properties:
+        ExportTranslationFile:
+          type: string
+          format: byte
+          description: Base64 encoded ZIP file containing the solution translation data.
+      additionalProperties: true
+    ImportTranslationRequest:
+      type: object
+      description: Payload submitted to import localized labels for a solution.
+      required:
+      - TranslationFile
+      - ImportJobId
+      properties:
+        TranslationFile:
+          type: string
+          format: byte
+          description: Base64 encoded ZIP file containing the translation data.
+        ImportJobId:
+          type: string
+          format: uuid
+          description: Identifier of the import job created for the translation import.
+      additionalProperties: false
 paths:
   /ExportSolution:
     post:
@@ -28,16 +384,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/ExportSolutionRequest'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ExportSolutionResponse'
   /ImportSolution:
     post:
       summary: Import solution (LRO depends on settings)
@@ -46,13 +400,18 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/ImportSolutionRequest'
       responses:
         '200':
           description: OK
         '202':
           description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for the import job status.
+              schema:
+                type: string
+                format: uri
   /ApplySolutionUpgrade:
     post:
       summary: Apply solution upgrade
@@ -61,8 +420,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/ApplySolutionUpgradeRequest'
       responses:
         '200':
           description: OK
@@ -74,11 +432,133 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/CloneAsPatchRequest'
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloneAsPatchResponse'
+  /CloneAsSolution:
+    post:
+      summary: Promote patch to a managed solution
+      operationId: Dataverse_CloneAsSolution
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloneAsSolutionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloneAsSolutionResponse'
+  /StageSolution:
+    post:
+      summary: Stage solution for upgrade validation
+      operationId: Dataverse_StageSolution
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StageSolutionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageSolutionResponse'
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for stage solution progress.
+              schema:
+                type: string
+                format: uri
+  /PublishAllXml:
+    post:
+      summary: Publish all customizations
+      operationId: Dataverse_PublishAllXml
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishAllXmlRequest'
+      responses:
+        '200':
+          description: OK
+  /ExportSolutionAsManaged:
+    post:
+      summary: Export solution as managed package
+      operationId: Dataverse_ExportSolutionAsManaged
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportSolutionAsManagedRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportSolutionResponse'
+  /ExportSolutionUpgrade:
+    post:
+      summary: Export solution upgrade package
+      operationId: Dataverse_ExportSolutionUpgrade
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportSolutionUpgradeRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportSolutionResponse'
+  /ImportTranslation:
+    post:
+      summary: Import translation package
+      operationId: Dataverse_ImportTranslation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportTranslationRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for the translation import job status.
+              schema:
+                type: string
+                format: uri
+  /ExportTranslation:
+    post:
+      summary: Export translation package
+      operationId: Dataverse_ExportTranslation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportTranslationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportTranslationResponse'
   /DeleteAndPromote:
     post:
       summary: Delete and promote patch
@@ -87,8 +567,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/DeleteAndPromoteRequest'
       responses:
         '200':
           description: OK
