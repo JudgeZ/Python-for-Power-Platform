@@ -9,6 +9,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, cast
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -142,6 +143,15 @@ class AzureBlobVirtualFileProvider:
         timeout = float(os.getenv("PACX_BLOB_TIMEOUT", "30"))
         return httpx.Client(timeout=timeout)
 
+    @staticmethod
+    def _sanitize_blob_url(url: str) -> str:
+        """Remove query parameters from a blob URL to avoid leaking SAS tokens."""
+
+        parts = urlsplit(url)
+        if not parts.query:
+            return url
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, "", parts.fragment))
+
     def export(
         self, ctx: ProviderContext, options: Mapping[str, object] | None = None
     ) -> ProviderResult:
@@ -161,17 +171,31 @@ class AzureBlobVirtualFileProvider:
                 if not blob_url:
                     result.skipped += 1
                     continue
-                url = str(blob_url)
+                download_url = str(blob_url)
                 if sas_token:
                     token = sas_token.lstrip("?")
                     if token:
-                        separator = "&" if "?" in url else "?"
-                        url = f"{url}{separator}{token}"
+                        separator = "&" if "?" in download_url else "?"
+                        download_url = f"{download_url}{separator}{token}"
+                sanitized_url = self._sanitize_blob_url(download_url)
                 try:
-                    resp = client.get(url)
+                    resp = client.get(download_url)
                     resp.raise_for_status()
-                except Exception as exc:  # pragma: no cover - logged for manifest consumers
-                    result.errors.append(f"{url}: {exc}")
+                except httpx.HTTPStatusError as exc:  # pragma: no cover - manifest log only
+                    status = exc.response.status_code
+                    reason = exc.response.reason_phrase or ""
+                    detail = f"HTTP {status}"
+                    if reason:
+                        detail = f"{detail} {reason}"
+                    result.errors.append(f"{sanitized_url}: {detail}")
+                    continue
+                except httpx.RequestError as exc:  # pragma: no cover - manifest log only
+                    result.errors.append(
+                        f"{sanitized_url}: {exc.__class__.__name__}"
+                    )
+                    continue
+                except Exception as exc:  # pragma: no cover - manifest log only
+                    result.errors.append(f"{sanitized_url}: {exc}")
                     continue
                 name_source = (
                     wf.get("adx_name")
@@ -189,7 +213,7 @@ class AzureBlobVirtualFileProvider:
                         path=target.relative_to(ctx.output_dir),
                         checksum=checksum,
                         size=len(resp.content),
-                        extra={"source": url},
+                        extra={"source": sanitized_url},
                     )
                 )
         return result

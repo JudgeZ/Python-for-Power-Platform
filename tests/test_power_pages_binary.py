@@ -223,3 +223,70 @@ def test_download_with_azure_provider_and_sas_query(
 
     assert blob.called
     assert (res.output_path / "files_virtual" / "logo.png").read_bytes() == b"blob"
+    provider = res.providers["azure-blob"]
+    sanitized = "https://storage/f/logo.png"
+    assert provider.files[0].extra["source"] == sanitized
+    manifest = json.loads((res.output_path / "manifest.json").read_text())
+    manifest_source = manifest["providers"]["azure-blob"]["files"][0]["extra"]["source"]
+    assert manifest_source == sanitized
+    assert "sig=xyz" not in manifest_source
+
+
+def test_azure_provider_records_sanitized_error(
+    monkeypatch, tmp_path, respx_mock, token_getter
+):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/adx_webfiles",
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "adx_webfileid": "wf1",
+                        "adx_name": "logo.png",
+                        "adx_partialurl": "logo.png",
+                        "_adx_websiteid_value": "site",
+                        "adx_virtualfilestorepath": "https://storage/f/logo.png?foo=1",
+                    }
+                ]
+            },
+        )
+    )
+    for entity in (
+        "adx_websites",
+        "adx_webpages",
+        "adx_contentsnippets",
+        "adx_pagetemplates",
+        "adx_sitemarkers",
+    ):
+        respx_mock.get(
+            f"https://example.crm.dynamics.com/api/data/v9.2/{entity}",
+        ).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    monkeypatch.setenv("BLOB_SAS", "sv=1&sig=xyz")
+
+    respx_mock.get(
+        "https://storage/f/logo.png?foo=1&sv=1&sig=xyz",
+    ).mock(return_value=httpx.Response(403))
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=False,
+        binary_providers=["azure"],
+        provider_options={"azure": {"sas_env": "BLOB_SAS"}},
+    )
+
+    provider = res.providers["azure-blob"]
+    assert provider.errors
+    assert provider.errors[0].startswith("https://storage/f/logo.png")
+    assert "sig=xyz" not in provider.errors[0]
+    manifest = json.loads((res.output_path / "manifest.json").read_text())
+    manifest_error = manifest["providers"]["azure-blob"]["errors"][0]
+    assert manifest_error.startswith("https://storage/f/logo.png")
+    assert "sig=xyz" not in manifest_error
