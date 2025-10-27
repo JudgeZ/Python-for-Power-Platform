@@ -3,9 +3,8 @@ from __future__ import annotations
 import csv
 import types
 
-import pytest
-
 import httpx
+import pytest
 
 from pacx.batch import BatchSendResult
 from pacx.bulk_csv import bulk_csv_upsert

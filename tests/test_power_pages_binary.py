@@ -171,7 +171,9 @@ def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
     assert (res.output_path / "files_virtual" / "logo.png").read_bytes() == b"blob"
 
 
-def test_download_with_azure_provider_and_sas_query(monkeypatch, tmp_path, respx_mock, token_getter):
+def test_download_with_azure_provider_and_sas_query(
+    monkeypatch, tmp_path, respx_mock, token_getter
+):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
 

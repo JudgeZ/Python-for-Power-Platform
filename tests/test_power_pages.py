@@ -173,9 +173,9 @@ def test_pages_upload_natural_keys(tmp_path, respx_mock, token_getter):
         assert request.headers.get("If-Match") == "*"
         return httpx.Response(204)
 
-    respx_mock.patch(
-        "https://example.crm.dynamics.com/api/data/v9.2/" + expected_segment
-    ).mock(side_effect=responder)
+    respx_mock.patch("https://example.crm.dynamics.com/api/data/v9.2/" + expected_segment).mock(
+        side_effect=responder
+    )
 
     pp.upload_site("site", str(site), strategy="replace")
 
@@ -214,9 +214,7 @@ def test_pages_upload_natural_keys_merge(tmp_path, respx_mock, token_getter):
     pp.upload_site("site", str(site), strategy="merge")
 
 
-def test_pages_upload_natural_keys_merge_creates_when_missing(
-    tmp_path, respx_mock, token_getter
-):
+def test_pages_upload_natural_keys_merge_creates_when_missing(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
 

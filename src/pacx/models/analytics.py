@@ -89,9 +89,7 @@ class AdvisorRecommendationOperationStatus(BaseModel):
     started_at: str | None = Field(default=None, alias="startedAt")
     last_updated_at: str | None = Field(default=None, alias="lastUpdatedAt")
     completed_at: str | None = Field(default=None, alias="completedAt")
-    result_summary: AdvisorRecommendationActionResultSummary = Field(
-        alias="resultSummary"
-    )
+    result_summary: AdvisorRecommendationActionResultSummary = Field(alias="resultSummary")
 
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 

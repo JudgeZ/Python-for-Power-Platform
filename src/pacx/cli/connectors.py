@@ -1,6 +1,7 @@
+"""Typer commands that manage custom connectors."""
+
 from __future__ import annotations
 
-"""Typer commands that manage custom connectors."""
 from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
@@ -13,7 +14,6 @@ from ..cli_utils import resolve_environment_id_from_context
 from ..clients.connectors import ConnectorsClient
 from ..errors import HttpError
 from .common import get_token_getter, handle_cli_errors
-
 
 # Connectivity calls fail with 401/403 when the caller lacks the scopes required for
 # the new endpoints. 404/405 are returned when the feature flag is disabled or the
@@ -34,6 +34,21 @@ class EndpointChoice(str, Enum):
 
 
 app = typer.Typer(help="Connectors (APIs)")
+
+
+ENDPOINT_OPTION = typer.Option(
+    EndpointChoice.AUTO,
+    "--endpoint",
+    help="Connector API family (auto, powerapps, connectivity)",
+    case_sensitive=False,
+)
+
+CONNECTIVITY_ENDPOINT_OPTION = typer.Option(
+    EndpointChoice.AUTO,
+    "--endpoint",
+    help="Connector API family (auto or connectivity)",
+    case_sensitive=False,
+)
 
 
 def _with_endpoint(
@@ -64,9 +79,7 @@ def _with_endpoint(
                 fallback = ConnectorsClient(token_getter, use_connectivity=False)
                 return action(fallback)
             raise
-    client = ConnectorsClient(
-        token_getter, use_connectivity=choice == EndpointChoice.CONNECTIVITY
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=choice == EndpointChoice.CONNECTIVITY)
     return action(client)
 
 
@@ -77,15 +90,8 @@ def connectors_list(
     environment_id: str | None = typer.Option(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
-    top: int | None = typer.Option(
-        None, help="Optional page size sent with the initial request"
-    ),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto, powerapps, connectivity)",
-        case_sensitive=False,
-    ),
+    top: int | None = typer.Option(None, help="Optional page size sent with the initial request"),
+    endpoint: EndpointChoice = CONNECTIVITY_ENDPOINT_OPTION,
 ) -> None:
     """List custom connector APIs available in an environment.
 
@@ -121,12 +127,7 @@ def connectors_get(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
     api_name: str = typer.Argument(..., help="API (connector) internal name"),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto, powerapps, connectivity)",
-        case_sensitive=False,
-    ),
+    endpoint: EndpointChoice = CONNECTIVITY_ENDPOINT_OPTION,
 ) -> None:
     """Retrieve the OpenAPI definition for a connector.
 
@@ -166,12 +167,7 @@ def connector_push(
     display_name: str | None = typer.Option(
         None, help="Optional friendly name shown in Power Platform"
     ),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto, powerapps, connectivity)",
-        case_sensitive=False,
-    ),
+    endpoint: EndpointChoice = ENDPOINT_OPTION,
 ) -> None:
     """Create or update a connector from an OpenAPI document.
 
@@ -188,9 +184,7 @@ def connector_push(
     text = Path(openapi_path).read_text(encoding="utf-8")
 
     def run(client: ConnectorsClient) -> None:
-        result = client.put_api_from_openapi(
-            environment, name, text, display_name=display_name
-        )
+        result = client.put_api_from_openapi(environment, name, text, display_name=display_name)
         print(result)
 
     _with_endpoint(
@@ -216,12 +210,7 @@ def connector_delete(
         "-y",
         help="Confirm deletion without prompting.",
     ),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto, powerapps, connectivity)",
-        case_sensitive=False,
-    ),
+    endpoint: EndpointChoice = ENDPOINT_OPTION,
 ) -> None:
     """Delete a connector from the target environment.
 
@@ -273,17 +262,14 @@ def connector_validate(
     display_name: str | None = typer.Option(
         None, help="Optional friendly name used during validation"
     ),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto or connectivity)",
-        case_sensitive=False,
-    ),
+    endpoint: EndpointChoice = ENDPOINT_OPTION,
 ) -> None:
     """Validate a connector definition using the connectivity endpoints."""
 
     if endpoint == EndpointChoice.POWERAPPS:
-        print("[red]Validation requires the connectivity endpoints (--endpoint connectivity).[/red]")
+        print(
+            "[red]Validation requires the connectivity endpoints (--endpoint connectivity).[/red]"
+        )
         raise typer.Exit(2)
 
     token_getter = get_token_getter(ctx)
@@ -313,12 +299,7 @@ def connector_runtime_status(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
     api_name: str = typer.Argument(..., help="Connector internal name"),
-    endpoint: EndpointChoice = typer.Option(
-        EndpointChoice.AUTO,
-        "--endpoint",
-        help="Connector API family (auto or connectivity)",
-        case_sensitive=False,
-    ),
+    endpoint: EndpointChoice = ENDPOINT_OPTION,
 ) -> None:
     """Display the runtime health for a custom connector."""
 

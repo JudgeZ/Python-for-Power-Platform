@@ -4,10 +4,6 @@ import importlib
 import sys
 import types
 
-import importlib
-import sys
-import types
-
 import pytest
 import typer
 from typer.core import TyperCommand
@@ -71,9 +67,9 @@ def test_get_token_getter_builds_provider(monkeypatch: pytest.MonkeyPatch) -> No
                 client_id="client",
                 scopes=["api/.default"],
                 # Bandit B106: identifies backend implementation.
-                secret_backend="keyring",  # nosec B106
+                secret_backend="keyring",  # noqa: S106  # nosec B106
                 # Bandit B106: pointer to stored secret.
-                secret_ref="svc:user",  # nosec B106
+                secret_ref="svc:user",  # noqa: S106  # nosec B106
             )
         },
     )
@@ -169,7 +165,7 @@ def test_resolve_token_getter_legacy_profile_defaults_to_device_flow(
         scope="api/.default",
         use_device_code=False,
     )
-    setattr(profile, "_legacy_device_code_default", True)
+    profile._legacy_device_code_default = True
 
     config = ConfigData(
         default_profile="default",
@@ -181,12 +177,13 @@ def test_resolve_token_getter_legacy_profile_defaults_to_device_flow(
     assert provider_kwargs.get("use_device_code") is True
 
     provider_kwargs.clear()
-    profile.client_secret_env = "LEGACY_SECRET_ENV"
+    profile.client_secret_env = "LEGACY_SECRET_ENV"  # noqa: S105
     monkeypatch.setenv("LEGACY_SECRET_ENV", "super-secret")
 
     getter = common_module.resolve_token_getter(config=config)
     assert getter() == "provider-token"
     assert provider_kwargs.get("use_device_code") is False
+
 
 def test_get_token_getter_optional(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)

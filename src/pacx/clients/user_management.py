@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import httpx
 
 from ..http_client import HttpClient
 from ..models.user_management import (
-    AdminRoleAssignment,
     AdminRoleAssignmentList,
     AsyncOperationStatus,
     RemoveAdminRoleRequest,
@@ -102,7 +102,7 @@ class UserManagementClient:
         """Remove a specific admin role assignment from the user."""
 
         if isinstance(payload, str):
-            body = RemoveAdminRoleRequest(role_definition_id=payload)
+            body = RemoveAdminRoleRequest(roleDefinitionId=payload)
         else:
             body = payload
         return self._post_operation(
@@ -143,28 +143,33 @@ class UserManagementClient:
 
         done_states = {"Succeeded", "Failed", "Canceled"}
 
-        def get_status() -> AsyncOperationStatus:
+        def get_status_dict() -> dict[str, Any]:
             params = None if "?" in operation_url else self._with_api_version()
             resp = self.http.get(operation_url, params=params)
-            return AsyncOperationStatus.model_validate(self._parse_response_dict(resp))
+            return self._parse_response_dict(resp)
 
-        def is_done(status: AsyncOperationStatus) -> bool:
+        def to_status(data: dict[str, Any]) -> AsyncOperationStatus:
+            return AsyncOperationStatus.model_validate(data)
+
+        def is_done(data: dict[str, Any]) -> bool:
+            status = to_status(data)
             if status.status is None:
                 return False
             return status.status in done_states
 
-        def to_progress(status: AsyncOperationStatus) -> int | None:
+        def to_progress(data: dict[str, Any]) -> int | None:
+            status = to_status(data)
             pct = status.percent_complete
             return int(pct) if pct is not None else None
 
-        status = poll_until(
-            get_status=get_status,
+        raw_status = poll_until(
+            get_status=get_status_dict,
             is_done=is_done,
             get_progress=to_progress,
             interval=interval,
             timeout=timeout,
         )
-        return status
+        return to_status(raw_status)
 
 
 __all__ = [

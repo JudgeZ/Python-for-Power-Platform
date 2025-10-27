@@ -180,8 +180,8 @@ def test_refresh_failure_routes_to_interactive_flow(
     assert token == "interactive-token"  # noqa: S105 - deterministic test token
     assert base_profile.access_token == "interactive-token"  # noqa: S105 - deterministic test token
     assert (
-        base_profile.refresh_token == "interactive-refresh"
-    )  # noqa: S105 - deterministic test token
+        base_profile.refresh_token == "interactive-refresh"  # noqa: S105 - deterministic test token
+    )
     assert store.saved_profiles[-1] is base_profile
 
 

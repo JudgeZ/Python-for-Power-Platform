@@ -50,8 +50,8 @@ def test_token_resolution_prefers_keyring_secret(monkeypatch: pytest.MonkeyPatch
         client_id="client",
         scope="https://api.powerplatform.com/.default",
     )
-    profile.token_backend = "keyring"
-    profile.token_ref = "svc:user"
+    profile.token_backend = "keyring"  # noqa: S105
+    profile.token_ref = "svc:user"  # noqa: S105
     config = make_config(profile)
 
     common = load_common_module()
@@ -80,7 +80,7 @@ def test_token_resolution_uses_cached_config_token(
         tenant_id="tenant",
         client_id="client",
         scope="https://api.powerplatform.com/.default",
-        access_token="stored-token",
+        access_token="stored-token",  # noqa: S105, S106
     )
     config = make_config(profile)
 
@@ -90,7 +90,7 @@ def test_token_resolution_uses_cached_config_token(
 
     assert getter() == "stored-token"
 
-    profile.access_token = "rotated-token"
+    profile.access_token = "rotated-token"  # noqa: S105, S106
     assert getter() == "rotated-token"
 
 

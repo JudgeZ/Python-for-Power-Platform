@@ -29,7 +29,7 @@ def load_cli_app(monkeypatch: pytest.MonkeyPatch):
 
 
 class StubUserManagementClient:
-    instances: list["StubUserManagementClient"] = []
+    instances: list[StubUserManagementClient] = []
 
     def __init__(self, token_getter, api_version: str | None = None) -> None:
         self.token = token_getter()

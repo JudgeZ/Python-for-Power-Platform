@@ -115,8 +115,8 @@ def test_refresh_token_persisted_to_keyring(
     profile = Profile(
         name="keyring-profile",
         refresh_token="r-token",  # noqa: S106
-        token_backend="keyvault",
-        token_ref="kv:access-token",
+        token_backend="keyvault",  # noqa: S106
+        token_ref="kv:access-token",  # noqa: S106
     )
     cfg = ConfigData(default_profile="keyring-profile", profiles={"keyring-profile": profile})
 
@@ -127,13 +127,10 @@ def test_refresh_token_persisted_to_keyring(
     stored_profile = raw["profiles"]["keyring-profile"]
     assert "refresh_token" not in stored_profile
     assert stored_profile["refresh_token_backend"] == "keyring"  # noqa: S105
-    assert (
-        stored_profile["refresh_token_ref"]
-        == "pacx:refresh-token:keyring-profile"
-    )  # noqa: S105
+    assert stored_profile["refresh_token_ref"] == "pacx:refresh-token:keyring-profile"  # noqa: S105
     # Access-token metadata is preserved when persisting refresh tokens.
-    assert stored_profile["token_backend"] == "keyvault"
-    assert stored_profile["token_ref"] == "kv:access-token"
+    assert stored_profile["token_backend"] == "keyvault"  # noqa: S105
+    assert stored_profile["token_ref"] == "kv:access-token"  # noqa: S105
     assert stub.storage[("pacx", "refresh-token:keyring-profile")] == "r-token"
     assert not any("Keyring unavailable" in message for message in caplog.messages)
 
@@ -141,11 +138,9 @@ def test_refresh_token_persisted_to_keyring(
     keyring_profile = loaded.profiles["keyring-profile"]
     assert keyring_profile.refresh_token == "r-token"  # noqa: S105
     assert keyring_profile.refresh_token_backend == "keyring"  # noqa: S105
-    assert (
-        keyring_profile.refresh_token_ref == "pacx:refresh-token:keyring-profile"
-    )  # noqa: S105
-    assert keyring_profile.token_backend == "keyvault"
-    assert keyring_profile.token_ref == "kv:access-token"
+    assert keyring_profile.refresh_token_ref == "pacx:refresh-token:keyring-profile"  # noqa: S105
+    assert keyring_profile.token_backend == "keyvault"  # noqa: S105
+    assert keyring_profile.token_ref == "kv:access-token"  # noqa: S105
 
 
 def test_refresh_token_fallback_logs_warning(

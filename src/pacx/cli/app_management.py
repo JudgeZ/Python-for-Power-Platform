@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
-from typing import Any, Type, cast
+from typing import Any, cast
 
 import typer
 from rich import print
 
 from ..clients.app_management import (
     DEFAULT_API_VERSION,
+)
+from ..clients.app_management import (
     AppManagementClient as _DefaultAppManagementClient,
 )
 from ..models.app_management import ApplicationPackageOperation, ApplicationPackageSummary
@@ -20,7 +22,7 @@ packages_app = typer.Typer(help="Manage application package lifecycle.")
 app.add_typer(packages_app, name="pkgs")
 
 
-def _resolve_client_class() -> Type[_DefaultAppManagementClient]:
+def _resolve_client_class() -> type[_DefaultAppManagementClient]:
     try:
         module = import_module("pacx.cli")
     except Exception:  # pragma: no cover - defensive fallback
@@ -29,7 +31,7 @@ def _resolve_client_class() -> Type[_DefaultAppManagementClient]:
     client_cls = getattr(module, "AppManagementClient", None)
     if client_cls is None:
         return _DefaultAppManagementClient
-    return cast(Type[_DefaultAppManagementClient], client_cls) or _DefaultAppManagementClient
+    return cast(type[_DefaultAppManagementClient], client_cls) or _DefaultAppManagementClient
 
 
 def _build_client(
@@ -56,7 +58,7 @@ def _parse_parameters(raw: str | None) -> dict[str, Any]:
     if raw in (None, ""):
         return {}
     try:
-        payload = json.loads(raw)
+        payload = json.loads(cast(str, raw))
     except json.JSONDecodeError as exc:  # pragma: no cover - option validation
         raise typer.BadParameter(f"Invalid JSON payload: {exc}") from exc
     if not isinstance(payload, dict):
@@ -232,7 +234,9 @@ def upgrade_package(
 @handle_cli_errors
 def get_status(
     ctx: typer.Context,
-    operation_id: str = typer.Argument(..., help="Operation identifier returned from install or upgrade."),
+    operation_id: str = typer.Argument(
+        ..., help="Operation identifier returned from install or upgrade."
+    ),
     environment_id: str | None = typer.Option(
         None,
         "--environment-id",

@@ -111,9 +111,7 @@ def test_delete_api_raises_for_missing(respx_mock, token_getter):
 
 
 def test_list_apis_connectivity_routes(respx_mock, token_getter):
-    client = ConnectorsClient(
-        token_getter, use_connectivity=True, client_request_id="stub-request"
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=True, client_request_id="stub-request")
     route = respx_mock.get(
         "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors",
         params={"api-version": "2022-03-01-preview", "$top": 3},
@@ -127,9 +125,7 @@ def test_list_apis_connectivity_routes(respx_mock, token_getter):
 
 
 def test_put_api_uses_connectivity_upsert(respx_mock, token_getter):
-    client = ConnectorsClient(
-        token_getter, use_connectivity=True, client_request_id="stub-request"
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=True, client_request_id="stub-request")
     update_route = respx_mock.patch(
         "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample",
         params={"api-version": "2022-03-01-preview"},
@@ -150,9 +146,7 @@ def test_put_api_uses_connectivity_upsert(respx_mock, token_getter):
 
 
 def test_validate_custom_connector_route(respx_mock, token_getter):
-    client = ConnectorsClient(
-        token_getter, use_connectivity=True, client_request_id="stub-request"
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=True, client_request_id="stub-request")
     route = respx_mock.post(
         "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample:validate",
         params={"api-version": "2022-03-01-preview"},
@@ -168,9 +162,7 @@ def test_validate_custom_connector_route(respx_mock, token_getter):
 
 
 def test_runtime_status_route(respx_mock, token_getter):
-    client = ConnectorsClient(
-        token_getter, use_connectivity=True, client_request_id="stub-request"
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=True, client_request_id="stub-request")
     route = respx_mock.get(
         "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample/runtimeStatus",
         params={"api-version": "2022-03-01-preview"},
@@ -184,9 +176,7 @@ def test_runtime_status_route(respx_mock, token_getter):
 
 
 def test_policy_template_route(respx_mock, token_getter):
-    client = ConnectorsClient(
-        token_getter, use_connectivity=True, client_request_id="stub-request"
-    )
+    client = ConnectorsClient(token_getter, use_connectivity=True, client_request_id="stub-request")
     list_route = respx_mock.get(
         "https://api.powerplatform.com/connectivity/policyTemplates",
         params={"api-version": "2022-03-01-preview"},

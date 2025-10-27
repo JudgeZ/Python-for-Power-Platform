@@ -71,11 +71,9 @@ def test_profile_show(cli_runner, cli_app) -> None:
     import types
 
     app, store = cli_app
-    token_value = "very-secret-token"
+    token_value = "very-secret-token"  # noqa: S105
     store.cfg.profiles = {
-        "named": types.SimpleNamespace(
-            name="named", value=42, access_token=token_value
-        )
+        "named": types.SimpleNamespace(name="named", value=42, access_token=token_value)
     }
 
     result = cli_runner.invoke(app, ["profile", "show", "named"])

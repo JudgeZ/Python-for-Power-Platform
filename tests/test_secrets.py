@@ -63,9 +63,7 @@ def test_get_secret_keyvault(monkeypatch: pytest.MonkeyPatch) -> None:
         "pacx.secrets._load_keyvault",
         lambda: (lambda: object(), RecordingSecretClient),
     )
-    spec = SecretSpec(
-        backend="keyvault", ref="https://vault.azure.net:my-secret"
-    )
+    spec = SecretSpec(backend="keyvault", ref="https://vault.azure.net:my-secret")
     assert get_secret(spec) == "vault-secret"
     assert len(created_clients) == 1
     client = created_clients[0]

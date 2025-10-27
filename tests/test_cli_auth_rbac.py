@@ -11,7 +11,7 @@ from pacx.models.authorization import RoleAssignment, RoleDefinition, RolePermis
 
 
 class StubAuthorizationClient:
-    last_instance: "StubAuthorizationClient" | None = None
+    last_instance: StubAuthorizationClient | None = None
     role_definitions: list[RoleDefinition] = []
     role_assignments: list[RoleAssignment] = []
 

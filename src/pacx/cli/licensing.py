@@ -43,7 +43,7 @@ def _parse_payload(raw: str | None) -> dict[str, Any]:
     if raw in (None, ""):
         return {}
     try:
-        payload = json.loads(raw)
+        payload = json.loads(cast(str, raw))
     except json.JSONDecodeError as exc:  # pragma: no cover - validation
         raise typer.BadParameter(f"Invalid JSON payload: {exc}") from exc
     if not isinstance(payload, dict):
@@ -127,7 +127,9 @@ def get_policy(
 @handle_cli_errors
 def create_policy(
     ctx: typer.Context,
-    payload: str = typer.Option(..., "--payload", help="JSON payload describing the billing policy"),
+    payload: str = typer.Option(
+        ..., "--payload", help="JSON payload describing the billing policy"
+    ),
     api_version: str | None = typer.Option(None, help="Licensing API version override"),
 ) -> None:
     """Create a new billing policy."""
@@ -203,7 +205,9 @@ def refresh_provisioning(
         if not handle.operation_location:
             print("[yellow]No operation location returned; skipping wait.[/yellow]")
             return
-        final = client.wait_for_operation(handle.operation_location, interval=interval, timeout=timeout)
+        final = client.wait_for_operation(
+            handle.operation_location, interval=interval, timeout=timeout
+        )
         print(final)
 
 
@@ -268,9 +272,7 @@ def add_policy_environment(
     version = _ensure_api_version(ctx, api_version)
     client = _build_client(ctx, version)
     client.add_billing_policy_environment(policy_id, environment_id)
-    print(
-        f"[green]Added environment '{environment_id}' to billing policy '{policy_id}'.[/green]"
-    )
+    print(f"[green]Added environment '{environment_id}' to billing policy '{policy_id}'.[/green]")
 
 
 @billing_env_app.command("remove")
@@ -311,7 +313,9 @@ def get_currency_allocation(
 def patch_currency_allocation(
     ctx: typer.Context,
     environment_id: str = typer.Argument(..., help="Environment identifier"),
-    payload: str = typer.Option(..., "--payload", help="JSON payload describing allocation changes"),
+    payload: str = typer.Option(
+        ..., "--payload", help="JSON payload describing allocation changes"
+    ),
     api_version: str | None = typer.Option(None, help="Licensing API version override"),
 ) -> None:
     """Patch the currency allocation for an environment."""

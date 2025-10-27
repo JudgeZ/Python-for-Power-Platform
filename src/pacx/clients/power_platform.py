@@ -220,7 +220,7 @@ class PowerPlatformClient:
         def get_progress(status: dict[str, Any]) -> int | None:
             for key in ("percentComplete", "progress", "percentage", "completionPercent"):
                 value = status.get(key)
-                if isinstance(value, (int, float)):
+                if isinstance(value, int | float):
                     return int(value)
             return None
 
@@ -289,27 +289,21 @@ class PowerPlatformClient:
         payload = self._parse_response_dict(resp)
         return OperationHandle(resp.headers.get("Operation-Location"), payload)
 
-    def apply_environment_group(
-        self, group_id: str, environment_id: str
-    ) -> OperationHandle:
+    def apply_environment_group(self, group_id: str, environment_id: str) -> OperationHandle:
         """Apply an environment group to an environment."""
 
         return self._post_operation(
             f"environmentmanagement/environmentGroups/{group_id}/environments/{environment_id}/apply"
         )
 
-    def revoke_environment_group(
-        self, group_id: str, environment_id: str
-    ) -> OperationHandle:
+    def revoke_environment_group(self, group_id: str, environment_id: str) -> OperationHandle:
         """Revoke an environment group from an environment."""
 
         return self._post_operation(
             f"environmentmanagement/environmentGroups/{group_id}/environments/{environment_id}/revoke"
         )
 
-    def get_environment_group_operation(
-        self, group_id: str, operation_id: str
-    ) -> dict[str, Any]:
+    def get_environment_group_operation(self, group_id: str, operation_id: str) -> dict[str, Any]:
         """Fetch the status for an environment group operation."""
 
         resp = self.http.get(
@@ -545,9 +539,7 @@ class PowerPlatformClient:
             return FlowRun()
         return FlowRun.model_validate(resp.json())
 
-    def get_cloud_flow_run(
-        self, environment_id: str, flow_id: str, run_name: str
-    ) -> FlowRun:
+    def get_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> FlowRun:
         resp = self.http.get(
             f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}",
             params=self._with_api_version(),
@@ -570,17 +562,13 @@ class PowerPlatformClient:
             return FlowRun()
         return FlowRun.model_validate(resp.json())
 
-    def delete_cloud_flow_run(
-        self, environment_id: str, flow_id: str, run_name: str
-    ) -> None:
+    def delete_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> None:
         self.http.delete(
             f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}",
             params=self._with_api_version(),
         )
 
-    def cancel_cloud_flow_run(
-        self, environment_id: str, flow_id: str, run_name: str
-    ) -> None:
+    def cancel_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> None:
         self.http.post(
             f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}:cancel",
             params=self._with_api_version(),

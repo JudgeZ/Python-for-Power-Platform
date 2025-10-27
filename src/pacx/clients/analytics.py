@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Mapping, Sequence, cast
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlparse
+
+import httpx
 
 from ..http_client import HttpClient
 from ..models.analytics import (
@@ -89,7 +92,7 @@ class AnalyticsClient:
         return merged
 
     @staticmethod
-    def _as_dict(resp) -> dict[str, Any]:
+    def _as_dict(resp: httpx.Response) -> dict[str, Any]:
         try:
             data = resp.json()
         except Exception:  # pragma: no cover - defensive fallback
@@ -153,7 +156,9 @@ class AnalyticsClient:
             if parsed.query:
                 params = dict(parse_qsl(parsed.query))
                 skip = params.get("$skiptoken") or params.get("$skipToken")
-        return RecommendationResourcePage(items, next_link=cast(str | None, next_link), skip_token=skip)
+        return RecommendationResourcePage(
+            items, next_link=cast(str | None, next_link), skip_token=skip
+        )
 
     def iter_resources(
         self, scenario: str, *, top: int | None = None
@@ -187,7 +192,9 @@ class AnalyticsClient:
         return AdvisorRecommendationDetail.model_validate(resp.json())
 
     @staticmethod
-    def _prepare_payload(payload: RecommendationActionPayload | Mapping[str, Any] | None) -> dict[str, Any] | None:
+    def _prepare_payload(
+        payload: RecommendationActionPayload | Mapping[str, Any] | None,
+    ) -> dict[str, Any] | None:
         if payload is None:
             return None
         if isinstance(payload, RecommendationActionPayload):
@@ -212,11 +219,7 @@ class AnalyticsClient:
             json=body,
         )
         ack_data = self._as_dict(resp)
-        ack = (
-            AdvisorRecommendationAcknowledgement.model_validate(ack_data)
-            if ack_data
-            else None
-        )
+        ack = AdvisorRecommendationAcknowledgement.model_validate(ack_data) if ack_data else None
         return RecommendationOperationHandle(resp.headers.get("Operation-Location"), ack)
 
     def dismiss_recommendation(
@@ -232,11 +235,7 @@ class AnalyticsClient:
             json=body,
         )
         ack_data = self._as_dict(resp)
-        ack = (
-            AdvisorRecommendationAcknowledgement.model_validate(ack_data)
-            if ack_data
-            else None
-        )
+        ack = AdvisorRecommendationAcknowledgement.model_validate(ack_data) if ack_data else None
         return RecommendationOperationHandle(resp.headers.get("Operation-Location"), ack)
 
     def get_recommendation_status(
@@ -267,7 +266,9 @@ class AnalyticsClient:
             params["api-version"] = self.api_version
         normalized_path = path.lstrip("/")
         if not normalized_path.startswith("analytics/"):
-            normalized_path = f"analytics/advisorRecommendations/operations/{normalized_path}".rstrip("/")
+            normalized_path = (
+                f"analytics/advisorRecommendations/operations/{normalized_path}".rstrip("/")
+            )
         return normalized_path, params
 
     def wait_for_operation(
