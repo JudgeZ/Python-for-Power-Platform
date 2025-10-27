@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .cli import (
+    analytics,
     app,
     auth,
     connectors,
@@ -25,6 +26,7 @@ if PACKAGE_DIR.exists():
 
 
 __all__ = [
+    "analytics",
     "app",
     "auth",
     "connectors",
