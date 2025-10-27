@@ -16,6 +16,7 @@ from . import (
     power_platform,
     profile,
     solution,
+    tenant,
 )
 from .auth import auth_create
 from .power_platform import PowerPlatformClient
@@ -33,6 +34,7 @@ _register_sub_app("dv", dataverse.app)
 _register_sub_app("connector", connectors.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("solution", solution.app)
+_register_sub_app("tenant", tenant.app)
 
 
 def _called_from_typer_main() -> bool:
@@ -108,4 +110,5 @@ __all__ = [
     "power_platform",
     "profile",
     "solution",
+    "tenant",
 ]
