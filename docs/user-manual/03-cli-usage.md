@@ -32,6 +32,7 @@ PACX reads defaults from the active profile (set via `ppx auth use`) and the per
 - `--host`: Overrides the Dataverse host. When omitted, the CLI falls back to the profile setting or the `DATAVERSE_HOST` environment variable. You can supply either a bare hostname (`org.crm.dynamics.com`) or a full URL with scheme (`https://org.crm.dynamics.com`).
 - `--top`: Many list commands expose the OData `$top` parameter to limit returned records; leaving it blank uses the server default (typically 100).
 - `--select`, `--filter`, `--orderby`: Dataverse list commands accept the corresponding OData query parameters to shape the result set.
+- `--endpoint`: Connector commands switch between the legacy `powerapps` routes and the ARM-style `connectivity` endpoints. The default `auto` mode tries connectivity first and falls back when the tenant does not expose the new API.
 
 All commands support `--help`, which prints the description and option defaults drawn from the CLI docstrings. The regression tests in this repository verify that the help output stays informative.
 
@@ -80,15 +81,29 @@ $ ppx dv whoami --host otherorg.crm.dynamics.com
 ### Deploy a custom connector
 
 ```shell
-$ ppx connector push --environment-id Default-123 --name sample-api --openapi openapi.yaml
+$ ppx connector push --environment-id Default-123 --name sample-api --openapi openapi.yaml --endpoint connectivity
 {'name': 'sample-api'}
 ```
 
-The command uploads the OpenAPI document and surfaces the connector name on success.
+The command uploads the OpenAPI document and surfaces the connector name on success. Connectivity endpoints bring richer metadata but require the scopes called out in [Custom Connectors](./06-connectors.md#connectivity-scopes).
 
 When you need to retire a connector, run `ppx connector delete` (optionally with
 `--yes` for unattended scripts). The confirmation flow and exit codes are
 documented in [Custom Connectors](./06-connectors.md#delete-a-connector).
+
+Validate a payload without applying it:
+
+```shell
+$ ppx connector validate --environment-id Default-123 --name sample-api --openapi openapi.yaml
+{"status": "Succeeded"}
+```
+
+And inspect runtime health when troubleshooting:
+
+```shell
+$ ppx connector runtime-status --environment-id Default-123 sample-api
+{'availabilityState': 'Healthy'}
+```
 
 ### Manage solutions
 
