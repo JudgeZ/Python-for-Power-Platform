@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, cast
@@ -79,11 +79,7 @@ class AnnotationBinaryProvider:
     ) -> ProviderResult:
         out_dir = ctx.output_dir / "files_bin"
         out_dir.mkdir(parents=True, exist_ok=True)
-        top_value = (options or {}).get("top", 50)
-        try:
-            top = int(cast(int | str, top_value))
-        except (TypeError, ValueError):
-            top = 50
+        top = self._parse_top(options)
         result = ProviderResult(name=self.name)
 
         for wf in ctx.webfiles:
@@ -91,13 +87,7 @@ class AnnotationBinaryProvider:
             if not wf_id:
                 result.skipped += 1
                 continue
-            data = ctx.dv.list_records(
-                "annotations",
-                select="annotationid,filename,documentbody,_objectid_value",
-                filter=f"_objectid_value eq {wf_id}",
-                top=top,
-            )
-            for note in data.get("value", []):
+            for note in self._iter_notes(ctx, wf_id=wf_id, top=top):
                 fname = note.get("filename") or f"{note.get('annotationid')}.bin"
                 fname_raw = str(fname)
                 sanitized = Path(fname_raw.replace("\\", "/")).name
@@ -121,6 +111,58 @@ class AnnotationBinaryProvider:
                     )
                 )
         return result
+
+    @staticmethod
+    def _parse_top(options: Mapping[str, object] | None) -> int | None:
+        """Return a validated ``$top`` value if provided by the user."""
+
+        if not options:
+            return None
+        raw = options.get("top")
+        if raw is None:
+            return None
+        try:
+            parsed = int(cast(int | str, raw))
+        except (TypeError, ValueError):
+            return None
+        return parsed
+
+    def _iter_notes(
+        self, ctx: ProviderContext, *, wf_id: str, top: int | None
+    ) -> Iterator[Mapping[str, object]]:
+        """Yield annotation records for a given web file across all pages."""
+
+        next_url: str | None = None
+        yielded = 0
+        while True:
+            if next_url:
+                page_resp = ctx.dv.http.get(next_url)
+                page = cast(dict[str, object], page_resp.json())
+            else:
+                page = ctx.dv.list_records(
+                    "annotations",
+                    select="annotationid,filename,documentbody,_objectid_value",
+                    filter=f"_objectid_value eq {wf_id}",
+                    top=top,
+                )
+            for note in page.get("value", []):
+                if isinstance(note, Mapping):
+                    yield note
+                    yielded += 1
+                    if top is not None and yielded >= top:
+                        return
+            raw_next = self._extract_next_link(page)
+            if not raw_next:
+                break
+            next_url = raw_next
+
+    @staticmethod
+    def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+        for key in ("@odata.nextLink", "odata.nextLink"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
 
 
 class AzureBlobVirtualFileProvider:
