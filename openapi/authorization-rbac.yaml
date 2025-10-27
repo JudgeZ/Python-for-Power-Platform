@@ -47,6 +47,7 @@ paths:
         description: API version
       security:
       - oauth2Implicit:
+        - .default
         - Authorization.RBAC.Manage
       requestBody:
         required: true
@@ -117,6 +118,7 @@ paths:
         description: API version
       security:
       - oauth2Implicit:
+        - .default
         - Authorization.RBAC.Manage
       requestBody:
         required: true
@@ -159,6 +161,7 @@ paths:
         description: API version
       security:
       - oauth2Implicit:
+        - .default
         - Authorization.RBAC.Manage
       responses:
         '204':
@@ -215,6 +218,7 @@ paths:
         description: API version
       security:
       - oauth2Implicit:
+        - .default
         - Authorization.RBAC.Manage
       responses:
         '201':
@@ -283,6 +287,7 @@ paths:
         description: API version
       security:
       - oauth2Implicit:
+        - .default
         - Authorization.RBAC.Manage
       responses:
         '204':
@@ -472,4 +477,5 @@ components:
       additionalProperties: true
 security:
 - oauth2Implicit:
+  - .default
   - Authorization.RBAC.Read
