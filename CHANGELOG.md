@@ -10,5 +10,6 @@
 - Include `respx` in the default dependency set so local pytest runs have the required mock tooling.
 - Allow Dataverse hosts passed to `DataverseClient` and CLI commands to include the scheme or bare hostname interchangeably.
 - Introduce `ppx auth create` for device, web, and client-credential flows while keeping legacy aliases with deprecation warnings.
+- Model Power Apps admin versioning, restore/publish, and sharing ownership APIs in the OpenAPI bundle for SDK generation.
 
 - 0.2.0 Extended features
