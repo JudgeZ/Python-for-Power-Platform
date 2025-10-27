@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from email.parser import HeaderParser
+
 from .clients.dataverse import DataverseClient
 
 logger = logging.getLogger(__name__)
@@ -85,10 +87,21 @@ def parse_batch_response(content_type: str, body: bytes) -> list[dict[str, Any]]
 
     Returns: [{content_id, status_code, reason, json, text}]
     """
-    m = re.search(r"boundary=([\w\-\_\.]+)", content_type or "", re.IGNORECASE)
-    if not m:
+    boundary: str | None = None
+    if content_type:
+        try:
+            parser = HeaderParser()
+            headers = parser.parsestr(f"Content-Type: {content_type}", headersonly=True)
+            boundary = headers.get_param("boundary", header="content-type")
+        except Exception:  # pragma: no cover - defensive fallback to regex parsing
+            logger.debug("Failed to parse Content-Type header for boundary", exc_info=True)
+    if not boundary:
+        # Fall back to simple regex for legacy or malformed headers.
+        m = re.search(r"boundary=([\w\-\_\.]+)", content_type or "", re.IGNORECASE)
+        if m:
+            boundary = m.group(1)
+    if not boundary:
         return [{"status_code": 0, "reason": "NoBoundary", "text": body.decode(errors="replace")}]
-    boundary = m.group(1)
     raw = body.decode("utf-8", errors="replace")
     parts = [p for p in raw.split(f"--{boundary}") if p.strip() and p.strip() != "--"]
     results: list[dict[str, Any]] = []

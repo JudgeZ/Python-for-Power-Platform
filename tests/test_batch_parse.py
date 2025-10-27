@@ -27,3 +27,22 @@ HTTP/1.1 400 Bad Request
     assert len(res) == 2
     assert res[0]["status_code"] == 201
     assert res[1]["status_code"] == 400
+
+
+def test_parse_batch_response_with_quoted_boundary():
+    boundary = "quoted_batch"
+    body = f"""--{boundary}
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+Content-ID: 1
+
+HTTP/1.1 200 OK
+
+{{"result": "ok"}}
+--{boundary}--
+"""
+    res = parse_batch_response(
+        f'multipart/mixed; boundary="{boundary}"', body.encode("utf-8")
+    )
+    assert len(res) == 1
+    assert res[0]["status_code"] == 200
