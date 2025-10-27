@@ -185,3 +185,308 @@ def test_list_flow_runs_aggregates_workflow_pages(respx_mock, token_getter):
     assert len(route.calls) == 2
     assert route.calls[0].request.url.params["workflowId"] == "flow1"
     assert [run.id for run in runs] == ["run1", "run2"]
+
+
+def test_environment_copy_request_includes_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"targetEnvironmentId": "env2"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1:copy",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            json={"status": "Accepted"},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/op-copy"
+            },
+        )
+    )
+
+    handle = client.copy_environment("env1", payload)
+
+    assert route.called
+    request = route.calls[0].request
+    assert request.url.path.endswith("/environmentmanagement/environments/env1:copy")
+    assert handle.operation_location.endswith("op-copy")
+    assert handle.metadata["status"] == "Accepted"
+
+
+def test_environment_reset_request(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"resetType": "Minimal"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1:reset",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            json={},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/op-reset"
+            },
+        )
+    )
+
+    handle = client.reset_environment("env1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op-reset"
+
+
+def test_environment_backup_request(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"label": "manual"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1:backup",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/op-backup"
+            },
+        )
+    )
+
+    handle = client.backup_environment("env1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op-backup"
+
+
+def test_environment_restore_request(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"backupId": "backup-1"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1:restore",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/op-restore"
+            },
+        )
+    )
+
+    handle = client.restore_environment("env1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op-restore"
+
+
+def test_list_environment_operations(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1/operations",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"value": [{"name": "op"}]}))
+
+    operations = client.list_environment_operations("env1")
+
+    assert operations == [{"name": "op"}]
+
+
+def test_get_operation(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/operations/op1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"status": "Running"}))
+
+    status = client.get_operation("op1")
+
+    assert status["status"] == "Running"
+
+
+def test_wait_for_operation_polls_until_done(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/operations/op2"
+    ).mock(
+        side_effect=[
+            httpx.Response(200, json={"status": "Running"}),
+            httpx.Response(200, json={"status": "Succeeded", "percentComplete": 100}),
+        ]
+    )
+
+    status = client.wait_for_operation(
+        "https://api.powerplatform.com/environmentmanagement/operations/op2",
+        interval=0.0,
+        timeout=5.0,
+    )
+
+    assert route.called
+    assert len(route.calls) == 2
+    assert status["status"].lower() == "succeeded"
+
+
+def test_list_environment_groups(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"value": [{"id": "group1"}]}))
+
+    groups = client.list_environment_groups()
+
+    assert groups == [{"id": "group1"}]
+
+
+def test_get_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"id": "group1", "displayName": "Group"}))
+
+    group = client.get_environment_group("group1")
+
+    assert group["id"] == "group1"
+
+
+def test_create_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"displayName": "Group"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(return_value=httpx.Response(201, json={"id": "group1"}))
+
+    group = client.create_environment_group(payload)
+
+    assert route.called
+    assert group["id"] == "group1"
+
+
+def test_update_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"displayName": "Group"}
+    route = respx_mock.patch(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(return_value=httpx.Response(200, json={"id": "group1", "displayName": "Group"}))
+
+    group = client.update_environment_group("group1", payload)
+
+    assert route.called
+    assert group["displayName"] == "Group"
+
+
+def test_delete_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.delete(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/operations/op3"
+            },
+        )
+    )
+
+    handle = client.delete_environment_group("group1")
+
+    assert route.called
+    assert handle.operation_id == "op3"
+
+
+def test_apply_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/environments/env1/apply",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/operations/apply-op"
+            },
+        )
+    )
+
+    handle = client.apply_environment_group("group1", "env1")
+
+    assert route.called
+    assert handle.operation_id == "apply-op"
+
+
+def test_revoke_environment_group(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/environments/env1/revoke",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/operations/revoke-op"
+            },
+        )
+    )
+
+    handle = client.revoke_environment_group("group1", "env1")
+
+    assert route.called
+    assert handle.operation_id == "revoke-op"
+
+
+def test_get_environment_group_operation(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/environmentmanagement/environmentGroups/group1/operations/op1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"status": "Running"}))
+
+    status = client.get_environment_group_operation("group1", "op1")
+
+    assert status["status"] == "Running"
+
+
+def test_enable_managed_environment(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1/managedGovernance/enable",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/enable-op"
+            },
+        )
+    )
+
+    handle = client.enable_managed_environment("env1")
+
+    assert route.called
+    assert handle.operation_id == "enable-op"
+
+
+def test_disable_managed_environment(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/environmentmanagement/environments/env1/managedGovernance/disable",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/environmentmanagement/operations/disable-op"
+            },
+        )
+    )
+
+    handle = client.disable_managed_environment("env1")
+
+    assert route.called
+    assert handle.operation_id == "disable-op"

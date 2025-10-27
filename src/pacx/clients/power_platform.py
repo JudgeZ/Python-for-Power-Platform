@@ -1,14 +1,43 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, cast
 from urllib.parse import parse_qsl, urlparse
+
+import httpx
 
 from ..http_client import HttpClient
 from ..models.power_platform import CloudFlow, EnvironmentSummary, FlowRun, PowerApp
 
 DEFAULT_API_VERSION = "2022-03-01-preview"
+
+
+@dataclass(frozen=True)
+class OperationHandle:
+    """Metadata returned by long-running Power Platform operations.
+
+    Attributes:
+        operation_location: Absolute or relative URL to poll for completion.
+        metadata: Parsed JSON payload returned by the initial request.
+
+    Examples:
+        >>> handle = OperationHandle("https://api.powerplatform.com/.../operations/op1", {"status": "Accepted"})
+        >>> handle.operation_id
+        'op1'
+    """
+
+    operation_location: str | None
+    metadata: dict[str, Any]
+
+    @property
+    def operation_id(self) -> str | None:
+        """Return the trailing identifier from :attr:`operation_location`."""
+
+        if not self.operation_location:
+            return None
+        return self.operation_location.rstrip("/").split("/")[-1]
 
 
 class PowerPlatformClient:
@@ -22,6 +51,33 @@ class PowerPlatformClient:
     ) -> None:
         self.http = HttpClient(base_url, token_getter=token_getter)
         self.api_version = api_version
+
+    def _with_api_version(self, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {"api-version": self.api_version}
+        if extra:
+            params.update(extra)
+        return params
+
+    @staticmethod
+    def _parse_response_dict(resp: httpx.Response) -> dict[str, Any]:
+        if not resp.text:
+            return {}
+        try:
+            data = resp.json()
+        except Exception:  # pragma: no cover - defensive
+            return {}
+        return cast(dict[str, Any], data) if isinstance(data, dict) else {}
+
+    def _post_operation(
+        self,
+        path: str,
+        *,
+        body: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> OperationHandle:
+        resp = self.http.post(path, params=params or self._with_api_version(), json=body)
+        payload = self._parse_response_dict(resp)
+        return OperationHandle(resp.headers.get("Operation-Location"), payload)
 
     def close(self) -> None:
         """Close the underlying HTTP client."""
@@ -59,6 +115,90 @@ class PowerPlatformClient:
             params["ValidateOnly"] = str(validate_only).lower()
         self.http.delete(f"environmentmanagement/environments/{environment_id}", params=params)
 
+    def copy_environment(self, environment_id: str, payload: dict[str, Any]) -> OperationHandle:
+        """Trigger a copy of the specified environment.
+
+        Args:
+            environment_id: Source environment identifier.
+            payload: Copy options payload forwarded to the API.
+
+        Returns:
+            Operation metadata containing the polling URL and initial response body.
+        """
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}:copy", body=payload
+        )
+
+    def reset_environment(self, environment_id: str, payload: dict[str, Any]) -> OperationHandle:
+        """Reset an environment to a previous restore point."""
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}:reset", body=payload
+        )
+
+    def backup_environment(self, environment_id: str, payload: dict[str, Any]) -> OperationHandle:
+        """Create a manual backup for the specified environment."""
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}:backup", body=payload
+        )
+
+    def restore_environment(self, environment_id: str, payload: dict[str, Any]) -> OperationHandle:
+        """Restore an environment from a backup."""
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}:restore", body=payload
+        )
+
+    def list_environment_operations(self, environment_id: str) -> list[dict[str, Any]]:
+        """List lifecycle operations for an environment."""
+
+        resp = self.http.get(
+            f"environmentmanagement/environments/{environment_id}/operations",
+            params=self._with_api_version(),
+        )
+        data = self._parse_response_dict(resp)
+        value = data.get("value")
+        return cast(list[dict[str, Any]], value) if isinstance(value, list) else []
+
+    def get_operation(self, operation_id: str) -> dict[str, Any]:
+        """Fetch details for a lifecycle operation."""
+
+        resp = self.http.get(
+            f"environmentmanagement/operations/{operation_id}",
+            params=self._with_api_version(),
+        )
+        return self._parse_response_dict(resp)
+
+    def wait_for_operation(
+        self, operation_url: str, *, interval: float = 2.0, timeout: float = 600.0
+    ) -> dict[str, Any]:
+        """Poll an operation URL until completion or timeout."""
+
+        from ..utils.poller import poll_until
+
+        done_states = {"succeeded", "failed", "canceled", "cancelled"}
+
+        def get_status() -> dict[str, Any]:
+            resp = self.http.get(operation_url)
+            return self._parse_response_dict(resp)
+
+        def is_done(status: dict[str, Any]) -> bool:
+            state = str(status.get("status") or status.get("state") or "").lower()
+            if state in done_states:
+                return True
+            return bool(status.get("endTime") or status.get("completedOn"))
+
+        def get_progress(status: dict[str, Any]) -> int | None:
+            for key in ("percentComplete", "progress", "percentage", "completionPercent"):
+                value = status.get(key)
+                if isinstance(value, (int, float)):
+                    return int(value)
+            return None
+
+        return poll_until(get_status, is_done, get_progress, interval=interval, timeout=timeout)
+
     def list_environment_settings(self, environment_id: str) -> dict[str, Any]:
         resp = self.http.get(
             f"environmentmanagement/environments/{environment_id}/settings",
@@ -71,6 +211,98 @@ class PowerPlatformClient:
             f"environmentmanagement/environments/{environment_id}/settings",
             params={"api-version": self.api_version},
             json=body,
+        )
+
+    def list_environment_groups(self) -> list[dict[str, Any]]:
+        """Return all environment groups."""
+
+        resp = self.http.get(
+            "environmentmanagement/environmentGroups", params=self._with_api_version()
+        )
+        data = self._parse_response_dict(resp)
+        value = data.get("value")
+        return cast(list[dict[str, Any]], value) if isinstance(value, list) else []
+
+    def get_environment_group(self, group_id: str) -> dict[str, Any]:
+        """Retrieve a single environment group."""
+
+        resp = self.http.get(
+            f"environmentmanagement/environmentGroups/{group_id}",
+            params=self._with_api_version(),
+        )
+        return self._parse_response_dict(resp)
+
+    def create_environment_group(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Create a new environment group."""
+
+        resp = self.http.post(
+            "environmentmanagement/environmentGroups",
+            params=self._with_api_version(),
+            json=payload,
+        )
+        return self._parse_response_dict(resp)
+
+    def update_environment_group(self, group_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Update an existing environment group."""
+
+        resp = self.http.patch(
+            f"environmentmanagement/environmentGroups/{group_id}",
+            params=self._with_api_version(),
+            json=payload,
+        )
+        return self._parse_response_dict(resp)
+
+    def delete_environment_group(self, group_id: str) -> OperationHandle:
+        """Delete an environment group."""
+
+        resp = self.http.delete(
+            f"environmentmanagement/environmentGroups/{group_id}",
+            params=self._with_api_version(),
+        )
+        payload = self._parse_response_dict(resp)
+        return OperationHandle(resp.headers.get("Operation-Location"), payload)
+
+    def apply_environment_group(
+        self, group_id: str, environment_id: str
+    ) -> OperationHandle:
+        """Apply an environment group to an environment."""
+
+        return self._post_operation(
+            f"environmentmanagement/environmentGroups/{group_id}/environments/{environment_id}/apply"
+        )
+
+    def revoke_environment_group(
+        self, group_id: str, environment_id: str
+    ) -> OperationHandle:
+        """Revoke an environment group from an environment."""
+
+        return self._post_operation(
+            f"environmentmanagement/environmentGroups/{group_id}/environments/{environment_id}/revoke"
+        )
+
+    def get_environment_group_operation(
+        self, group_id: str, operation_id: str
+    ) -> dict[str, Any]:
+        """Fetch the status for an environment group operation."""
+
+        resp = self.http.get(
+            f"environmentmanagement/environmentGroups/{group_id}/operations/{operation_id}",
+            params=self._with_api_version(),
+        )
+        return self._parse_response_dict(resp)
+
+    def enable_managed_environment(self, environment_id: str) -> OperationHandle:
+        """Enable managed environment governance controls."""
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}/managedGovernance/enable"
+        )
+
+    def disable_managed_environment(self, environment_id: str) -> OperationHandle:
+        """Disable managed environment governance controls."""
+
+        return self._post_operation(
+            f"environmentmanagement/environments/{environment_id}/managedGovernance/disable"
         )
 
     def list_apps(
