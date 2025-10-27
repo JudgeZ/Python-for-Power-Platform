@@ -12,6 +12,7 @@ from . import (
     connectors,
     dataverse,
     doctor,
+    governance,
     pages,
     power_platform,
     profile,
@@ -33,6 +34,7 @@ _register_sub_app("dv", dataverse.app)
 _register_sub_app("connector", connectors.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("solution", solution.app)
+_register_sub_app("governance", governance.app)
 
 
 def _called_from_typer_main() -> bool:
@@ -103,6 +105,7 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "governance",
     "PowerPlatformClient",
     "pages",
     "power_platform",

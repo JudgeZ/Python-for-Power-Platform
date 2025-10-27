@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Extend Analytics advisor recommendations OpenAPI with detail, acknowledgement, dismissal, and status polling endpoints, plus documentation covering the end-to-end workflow.
+- Add governance client and CLI coverage for cross-tenant connection reports and rule-based policy assignments.
 - Fix polling utilities to raise `TimeoutError` and surface failures in `ppx solution import --wait`.
 - Add pagination support to Power Pages downloads to follow `@odata.nextLink` pointers.
 - Harden solution archive extraction, including SolutionPackager layouts, against Zip Slip directory traversal.
