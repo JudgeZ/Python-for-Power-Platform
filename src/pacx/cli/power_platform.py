@@ -13,6 +13,7 @@ from ..clients.power_platform import (
     OperationHandle,
     PowerPlatformClient as _DefaultPowerPlatformClient,
 )
+from ..models.power_platform import CloudFlow, FlowRun
 from .common import get_token_getter, handle_cli_errors
 
 
@@ -75,6 +76,9 @@ def _print_operation_result(action: str, handle: OperationHandle) -> None:
 env_app = typer.Typer(help="Manage Power Platform environments.", invoke_without_command=True)
 env_group_app = typer.Typer(help="Manage Power Platform environment groups.")
 apps_app = typer.Typer(help="Manage Power Apps.", invoke_without_command=True)
+power_app = typer.Typer(help="Automate Power Platform flows.")
+flows_app = typer.Typer(help="Manage cloud flows.")
+runs_app = typer.Typer(help="Inspect cloud flow runs.")
 
 
 def _resolve_app_environment(ctx: typer.Context, option_value: str | None) -> str:
@@ -530,24 +534,269 @@ def register(app: typer.Typer) -> None:
     app.add_typer(env_app, name="env")
     app.add_typer(env_group_app, name="env-group")
     app.add_typer(apps_app, name="apps")
+    power_app.add_typer(flows_app, name="flows")
+    power_app.add_typer(runs_app, name="runs")
+    app.add_typer(power_app, name="power")
     app.command("flows")(list_flows)
 
 
-@handle_cli_errors
+def _resolve_flow_environment(ctx: typer.Context, option_value: str | None) -> str:
+    return resolve_environment_id_from_context(ctx, option_value)
+
+
+def _status_from_flow(flow: CloudFlow) -> str | None:
+    state = None
+    if isinstance(flow.properties, dict):
+        raw_state = flow.properties.get("state")
+        if isinstance(raw_state, str):
+            state = raw_state
+    return state
+
+
+def _status_from_run(run: FlowRun) -> str | None:
+    if run.status:
+        return run.status
+    properties = getattr(run, "properties", None)
+    if isinstance(properties, dict):
+        value = properties.get("status")
+        if isinstance(value, str):
+            return value
+    return None
+
+
+@flows_app.command("list")
 @handle_cli_errors
 def list_flows(
     ctx: typer.Context,
     environment_id: str | None = typer.Option(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
+    workflow_id: str | None = typer.Option(None, help="Filter by workflow ID"),
+    resource_id: str | None = typer.Option(None, help="Filter by resource ID"),
+    created_by: str | None = typer.Option(None, help="Filter by creator Dataverse ID"),
+    owner_id: str | None = typer.Option(None, help="Filter by owner Dataverse ID"),
+    created_on_start_date: str | None = typer.Option(
+        None, help="Created on or after (YYYY-MM-DD)"
+    ),
+    created_on_end_date: str | None = typer.Option(
+        None, help="Created on or before (YYYY-MM-DD)"
+    ),
+    modified_on_start_date: str | None = typer.Option(
+        None, help="Modified on or after (YYYY-MM-DD)"
+    ),
+    modified_on_end_date: str | None = typer.Option(
+        None, help="Modified on or before (YYYY-MM-DD)"
+    ),
 ) -> None:
     """List cloud flows in an environment."""
 
-    environment = resolve_environment_id_from_context(ctx, environment_id)
+    environment = _resolve_flow_environment(ctx, environment_id)
     client = _build_client(ctx)
-    flows = client.list_cloud_flows(environment)
+    flows = client.list_cloud_flows(
+        environment,
+        workflowId=workflow_id,
+        resourceId=resource_id,
+        createdBy=created_by,
+        ownerId=owner_id,
+        createdOnStartDate=created_on_start_date,
+        createdOnEndDate=created_on_end_date,
+        modifiedOnStartDate=modified_on_start_date,
+        modifiedOnEndDate=modified_on_end_date,
+    )
+    if not flows:
+        print("[yellow]No cloud flows found.[/yellow]")
+        return
     for flow in flows:
-        print(f"[bold]{flow.name or flow.id}[/bold]")
+        status = _status_from_flow(flow)
+        status_text = f" state={status}" if status else ""
+        print(f"[bold]{flow.name or flow.id}[/bold]{status_text}")
+
+
+@flows_app.command("get")
+@handle_cli_errors
+def get_flow(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Retrieve details for a single cloud flow."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    flow = client.get_cloud_flow(environment, flow_id)
+    status = _status_from_flow(flow)
+    summary = flow.model_dump(exclude_none=True)
+    if status:
+        print(f"[green]Cloud flow status:[/green] {status}")
+    print(summary)
+
+
+@flows_app.command("update")
+@handle_cli_errors
+def update_flow(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    state: str = typer.Option(..., help="Desired flow state."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Update the state of a cloud flow."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    normalized = state.strip().lower()
+    valid_states = {"started": "Started", "stopped": "Stopped", "suspended": "Suspended"}
+    if normalized not in valid_states:
+        raise typer.BadParameter("State must be Started, Stopped, or Suspended.")
+    payload = {"state": valid_states[normalized]}
+    flow = client.update_cloud_flow_state(environment, flow_id, payload)
+    status = _status_from_flow(flow) or payload["state"]
+    print(f"[green]Cloud flow updated[/green] state={status}")
+
+
+@flows_app.command("delete")
+@handle_cli_errors
+def delete_flow(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Delete a cloud flow."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    client.delete_cloud_flow(environment, flow_id)
+    print(f"[green]Cloud flow deleted[/green] id={flow_id}")
+
+
+@flows_app.command("run")
+@handle_cli_errors
+def run_flow(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    trigger_name: str = typer.Option(..., help="Trigger name to invoke."),
+    inputs: str | None = typer.Option(
+        None, help="Optional JSON inputs passed to the trigger."
+    ),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Trigger a cloud flow run."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    payload = {"triggerName": trigger_name}
+    body_inputs = _parse_payload(inputs)
+    if body_inputs:
+        payload["inputs"] = body_inputs
+    client = _build_client(ctx)
+    run = client.trigger_cloud_flow_run(environment, flow_id, payload)
+    status = _status_from_run(run)
+    message = "[green]Cloud flow run triggered[/green]"
+    if status:
+        message += f" status={status}"
+    print(message)
+    if run.id or run.name:
+        print(run.model_dump(exclude_none=True))
+
+
+@runs_app.command("list")
+@handle_cli_errors
+def list_runs(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+    status: str | None = typer.Option(None, help="Filter by run status"),
+    trigger_name: str | None = typer.Option(None, help="Filter by trigger name"),
+    top: int | None = typer.Option(None, help="Maximum number of runs to return"),
+    continuation_token: str | None = typer.Option(
+        None, help="Continuation token returned from a previous call"
+    ),
+) -> None:
+    """List runs for a specific cloud flow."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    page = client.list_cloud_flow_runs(
+        environment,
+        flow_id,
+        status=status,
+        trigger_name=trigger_name,
+        top=top,
+        continuation_token=continuation_token,
+    )
+    if not page.runs:
+        print("[yellow]No runs found.[/yellow]")
+    for run in page.runs:
+        run_status = _status_from_run(run)
+        status_text = f" status={run_status}" if run_status else ""
+        print(f"[bold]{run.name or run.id}[/bold]{status_text}")
+    if page.continuation_token:
+        print(f"Continuation token: {page.continuation_token}")
+
+
+@runs_app.command("get")
+@handle_cli_errors
+def get_run(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    run_name: str = typer.Argument(..., help="Run name to inspect."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Retrieve a single flow run."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    run = client.get_cloud_flow_run(environment, flow_id, run_name)
+    status = _status_from_run(run)
+    if status:
+        print(f"[green]Run status:[/green] {status}")
+    print(run.model_dump(exclude_none=True))
+
+
+@runs_app.command("cancel")
+@handle_cli_errors
+def cancel_run(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    run_name: str = typer.Argument(..., help="Run name to cancel."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Cancel a pending cloud flow run."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    client.cancel_cloud_flow_run(environment, flow_id, run_name)
+    print(f"[green]Cancel request sent[/green] run={run_name}")
+
+
+@runs_app.command("diagnostics")
+@handle_cli_errors
+def diagnostics_run(
+    ctx: typer.Context,
+    flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
+    run_name: str = typer.Argument(..., help="Run name to inspect."),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID to target (defaults to profile configuration)"
+    ),
+) -> None:
+    """Retrieve diagnostics for a flow run."""
+
+    environment = _resolve_flow_environment(ctx, environment_id)
+    client = _build_client(ctx)
+    diagnostics = client.get_cloud_flow_run_diagnostics(environment, flow_id, run_name)
+    print(diagnostics.model_dump(exclude_none=True))
 
 
 __all__ = [
@@ -563,6 +812,14 @@ __all__ = [
     "list_app_permissions_command",
     "set_app_owner_command",
     "list_flows",
+    "get_flow",
+    "update_flow",
+    "delete_flow",
+    "run_flow",
+    "list_runs",
+    "get_run",
+    "cancel_run",
+    "diagnostics_run",
     "copy_environment_command",
     "reset_environment_command",
     "backup_environment_command",

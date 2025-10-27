@@ -9,6 +9,7 @@ from typer.models import CommandInfo
 
 from . import (
     app_management,
+    analytics,
     auth,
     connectors,
     dataverse,
@@ -39,6 +40,7 @@ def _register_sub_app(name: str, sub_app: typer.Typer) -> None:
 
 
 _register_sub_app("app", app_management.app)
+_register_sub_app("analytics", analytics.app)
 _register_sub_app("auth", auth.app)
 _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
@@ -116,6 +118,7 @@ def common(ctx: typer.Context) -> None:
 
 __all__ = [
     "AppManagementClient",
+    "analytics",
     "app",
     "auth",
     "auth_create",

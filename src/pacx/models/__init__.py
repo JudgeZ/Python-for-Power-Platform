@@ -109,24 +109,83 @@ from .authorization import (
 )
 from .authorization import (
     RoleAssignment as RoleAssignment,
+"""Re-export typed models for the pacx SDK."""
+
+from .analytics import (
+    AdvisorAction,
+    AdvisorActionRequest,
+    AdvisorActionResponse,
+    AdvisorActionResult,
+    AdvisorRecommendationAcknowledgement,
+    AdvisorRecommendationActionResultSummary,
+    AdvisorRecommendationDetail,
+    AdvisorRecommendationOperationStatus,
+    AdvisorRecommendationResource,
+    AdvisorRecommendationStatus,
+    AdvisorScenario,
+    RecommendationActionPayload,
 )
 from .authorization import (
-    RoleDefinition as RoleDefinition,
+    CreateRoleAssignmentRequest,
+    CreateRoleDefinitionRequest,
+    RoleAssignment,
+    RoleDefinition,
+)
+from .dataverse import (
+    ApplySolutionUpgradeRequest,
+    CloneAsPatchRequest,
+    CloneAsPatchResponse,
+    CloneAsSolutionRequest,
+    CloneAsSolutionResponse,
+    DeleteAndPromoteRequest,
+    ExportSolutionAsManagedRequest,
+    ExportSolutionRequest,
+    ExportSolutionUpgradeRequest,
+    ExportTranslationRequest,
+    ExportTranslationResponse,
+    ImportSolutionRequest,
+    ImportTranslationRequest,
+    Solution,
+    StageSolutionRequest,
+    StageSolutionResponse,
 )
 from .policy import (
     AsyncOperation as PolicyAsyncOperation,
-)
-from .policy import (
     ConnectorGroup as PolicyConnectorGroup,
-)
-from .policy import (
     ConnectorReference as PolicyConnectorReference,
+    DataLossPreventionPolicy,
+    PolicyAssignment,
 )
-from .policy import (
-    DataLossPreventionPolicy as DataLossPreventionPolicy,
+from .power_platform import (
+    CloudFlow,
+    EnvironmentSummary,
+    FlowRun,
+    PowerApp,
 )
-from .policy import (
-    PolicyAssignment as PolicyAssignment,
+from .pva import (
+    BotListResult,
+    BotMetadata,
+    ChannelConfiguration,
+    ChannelConfigurationListResult,
+    ChannelConfigurationPayload,
+    ExportBotPackageRequest,
+    ImportBotPackageRequest,
+    PublishBotRequest,
+    UnpublishBotRequest,
+)
+from .tenant_settings import (
+    TenantFeatureControl,
+    TenantFeatureControlList,
+    TenantFeatureControlPatch,
+    TenantSettings,
+    TenantSettingsAccessRequest,
+    TenantSettingsPatch,
+)
+from .user_management import (
+    AdminRoleAssignment,
+    AdminRoleAssignmentList,
+    AsyncOperationStatus,
+    RemoveAdminRoleRequest,
 )
 from .power_platform import (CloudFlow as CloudFlow,)
 from .power_platform import (EnvironmentSummary as EnvironmentSummary,)
@@ -134,6 +193,18 @@ from .power_platform import (FlowRun as FlowRun,)
 from .power_platform import (PowerApp as PowerApp,)
 
 __all__ = [
+    "AdvisorAction",
+    "AdvisorActionRequest",
+    "AdvisorActionResponse",
+    "AdvisorActionResult",
+    "AdvisorRecommendationAcknowledgement",
+    "AdvisorRecommendationActionResultSummary",
+    "AdvisorRecommendationDetail",
+    "AdvisorRecommendationOperationStatus",
+    "AdvisorRecommendationResource",
+    "AdvisorRecommendationStatus",
+    "AdvisorScenario",
+    "RecommendationActionPayload",
     "ApplySolutionUpgradeRequest",
     "CloneAsPatchRequest",
     "CloneAsPatchResponse",

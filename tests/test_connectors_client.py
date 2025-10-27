@@ -108,3 +108,100 @@ def test_delete_api_raises_for_missing(respx_mock, token_getter):
 
     with pytest.raises(HttpError):
         c.delete_api("ENV", "missing")
+
+
+def test_list_apis_connectivity_routes(respx_mock, token_getter):
+    client = ConnectorsClient(
+        token_getter, use_connectivity=True, client_request_id="stub-request"
+    )
+    route = respx_mock.get(
+        "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors",
+        params={"api-version": "2022-03-01-preview", "$top": 3},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    payload = client.list_apis("ENV", top=3)
+
+    assert payload["value"] == []
+    assert route.called
+
+
+def test_put_api_uses_connectivity_upsert(respx_mock, token_getter):
+    client = ConnectorsClient(
+        token_getter, use_connectivity=True, client_request_id="stub-request"
+    )
+    update_route = respx_mock.patch(
+        "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(404, json={"error": "NotFound"}))
+    create_route = respx_mock.post(
+        "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(201, json={"name": "sample"}))
+
+    payload = {"properties": {"displayName": "Sample"}}
+    result = client.put_api("ENV", "sample", payload)
+
+    assert result["name"] == "sample"
+    assert update_route.called
+    assert create_route.called
+
+
+def test_validate_custom_connector_route(respx_mock, token_getter):
+    client = ConnectorsClient(
+        token_getter, use_connectivity=True, client_request_id="stub-request"
+    )
+    route = respx_mock.post(
+        "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample:validate",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(200, json={"status": "Succeeded"}))
+
+    response = client.validate_custom_connector(
+        "ENV", "sample", {"properties": {"displayName": "Sample"}}
+    )
+
+    assert response["status"] == "Succeeded"
+    assert route.called
+
+
+def test_runtime_status_route(respx_mock, token_getter):
+    client = ConnectorsClient(
+        token_getter, use_connectivity=True, client_request_id="stub-request"
+    )
+    route = respx_mock.get(
+        "https://api.powerplatform.com/connectivity/environments/ENV/customConnectors/sample/runtimeStatus",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(200, json={"availabilityState": "Healthy"}))
+
+    payload = client.get_custom_connector_runtime_status("ENV", "sample")
+
+    assert payload["availabilityState"] == "Healthy"
+    assert route.called
+
+
+def test_policy_template_route(respx_mock, token_getter):
+    client = ConnectorsClient(
+        token_getter, use_connectivity=True, client_request_id="stub-request"
+    )
+    list_route = respx_mock.get(
+        "https://api.powerplatform.com/connectivity/policyTemplates",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(200, json={"value": []}))
+    get_route = respx_mock.get(
+        "https://api.powerplatform.com/connectivity/policyTemplates/template-1",
+        params={"api-version": "2022-03-01-preview"},
+        headers={"x-ms-client-request-id": "stub-request"},
+    ).mock(return_value=httpx.Response(200, json={"name": "template-1"}))
+
+    templates = client.list_policy_templates()
+    template = client.get_policy_template("template-1")
+
+    assert templates["value"] == []
+    assert template["name"] == "template-1"
+    assert list_route.called
+    assert get_route.called

@@ -5,6 +5,7 @@
 - Add licensing client and CLI coverage for billing policies, allocations, storage warnings,
   and capacity snapshots with documentation for required scopes.
 - Extend Analytics advisor recommendations OpenAPI with detail, acknowledgement, dismissal, and status polling endpoints, plus documentation covering the end-to-end workflow.
+- Add Advisor Recommendations analytics client and CLI commands with async polling support and documented scopes.
 - Add a Power Pages admin client with CLI support for website lifecycle, WAF, scan, and visibility operations.
 - Add governance client and CLI coverage for cross-tenant connection reports and rule-based policy assignments.
 - Add Power Virtual Agents bot client helpers and `pacx pva` CLI commands covering bot publication, packages, channels, and quarantine flows.
