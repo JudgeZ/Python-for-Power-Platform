@@ -7,8 +7,14 @@ from typing import Iterable
 import pytest
 import typer
 
-from pacx.clients.power_platform import AppVersionPage, OperationHandle
-from pacx.models.power_platform import AppPermissionAssignment, AppVersion
+from pacx.clients.power_platform import AppVersionPage, FlowRunPage, OperationHandle
+from pacx.models.power_platform import (
+    AppPermissionAssignment,
+    AppVersion,
+    CloudFlow,
+    FlowRun,
+    FlowRunDiagnostics,
+)
 
 
 def load_cli_app(monkeypatch: pytest.MonkeyPatch):
@@ -47,6 +53,14 @@ class StubPowerPlatformClient:
         self.api_version = api_version
         self.apps_calls: list[str] = []
         self.flows_calls: list[str] = []
+        self.flow_get_calls: list[tuple[str, str]] = []
+        self.flow_update_calls: list[tuple[str, str, dict[str, object]]] = []
+        self.flow_delete_calls: list[tuple[str, str]] = []
+        self.flow_run_calls: list[tuple[str, str, dict[str, object]]] = []
+        self.flow_run_list_calls: list[tuple[str, str, dict[str, object]]] = []
+        self.flow_run_get_calls: list[tuple[str, str, str]] = []
+        self.flow_run_cancel_calls: list[tuple[str, str, str]] = []
+        self.flow_run_diag_calls: list[tuple[str, str, str]] = []
         self.copy_calls: list[tuple[str, dict[str, object]]] = []
         self.reset_calls: list[tuple[str, dict[str, object]]] = []
         self.backup_calls: list[tuple[str, dict[str, object]]] = []
@@ -69,9 +83,25 @@ class StubPowerPlatformClient:
         self.apps_calls.append(environment_id)
         return [StubSummary("app-1"), StubSummary("app-2")]
 
-    def list_cloud_flows(self, environment_id: str) -> Iterable[StubSummary]:
+    def list_cloud_flows(self, environment_id: str, **_: object) -> Iterable[CloudFlow]:
         self.flows_calls.append(environment_id)
-        return [StubSummary("flow-1")]
+        return [
+            CloudFlow(id="flow-1", name="flow-1", properties={"state": "Started"}),
+            CloudFlow(id="flow-2", name="flow-2", properties={"state": "Stopped"}),
+        ]
+
+    def get_cloud_flow(self, environment_id: str, flow_id: str) -> CloudFlow:
+        self.flow_get_calls.append((environment_id, flow_id))
+        return CloudFlow(id=flow_id, name=f"Flow {flow_id}", properties={"state": "Stopped"})
+
+    def update_cloud_flow_state(
+        self, environment_id: str, flow_id: str, payload: dict[str, object]
+    ) -> CloudFlow:
+        self.flow_update_calls.append((environment_id, flow_id, payload))
+        return CloudFlow(id=flow_id, name=f"Flow {flow_id}", properties={"state": payload.get("state")})
+
+    def delete_cloud_flow(self, environment_id: str, flow_id: str) -> None:
+        self.flow_delete_calls.append((environment_id, flow_id))
 
     def copy_environment(self, environment_id: str, payload: dict[str, object]) -> OperationHandle:
         self.copy_calls.append((environment_id, payload))
@@ -143,6 +173,51 @@ class StubPowerPlatformClient:
         self.set_owner_calls.append((environment_id, app_id, payload))
         return OperationHandle("https://example/operations/app-owner", {})
 
+    def trigger_cloud_flow_run(
+        self, environment_id: str, flow_id: str, payload: dict[str, object]
+    ) -> FlowRun:
+        self.flow_run_calls.append((environment_id, flow_id, payload))
+        return FlowRun(id="run-1", name="run-1", status="Running")
+
+    def list_cloud_flow_runs(
+        self,
+        environment_id: str,
+        flow_id: str,
+        *,
+        status: str | None = None,
+        trigger_name: str | None = None,
+        top: int | None = None,
+        continuation_token: str | None = None,
+    ) -> FlowRunPage:
+        params: dict[str, object] = {}
+        if status:
+            params["status"] = status
+        if trigger_name:
+            params["triggerName"] = trigger_name
+        if top is not None:
+            params["top"] = top
+        if continuation_token:
+            params["continuationToken"] = continuation_token
+        self.flow_run_list_calls.append((environment_id, flow_id, params))
+        runs = [FlowRun(id="run-1", name="run-1", status="Succeeded")]
+        return FlowRunPage(runs, continuation_token="token-2")
+
+    def get_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> FlowRun:
+        self.flow_run_get_calls.append((environment_id, flow_id, run_name))
+        return FlowRun(id=run_name, name=run_name, status="Succeeded")
+
+    def cancel_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> None:
+        self.flow_run_cancel_calls.append((environment_id, flow_id, run_name))
+
+    def get_cloud_flow_run_diagnostics(
+        self, environment_id: str, flow_id: str, run_name: str
+    ) -> FlowRunDiagnostics:
+        self.flow_run_diag_calls.append((environment_id, flow_id, run_name))
+        return FlowRunDiagnostics(
+            run_name=run_name,
+            issues=[{"actionName": "Act", "code": "ERR", "message": "Issue"}],
+        )
+
     def list_environment_groups(self) -> list[dict[str, object]]:
         return [{"id": "group-1"}]
 
@@ -202,12 +277,14 @@ def test_list_apps_and_flows(cli_runner, cli_app) -> None:
 
     result_flows = cli_runner.invoke(
         app,
-        ["flows", "--environment-id", "ENV"],
+        ["power", "flows", "list", "--environment-id", "ENV", "--owner-id", "owner"],
         env={"PACX_ACCESS_TOKEN": "token"},
     )
     assert result_flows.exit_code == 0
     assert "flow-1" in result_flows.stdout
-    assert any(instance.apps_calls for instance in client_cls.instances)
+    assert "state=Started" in result_flows.stdout
+    instance = client_cls.instances[-1]
+    assert instance.flows_calls
 
 
 def test_environment_copy_command(cli_runner, cli_app) -> None:
@@ -221,6 +298,169 @@ def test_environment_copy_command(cli_runner, cli_app) -> None:
 
     assert result.exit_code == 0
     assert any(instance.copy_calls for instance in client_cls.instances)
+
+
+def test_power_flows_get_update_delete(cli_runner, cli_app) -> None:
+    app, client_cls = cli_app
+
+    result_get = cli_runner.invoke(
+        app,
+        ["power", "flows", "get", "flow-1", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_get.exit_code == 0
+    assert "Flow flow-1" in result_get.stdout
+    instance_get = client_cls.instances[-1]
+    assert instance_get.flow_get_calls[-1] == ("ENV", "flow-1")
+
+    result_update = cli_runner.invoke(
+        app,
+        [
+            "power",
+            "flows",
+            "update",
+            "flow-1",
+            "--environment-id",
+            "ENV",
+            "--state",
+            "stopped",
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_update.exit_code == 0
+    assert "state=Stopped" in result_update.stdout
+    instance_update = client_cls.instances[-1]
+    assert instance_update.flow_update_calls[-1][2]["state"] == "Stopped"
+
+    result_delete = cli_runner.invoke(
+        app,
+        ["power", "flows", "delete", "flow-1", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_delete.exit_code == 0
+    instance_delete = client_cls.instances[-1]
+    assert instance_delete.flow_delete_calls[-1] == ("ENV", "flow-1")
+
+
+def test_power_flows_run(cli_runner, cli_app) -> None:
+    app, client_cls = cli_app
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "power",
+            "flows",
+            "run",
+            "flow-1",
+            "--environment-id",
+            "ENV",
+            "--trigger-name",
+            "manual",
+            "--inputs",
+            '{"foo":"bar"}',
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+
+    assert result.exit_code == 0
+    assert "Cloud flow run triggered" in result.stdout
+    instance = client_cls.instances[-1]
+    assert instance.flow_run_calls
+    env_id, flow_id, payload = instance.flow_run_calls[-1]
+    assert env_id == "ENV"
+    assert flow_id == "flow-1"
+    assert payload["inputs"]["foo"] == "bar"
+
+
+def test_power_flows_run_handles_empty_response(
+    cli_runner, cli_app, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, client_cls = cli_app
+
+    def empty_trigger(self, environment_id: str, flow_id: str, payload: dict[str, object]) -> FlowRun:
+        self.flow_run_calls.append((environment_id, flow_id, payload))
+        return FlowRun()
+
+    monkeypatch.setattr(client_cls, "trigger_cloud_flow_run", empty_trigger, raising=False)
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "power",
+            "flows",
+            "run",
+            "flow-1",
+            "--environment-id",
+            "ENV",
+            "--trigger-name",
+            "manual",
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+
+    assert result.exit_code == 0
+    assert "Cloud flow run triggered" in result.stdout
+    assert "status=" not in result.stdout
+
+
+def test_power_runs_commands(cli_runner, cli_app) -> None:
+    app, client_cls = cli_app
+
+    result_list = cli_runner.invoke(
+        app,
+        [
+            "power",
+            "runs",
+            "list",
+            "flow-1",
+            "--environment-id",
+            "ENV",
+            "--status",
+            "Succeeded",
+            "--continuation-token",
+            "token-1",
+            "--top",
+            "5",
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_list.exit_code == 0
+    assert "Continuation token" in result_list.stdout
+    instance_list = client_cls.instances[-1]
+    env_id, flow_id, params = instance_list.flow_run_list_calls[-1]
+    assert env_id == "ENV"
+    assert flow_id == "flow-1"
+    assert params["status"] == "Succeeded"
+    assert params["continuationToken"] == "token-1"
+
+    result_get = cli_runner.invoke(
+        app,
+        ["power", "runs", "get", "flow-1", "run-1", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_get.exit_code == 0
+    assert "Run status" in result_get.stdout
+    instance_get = client_cls.instances[-1]
+    assert instance_get.flow_run_get_calls[-1] == ("ENV", "flow-1", "run-1")
+
+    result_cancel = cli_runner.invoke(
+        app,
+        ["power", "runs", "cancel", "flow-1", "run-1", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_cancel.exit_code == 0
+    instance_cancel = client_cls.instances[-1]
+    assert instance_cancel.flow_run_cancel_calls[-1] == ("ENV", "flow-1", "run-1")
+
+    result_diag = cli_runner.invoke(
+        app,
+        ["power", "runs", "diagnostics", "flow-1", "run-1", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+    assert result_diag.exit_code == 0
+    assert "ERR" in result_diag.stdout
+    instance_diag = client_cls.instances[-1]
+    assert instance_diag.flow_run_diag_calls[-1] == ("ENV", "flow-1", "run-1")
 
 
 def test_environment_group_apply(cli_runner, cli_app) -> None:

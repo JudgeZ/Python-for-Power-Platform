@@ -14,7 +14,9 @@ from ..models.power_platform import (
     AppVersion,
     CloudFlow,
     EnvironmentSummary,
+    FlowActionList,
     FlowRun,
+    FlowRunDiagnostics,
     PowerApp,
 )
 
@@ -54,6 +56,15 @@ class AppVersionPage:
     versions: list[AppVersion]
     next_link: str | None = None
     continuation_token: str | None = None
+
+
+@dataclass(frozen=True)
+class FlowRunPage:
+    """Container for paged results returned by flow run queries."""
+
+    runs: list[FlowRun]
+    continuation_token: str | None = None
+    next_link: str | None = None
 
 
 class PowerPlatformClient:
@@ -444,6 +455,39 @@ class PowerPlatformClient:
         )
         return [CloudFlow.model_validate(o) for o in items]
 
+    def get_cloud_flow(self, environment_id: str, flow_id: str) -> CloudFlow:
+        resp = self.http.get(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}",
+            params=self._with_api_version(),
+        )
+        return CloudFlow.model_validate(resp.json())
+
+    def update_cloud_flow_state(
+        self, environment_id: str, flow_id: str, payload: dict[str, Any]
+    ) -> CloudFlow:
+        resp = self.http.patch(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}",
+            params=self._with_api_version(),
+            json=payload,
+        )
+        return CloudFlow.model_validate(resp.json())
+
+    def delete_cloud_flow(self, environment_id: str, flow_id: str) -> None:
+        self.http.delete(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}",
+            params=self._with_api_version(),
+        )
+
+    def list_flow_actions(self, environment_id: str, **filters: Any) -> FlowActionList:
+        params = self._with_api_version()
+        params.update({k: v for k, v in filters.items() if v is not None})
+        resp = self.http.get(
+            f"powerautomate/environments/{environment_id}/flowActions",
+            params=params,
+        )
+        payload = self._parse_response_dict(resp)
+        return FlowActionList.model_validate(payload or {})
+
     def list_flow_runs(self, environment_id: str, workflow_id: str) -> list[FlowRun]:
         params = {"api-version": self.api_version, "workflowId": workflow_id}
         items = self._collect_paginated(
@@ -452,6 +496,104 @@ class PowerPlatformClient:
             next_link_field="workflowRun@odata.nextLink",
         )
         return [FlowRun.model_validate(o) for o in items]
+
+    def list_cloud_flow_runs(
+        self,
+        environment_id: str,
+        flow_id: str,
+        *,
+        status: str | None = None,
+        trigger_name: str | None = None,
+        top: int | None = None,
+        continuation_token: str | None = None,
+    ) -> FlowRunPage:
+        params = self._with_api_version()
+        if status:
+            params["status"] = status
+        if trigger_name:
+            params["triggerName"] = trigger_name
+        if top is not None:
+            params["$top"] = top
+        if continuation_token:
+            params["$skiptoken"] = continuation_token
+        resp = self.http.get(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs",
+            params=params,
+        )
+        payload = self._parse_response_dict(resp)
+        value = payload.get("value")
+        runs = (
+            [FlowRun.model_validate(obj) for obj in cast(list[dict[str, Any]], value)]
+            if isinstance(value, list)
+            else []
+        )
+        token = cast(str | None, resp.headers.get("x-ms-continuation-token"))
+        if not token:
+            token = cast(str | None, payload.get("continuationToken"))
+        next_link = cast(str | None, payload.get("nextLink"))
+        return FlowRunPage(runs, continuation_token=token, next_link=next_link)
+
+    def trigger_cloud_flow_run(
+        self, environment_id: str, flow_id: str, payload: dict[str, Any]
+    ) -> FlowRun:
+        resp = self.http.post(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs",
+            params=self._with_api_version(),
+            json=payload,
+        )
+        if not resp.text:
+            return FlowRun()
+        return FlowRun.model_validate(resp.json())
+
+    def get_cloud_flow_run(
+        self, environment_id: str, flow_id: str, run_name: str
+    ) -> FlowRun:
+        resp = self.http.get(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}",
+            params=self._with_api_version(),
+        )
+        return FlowRun.model_validate(resp.json())
+
+    def resubmit_cloud_flow_run(
+        self,
+        environment_id: str,
+        flow_id: str,
+        run_name: str,
+        payload: dict[str, Any] | None = None,
+    ) -> FlowRun:
+        resp = self.http.post(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}",
+            params=self._with_api_version(),
+            json=payload or {},
+        )
+        if not resp.text:
+            return FlowRun()
+        return FlowRun.model_validate(resp.json())
+
+    def delete_cloud_flow_run(
+        self, environment_id: str, flow_id: str, run_name: str
+    ) -> None:
+        self.http.delete(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}",
+            params=self._with_api_version(),
+        )
+
+    def cancel_cloud_flow_run(
+        self, environment_id: str, flow_id: str, run_name: str
+    ) -> None:
+        self.http.post(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}:cancel",
+            params=self._with_api_version(),
+        )
+
+    def get_cloud_flow_run_diagnostics(
+        self, environment_id: str, flow_id: str, run_name: str
+    ) -> FlowRunDiagnostics:
+        resp = self.http.get(
+            f"powerautomate/environments/{environment_id}/cloudFlows/{flow_id}/runs/{run_name}/diagnostics",
+            params=self._with_api_version(),
+        )
+        return FlowRunDiagnostics.model_validate(resp.json())
 
     def _collect_paginated(
         self,

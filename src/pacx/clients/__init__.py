@@ -2,6 +2,7 @@ from .analytics import AnalyticsClient as AnalyticsClient
 from .authorization import AuthorizationRbacClient as AuthorizationRbacClient
 from .connectors import ConnectorsClient as ConnectorsClient
 from .dataverse import DataverseClient as DataverseClient
+from .power_pages_admin import PowerPagesAdminClient as PowerPagesAdminClient
 from .policy import DataLossPreventionClient as DataLossPreventionClient
 from .governance import GovernanceClient as GovernanceClient
 from .licensing import LicensingClient as LicensingClient
@@ -18,6 +19,7 @@ __all__ = [
     "AuthorizationRbacClient",
     "ConnectorsClient",
     "DataverseClient",
+    "PowerPagesAdminClient",
     "DataLossPreventionClient",
     "GovernanceClient",
     "LicensingClient",

@@ -1,6 +1,29 @@
 
 # Power Pages
 
+## Admin API vs. Dataverse sync
+
+`ppx pages download`, `upload`, and `diff-permissions` talk directly to Dataverse to move
+content between tables and the filesystem. Those commands are ideal when you need to
+round-trip pages, web files, or templates as part of a deployment pipeline.
+
+Administrative tasks such as starting a portal, triggering vulnerability scans, or
+managing the web application firewall run through the Power Pages admin API instead of
+Dataverse. Use the new `ppx pages websites` commands when you need to control the live
+site without touching content:
+
+```bash
+ppx pages websites start --website-id <GUID> --environment-id <ENV>
+ppx pages websites stop --website-id <GUID> --environment-id <ENV>
+ppx pages websites scan --website-id <GUID> --mode deep
+ppx pages websites waf --website-id <GUID> --action enable
+ppx pages websites visibility --website-id <GUID> --payload visibility.json
+```
+
+Each lifecycle call waits on the long-running operation returned by the admin API. The
+CLI streams the final status once the operation completes so you can confidently chain
+runtime tasks with content sync flows.
+
 ## Download
 
 ```bash

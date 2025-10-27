@@ -172,6 +172,71 @@ def test_list_cloud_flows_aggregates_pages(respx_mock, token_getter):
     assert [flow.id for flow in flows] == ["flow1", "flow2"]
 
 
+def test_get_cloud_flow(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"id": "flow1", "name": "My Flow"}))
+
+    flow = client.get_cloud_flow("env1", "flow1")
+
+    assert flow.id == "flow1"
+    assert flow.name == "My Flow"
+
+
+def test_update_cloud_flow_state(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.patch(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1",
+        params={"api-version": "2022-03-01-preview"},
+        json={"state": "Started"},
+    ).mock(return_value=httpx.Response(200, json={"properties": {"state": "Started"}}))
+
+    flow = client.update_cloud_flow_state("env1", "flow1", {"state": "Started"})
+
+    assert route.called
+    assert flow.properties.get("state") == "Started"
+
+
+def test_delete_cloud_flow(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.delete(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(204))
+
+    client.delete_cloud_flow("env1", "flow1")
+
+    assert route.called
+
+
+def test_list_flow_actions(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/flowActions",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "actions": [
+                    {"name": "action1", "type": "Type", "operationId": "op1"},
+                    {"name": "action2", "type": "Type", "operationId": "op2"},
+                ],
+                "triggers": [{"name": "trigger1", "type": "Http"}],
+            },
+        ),
+    )
+
+    result = client.list_flow_actions("env1")
+
+    assert route.called
+    assert len(result.actions) == 2
+    assert result.actions[0].operation_id == "op1"
+    assert result.triggers[0].name == "trigger1"
+
+
 def test_list_flow_runs_aggregates_workflow_pages(respx_mock, token_getter):
     client = build_client(token_getter)
     route = respx_mock.get(
@@ -217,6 +282,141 @@ def test_list_flow_runs_aggregates_workflow_pages(respx_mock, token_getter):
     assert route.calls[0].request.url.params["workflowId"] == "flow1"
     assert [run.id for run in runs] == ["run1", "run2"]
 
+
+def test_list_cloud_flow_runs_returns_header_token(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs",
+        params={
+            "api-version": "2022-03-01-preview",
+            "status": "Succeeded",
+            "$top": "5",
+        },
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            headers={"x-ms-continuation-token": "token123"},
+            json={"value": [{"id": "run1", "name": "Run One", "status": "Succeeded"}]},
+        )
+    )
+
+    page = client.list_cloud_flow_runs("env1", "flow1", status="Succeeded", top=5)
+
+    assert route.called
+    assert page.continuation_token == "token123"
+    assert [run.id for run in page.runs] == ["run1"]
+
+
+def test_list_cloud_flow_runs_uses_skiptoken(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs",
+        params={
+            "api-version": "2022-03-01-preview",
+            "$skiptoken": "next-token",
+        },
+    ).mock(return_value=httpx.Response(200, json={"value": []}))
+
+    client.list_cloud_flow_runs("env1", "flow1", continuation_token="next-token")
+
+    assert route.called
+
+
+def test_trigger_cloud_flow_run(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"triggerName": "manual", "inputs": {"foo": "bar"}}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(return_value=httpx.Response(202, json={"id": "run1", "status": "Running"}))
+
+    run = client.trigger_cloud_flow_run("env1", "flow1", payload)
+
+    assert route.called
+    assert run.id == "run1"
+    assert run.status == "Running"
+
+
+def test_get_cloud_flow_run(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs/run1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(200, json={"id": "run1", "status": "Succeeded"}))
+
+    run = client.get_cloud_flow_run("env1", "flow1", "run1")
+
+    assert run.id == "run1"
+    assert run.status == "Succeeded"
+
+
+def test_resubmit_cloud_flow_run(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs/run1",
+        params={"api-version": "2022-03-01-preview"},
+        json={"retryFailedActions": True},
+    ).mock(return_value=httpx.Response(202, json={"id": "run2", "status": "Running"}))
+
+    run = client.resubmit_cloud_flow_run(
+        "env1", "flow1", "run1", {"retryFailedActions": True}
+    )
+
+    assert route.called
+    assert run.id == "run2"
+
+
+def test_delete_cloud_flow_run(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.delete(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs/run1",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(204))
+
+    client.delete_cloud_flow_run("env1", "flow1", "run1")
+
+    assert route.called
+
+
+def test_cancel_cloud_flow_run(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs/run1:cancel",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(return_value=httpx.Response(202))
+
+    client.cancel_cloud_flow_run("env1", "flow1", "run1")
+
+    assert route.called
+
+
+def test_get_cloud_flow_run_diagnostics(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/powerautomate/environments/env1/cloudFlows/flow1/runs/run1/diagnostics",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "runName": "run1",
+                "issues": [
+                    {
+                        "actionName": "Action1",
+                        "code": "ERR001",
+                        "message": "Issue detected",
+                    }
+                ],
+            },
+        )
+    )
+
+    diagnostics = client.get_cloud_flow_run_diagnostics("env1", "flow1", "run1")
+
+    assert route.called
+    assert diagnostics.run_name == "run1"
+    assert diagnostics.issues[0].code == "ERR001"
 
 def test_restore_app_posts_payload(respx_mock, token_getter):
     client = build_client(token_getter)
