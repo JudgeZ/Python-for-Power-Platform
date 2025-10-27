@@ -13,6 +13,7 @@ Need a guided tour? Walk through the [end-to-end quick start](01-installation.md
 | `profile` | Inspect or change stored defaults such as the active environment or Dataverse host. | `ppx profile list` |
 | `dv` | Dataverse data access helpers (whoami, CRUD, bulk CSV). | `ppx dv list accounts --top 5` |
 | `connector` | Manage custom connector APIs within an environment. | `ppx connector list --environment-id ENV-ID` |
+| `pages` | Download/upload content and run website admin operations. | `ppx pages websites start --website-id <GUID>` |
 | `policy` | Administer Data Loss Prevention (DLP) policies and assignments. | `ppx policy dlp list` |
 | `pages` | Download, upload, and diff Power Pages site content. | `ppx pages download --website-id <GUID>` |
 | `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --out core.zip` |
