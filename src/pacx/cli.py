@@ -10,14 +10,14 @@ from .cli import (
     connectors,
     dataverse,
     doctor,
-    policy,
     governance,
     licensing,
     pages,
+    policy,
     power_platform,
     profile,
-    tenant,
     pva,
+    tenant,
     users,
 )
 

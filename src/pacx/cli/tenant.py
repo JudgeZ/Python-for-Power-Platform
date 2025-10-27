@@ -78,7 +78,9 @@ def tenant_root(
 @handle_cli_errors
 def settings_get(
     ctx: typer.Context,
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    api_version: str | None = typer.Option(
+        None, help="Tenant settings API version override."
+    ),  # noqa: B008
 ) -> None:
     """Retrieve tenant settings."""
 
@@ -115,8 +117,10 @@ def settings_update(
 @handle_cli_errors
 def settings_request_access(
     ctx: typer.Context,
-    justification: str = typer.Option(..., help="Reason for requesting elevated access."),
-    requested_settings: list[str] = typer.Option(
+    justification: str = typer.Option(
+        ..., help="Reason for requesting elevated access."
+    ),  # noqa: B008
+    requested_settings: list[str] = typer.Option(  # noqa: B008
         [],
         "--setting",
         help="Optional setting identifiers requiring access (repeat for multiple).",
@@ -188,9 +192,7 @@ def feature_request_access(
     client = _build_client(ctx, version)
     payload = {"justification": justification}
     client.request_feature_access(feature_name, payload)
-    print(
-        f"[green]Feature access request submitted for '{feature_name}'.[/green]"
-    )
+    print(f"[green]Feature access request submitted for '{feature_name}'.[/green]")
 
 
 __all__ = [

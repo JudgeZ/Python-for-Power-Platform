@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import httpx
 
 from ..http_client import HttpClient
 from ..models.user_management import (
-    AdminRoleAssignment,
     AdminRoleAssignmentList,
     AsyncOperationStatus,
     RemoveAdminRoleRequest,
@@ -102,7 +102,7 @@ class UserManagementClient:
         """Remove a specific admin role assignment from the user."""
 
         if isinstance(payload, str):
-            body = RemoveAdminRoleRequest(role_definition_id=payload)
+            body = RemoveAdminRoleRequest(roleDefinitionId=payload)
         else:
             body = payload
         return self._post_operation(
@@ -143,28 +143,30 @@ class UserManagementClient:
 
         done_states = {"Succeeded", "Failed", "Canceled"}
 
-        def get_status() -> AsyncOperationStatus:
+        def get_status() -> dict[str, Any]:
             params = None if "?" in operation_url else self._with_api_version()
             resp = self.http.get(operation_url, params=params)
-            return AsyncOperationStatus.model_validate(self._parse_response_dict(resp))
+            return self._parse_response_dict(resp)
 
-        def is_done(status: AsyncOperationStatus) -> bool:
+        def is_done(payload: dict[str, Any]) -> bool:
+            status = AsyncOperationStatus.model_validate(payload)
             if status.status is None:
                 return False
             return status.status in done_states
 
-        def to_progress(status: AsyncOperationStatus) -> int | None:
+        def to_progress(payload: dict[str, Any]) -> int | None:
+            status = AsyncOperationStatus.model_validate(payload)
             pct = status.percent_complete
             return int(pct) if pct is not None else None
 
-        status = poll_until(
+        result = poll_until(
             get_status=get_status,
             is_done=is_done,
             get_progress=to_progress,
             interval=interval,
             timeout=timeout,
         )
-        return status
+        return AsyncOperationStatus.model_validate(result)
 
 
 __all__ = [

@@ -7,17 +7,18 @@ from typing import Any, cast
 import typer
 from typer.models import CommandInfo
 
+from ..clients.user_management import UserManagementClient
 from . import (
-    app_management,
     analytics,
+    app_management,
     auth,
     connectors,
     dataverse,
     doctor,
-    policy,
     governance,
     licensing,
     pages,
+    policy,
     power_platform,
     profile,
     pva,
@@ -30,7 +31,6 @@ from .auth import auth_create
 from .licensing import LicensingClient
 from .power_platform import PowerPlatformClient
 from .pva import PVAClient
-from ..clients.user_management import UserManagementClient
 
 app = typer.Typer(help="PACX CLI")
 

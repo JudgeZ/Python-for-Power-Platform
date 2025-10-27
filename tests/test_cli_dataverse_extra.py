@@ -146,7 +146,9 @@ def test_dataverse_crud_operations(cli_runner, cli_app) -> None:
     assert stub.delete_args == ("accounts", "12345")
 
 
-def test_dataverse_list_and_bulk_csv(monkeypatch: pytest.MonkeyPatch, cli_runner, cli_app, tmp_path) -> None:
+def test_dataverse_list_and_bulk_csv(
+    monkeypatch: pytest.MonkeyPatch, cli_runner, cli_app, tmp_path
+) -> None:
     csv_file = tmp_path / "data.csv"
     csv_file.write_text("id,name\n1,Alice\n", encoding="utf-8")
     report_file = tmp_path / "report.csv"

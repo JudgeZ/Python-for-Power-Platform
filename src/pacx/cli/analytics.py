@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import typer
 
@@ -38,8 +38,9 @@ def _print_operation(message: str, handle: RecommendationOperationHandle) -> Non
 def _parse_parameters(raw: str | None) -> dict[str, Any]:
     if raw in (None, ""):
         return {}
+    raw_str = cast(str, raw)
     try:
-        payload = json.loads(raw)
+        payload = json.loads(raw_str)
     except json.JSONDecodeError as exc:  # pragma: no cover - validation handled by Typer
         raise typer.BadParameter(f"Invalid JSON payload: {exc}") from exc
     if not isinstance(payload, dict):
@@ -76,7 +77,9 @@ def list_actions(
         console.print("No actions found.")
         return
     for action in actions:
-        console.print(f"[bold]{action.display_name or action.action_name}[/bold] name={action.action_name}")
+        console.print(
+            f"[bold]{action.display_name or action.action_name}[/bold] name={action.action_name}"
+        )
 
 
 @app.command("resources")
@@ -153,8 +156,10 @@ def recommendation_status(
     console.print_json(data=status.model_dump(mode="json", by_alias=True))
 
 
-def _action_payload(notes: str | None, requested_by: str | None) -> RecommendationActionPayload | None:
-    payload = RecommendationActionPayload(notes=notes, requested_by=requested_by)
+def _action_payload(
+    notes: str | None, requested_by: str | None
+) -> RecommendationActionPayload | None:
+    payload = RecommendationActionPayload(notes=notes, requestedBy=requested_by)
     return payload if payload.to_payload() else None
 
 
@@ -178,7 +183,9 @@ def _handle_async(
 def acknowledge_recommendation(
     ctx: typer.Context,
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario identifier"),
-    recommendation_id: str = typer.Option(..., "--recommendation-id", "-r", help="Recommendation identifier"),
+    recommendation_id: str = typer.Option(
+        ..., "--recommendation-id", "-r", help="Recommendation identifier"
+    ),
     notes: str | None = typer.Option(None, help="Optional remediation notes."),
     requested_by: str | None = typer.Option(None, help="User acknowledging the recommendation."),
     wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for asynchronous completion."),
@@ -198,7 +205,9 @@ def acknowledge_recommendation(
 def dismiss_recommendation(
     ctx: typer.Context,
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario identifier"),
-    recommendation_id: str = typer.Option(..., "--recommendation-id", "-r", help="Recommendation identifier"),
+    recommendation_id: str = typer.Option(
+        ..., "--recommendation-id", "-r", help="Recommendation identifier"
+    ),
     notes: str | None = typer.Option(None, help="Optional dismissal notes."),
     requested_by: str | None = typer.Option(None, help="User dismissing the recommendation."),
     wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for asynchronous completion."),
@@ -219,12 +228,14 @@ def execute_action(
     ctx: typer.Context,
     action_name: str = typer.Argument(..., help="Action to execute."),
     scenario: str = typer.Option(..., "--scenario", "-s", help="Scenario identifier"),
-    parameters: str | None = typer.Option(None, "--parameters", help="JSON object of action parameters."),
+    parameters: str | None = typer.Option(
+        None, "--parameters", help="JSON object of action parameters."
+    ),
 ) -> None:
     """Execute an advisor action for a scenario."""
 
     action_parameters = _parse_parameters(parameters)
-    request = AdvisorActionRequest(scenario=scenario, action_parameters=action_parameters)
+    request = AdvisorActionRequest(scenario=scenario, actionParameters=action_parameters)
     with _build_client(ctx) as client:
         response = client.execute_action(action_name, request)
     console.print_json(data=response.model_dump(mode="json", by_alias=True))

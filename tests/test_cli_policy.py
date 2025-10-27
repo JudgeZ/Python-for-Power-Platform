@@ -7,7 +7,13 @@ import typer
 from typer.testing import CliRunner
 
 from pacx.clients.policy import PolicyOperationHandle, PolicyPage
-from pacx.models.policy import AsyncOperation, ConnectorGroup, ConnectorReference, DataLossPreventionPolicy, PolicyAssignment
+from pacx.models.policy import (
+    AsyncOperation,
+    ConnectorGroup,
+    ConnectorReference,
+    DataLossPreventionPolicy,
+    PolicyAssignment,
+)
 
 
 class StubPolicyClient:
@@ -58,7 +64,9 @@ class StubPolicyClient:
     def update_policy(
         self, policy_id: str, policy: DataLossPreventionPolicy
     ) -> PolicyOperationHandle:
-        self.update_payloads.append((policy_id, policy.model_dump(by_alias=True, exclude_none=True)))
+        self.update_payloads.append(
+            (policy_id, policy.model_dump(by_alias=True, exclude_none=True))
+        )
         return PolicyOperationHandle(
             "https://example/operations/update",
             AsyncOperation(operation_id="update-op", status="Running"),
@@ -101,7 +109,9 @@ class StubPolicyClient:
     def assign_policy(
         self, policy_id: str, assignments: list[PolicyAssignment]
     ) -> PolicyOperationHandle:
-        payload = [assignment.model_dump(by_alias=True, exclude_none=True) for assignment in assignments]
+        payload = [
+            assignment.model_dump(by_alias=True, exclude_none=True) for assignment in assignments
+        ]
         self.assignment_updates.append((policy_id, payload))
         return PolicyOperationHandle(
             "https://example/operations/assign",
@@ -205,11 +215,7 @@ def test_policy_connectors_update_records_payload(cli_runner, cli_app):
 def test_policy_assign_command_posts_assignments(cli_runner, cli_app):
     app, client_cls = cli_app
     payload = json.dumps(
-        {
-            "assignments": [
-                {"environmentId": "Default-123", "assignmentType": "Include"}
-            ]
-        }
+        {"assignments": [{"environmentId": "Default-123", "assignmentType": "Include"}]}
     )
 
     result = cli_runner.invoke(

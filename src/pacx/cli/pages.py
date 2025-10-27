@@ -17,6 +17,8 @@ from ..clients.dataverse import DataverseClient
 from ..clients.power_pages import PowerPagesClient
 from ..clients.power_pages_admin import (
     DEFAULT_API_VERSION as ADMIN_DEFAULT_API_VERSION,
+)
+from ..clients.power_pages_admin import (
     PowerPagesAdminClient,
     WebsiteOperationHandle,
 )
@@ -117,10 +119,12 @@ def websites_start(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="Website ID (GUID)"),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID (defaults to profile configuration)",
+        None,
+        help="Environment ID (defaults to profile configuration)",
     ),
     api_version: str | None = typer.Option(
-        None, help="Power Pages admin API version override",
+        None,
+        help="Power Pages admin API version override",
     ),
     wait: bool = typer.Option(
         True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
@@ -132,7 +136,9 @@ def websites_start(
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = _build_admin_client(ctx, version)
     handle = client.start_website(environment, website_id)
-    _handle_admin_operation("Website start", handle, client, wait=wait, interval=interval, timeout=timeout)
+    _handle_admin_operation(
+        "Website start", handle, client, wait=wait, interval=interval, timeout=timeout
+    )
 
 
 @websites_app.command("stop")
@@ -141,10 +147,12 @@ def websites_stop(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="Website ID (GUID)"),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID (defaults to profile configuration)",
+        None,
+        help="Environment ID (defaults to profile configuration)",
     ),
     api_version: str | None = typer.Option(
-        None, help="Power Pages admin API version override",
+        None,
+        help="Power Pages admin API version override",
     ),
     wait: bool = typer.Option(
         True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
@@ -156,7 +164,9 @@ def websites_stop(
     environment = resolve_environment_id_from_context(ctx, environment_id)
     client = _build_admin_client(ctx, version)
     handle = client.stop_website(environment, website_id)
-    _handle_admin_operation("Website stop", handle, client, wait=wait, interval=interval, timeout=timeout)
+    _handle_admin_operation(
+        "Website stop", handle, client, wait=wait, interval=interval, timeout=timeout
+    )
 
 
 @websites_app.command("scan")
@@ -165,7 +175,8 @@ def websites_scan(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="Website ID (GUID)"),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID (defaults to profile configuration)",
+        None,
+        help="Environment ID (defaults to profile configuration)",
     ),
     mode: str = typer.Option(
         "quick",
@@ -175,10 +186,12 @@ def websites_scan(
         show_default=True,
     ),
     lcid: int | None = typer.Option(
-        None, help="Optional LCID for quick scans (ignored for deep scans)",
+        None,
+        help="Optional LCID for quick scans (ignored for deep scans)",
     ),
     api_version: str | None = typer.Option(
-        None, help="Power Pages admin API version override",
+        None,
+        help="Power Pages admin API version override",
     ),
     wait: bool = typer.Option(
         True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
@@ -209,7 +222,8 @@ def websites_waf(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="Website ID (GUID)"),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID (defaults to profile configuration)",
+        None,
+        help="Environment ID (defaults to profile configuration)",
     ),
     action: str = typer.Option(
         "status",
@@ -219,13 +233,16 @@ def websites_waf(
         show_default=True,
     ),
     rules: str | None = typer.Option(
-        None, help="JSON string/path describing rules for set-rules",
+        None,
+        help="JSON string/path describing rules for set-rules",
     ),
     rule_type: str | None = typer.Option(
-        None, help="Optional rule type filter for get-rules",
+        None,
+        help="Optional rule type filter for get-rules",
     ),
     api_version: str | None = typer.Option(
-        None, help="Power Pages admin API version override",
+        None,
+        help="Power Pages admin API version override",
     ),
     wait: bool = typer.Option(
         True, "--wait/--no-wait", help="Wait for asynchronous operations", show_default=True
@@ -239,10 +256,14 @@ def websites_waf(
     action_value = action.lower().strip()
     if action_value == "enable":
         handle = client.enable_waf(environment, website_id)
-        _handle_admin_operation("WAF enable", handle, client, wait=wait, interval=interval, timeout=timeout)
+        _handle_admin_operation(
+            "WAF enable", handle, client, wait=wait, interval=interval, timeout=timeout
+        )
     elif action_value == "disable":
         handle = client.disable_waf(environment, website_id)
-        _handle_admin_operation("WAF disable", handle, client, wait=wait, interval=interval, timeout=timeout)
+        _handle_admin_operation(
+            "WAF disable", handle, client, wait=wait, interval=interval, timeout=timeout
+        )
     elif action_value == "status":
         data = client.get_waf_status(environment, website_id)
         if data:
@@ -262,7 +283,9 @@ def websites_waf(
         if not isinstance(raw_rules, Mapping):
             raise typer.BadParameter("--rules must be a JSON object")
         handle = client.create_waf_rules(environment, website_id, dict(raw_rules))
-        _handle_admin_operation("WAF rules update", handle, client, wait=wait, interval=interval, timeout=timeout)
+        _handle_admin_operation(
+            "WAF rules update", handle, client, wait=wait, interval=interval, timeout=timeout
+        )
     else:  # pragma: no cover - validated by Typer choices
         raise typer.BadParameter("Unsupported --action value")
 
@@ -273,13 +296,15 @@ def websites_visibility(
     ctx: typer.Context,
     website_id: str = typer.Option(..., help="Website ID (GUID)"),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID (defaults to profile configuration)",
+        None,
+        help="Environment ID (defaults to profile configuration)",
     ),
     payload: str = typer.Option(
         ..., "--payload", help="JSON string/path describing visibility settings"
     ),
     api_version: str | None = typer.Option(
-        None, help="Power Pages admin API version override",
+        None,
+        help="Power Pages admin API version override",
     ),
 ) -> None:
     version = _admin_api_version(ctx, api_version)
@@ -312,8 +337,10 @@ def pages_download(
     host: str | None = typer.Option(
         None, help="Dataverse host to use (defaults to profile or DATAVERSE_HOST)"
     ),
-    include_files: bool = typer.Option(True, help="Include adx_webfiles (default: True)"),
-    binary_provider: list[str] | None = typer.Option(
+    include_files: bool = typer.Option(
+        True, help="Include adx_webfiles (default: True)"
+    ),  # noqa: B008
+    binary_provider: list[str] | None = typer.Option(  # noqa: B008
         None,
         "--binary-provider",
         help=(
@@ -404,9 +431,7 @@ def pages_upload(
     ),
     key_config: str | None = typer.Option(
         None,
-        help=(
-            "JSON string/path overriding natural keys (map entity -> array of column names)"
-        ),
+        help=("JSON string/path overriding natural keys (map entity -> array of column names)"),
     ),
 ) -> None:
     """Upload a previously downloaded Power Pages site.
@@ -433,8 +458,7 @@ def pages_upload(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence)
-                and not isinstance(value, str | bytes)
+                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
             }
             invalid = [
                 key
@@ -469,9 +493,7 @@ def pages_diff_permissions(
     ),
     key_config: str | None = typer.Option(
         None,
-        help=(
-            "JSON string/path overriding keys (map entity -> array of column names)"
-        ),
+        help=("JSON string/path overriding keys (map entity -> array of column names)"),
     ),
 ) -> None:
     """Compare web role permissions between Dataverse and a local export.
@@ -495,8 +517,7 @@ def pages_diff_permissions(
             cli_keys = {
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
-                if isinstance(value, Sequence)
-                and not isinstance(value, str | bytes)
+                if isinstance(value, Sequence) and not isinstance(value, str | bytes)
             }
             invalid = [
                 key

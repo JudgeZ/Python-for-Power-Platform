@@ -19,7 +19,9 @@ def test_apply_admin_role_returns_operation_handle(respx_mock, token_getter):
     ).mock(
         return_value=httpx.Response(
             202,
-            headers={"Operation-Location": "https://api.powerplatform.com/usermanagement/operations/op-1"},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/usermanagement/operations/op-1"
+            },
             json={"status": "Running"},
         )
     )
@@ -27,7 +29,9 @@ def test_apply_admin_role_returns_operation_handle(respx_mock, token_getter):
     handle = client.apply_admin_role("user-1")
 
     assert route.called
-    assert handle.operation_location == "https://api.powerplatform.com/usermanagement/operations/op-1"
+    assert (
+        handle.operation_location == "https://api.powerplatform.com/usermanagement/operations/op-1"
+    )
     assert handle.operation_id == "op-1"
     assert handle.metadata["status"] == "Running"
 
@@ -40,7 +44,9 @@ def test_remove_admin_role_serializes_payload(respx_mock, token_getter):
     ).mock(
         return_value=httpx.Response(
             202,
-            headers={"Operation-Location": "https://api.powerplatform.com/usermanagement/operations/op-2"},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/usermanagement/operations/op-2"
+            },
             json={"status": "NotStarted"},
         )
     )

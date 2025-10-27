@@ -1,23 +1,19 @@
-from __future__ import annotations
-
 """Authentication-related Typer commands and their signatures."""
 
-import re
+from __future__ import annotations
+
 import json
+import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Sequence, cast
+from typing import Any, Literal, cast
 
 import typer
-from rich import print
 from pydantic import ValidationError
+from rich import print
 
-try:
-    import yaml
-except ImportError:  # pragma: no cover - optional dependency handled at runtime
-    yaml = None
-
-from ..config import ConfigStore, Profile
 from ..clients.authorization import AuthorizationRbacClient
+from ..config import ConfigStore, Profile
 from ..models.authorization import (
     CreateRoleAssignmentRequest,
     CreateRoleDefinitionRequest,
@@ -25,8 +21,12 @@ from ..models.authorization import (
     RoleDefinition,
     UpdateRoleDefinitionRequest,
 )
-from .common import handle_cli_errors
-from .common import get_token_getter
+from .common import get_token_getter, handle_cli_errors
+
+try:
+    import yaml  # type: ignore[import-untyped]
+except ImportError:  # pragma: no cover - optional dependency handled at runtime
+    yaml = None
 
 KEYRING_BACKEND = "keyring"
 KEYVAULT_BACKEND = "keyvault"
@@ -35,9 +35,7 @@ DEFAULT_SCOPE = "https://api.powerplatform.com/.default"
 FlowType = Literal["device", "web", "client-credential"]
 
 app = typer.Typer(help="Authentication and profiles")
-roles_app = typer.Typer(
-    help="Manage RBAC role definitions (Authorization.RBAC.Read/Manage scopes)"
-)
+roles_app = typer.Typer(help="Manage RBAC role definitions (Authorization.RBAC.Read/Manage scopes)")
 assignments_app = typer.Typer(
     help="Manage RBAC role assignments (Authorization.RBAC.Read/Manage scopes)"
 )
@@ -64,13 +62,7 @@ def _render_role(role: RoleDefinition) -> None:
 
 
 def _render_assignment(assignment: RoleAssignment) -> None:
-    typer.echo(
-        "{principal} -> {role} @ {scope}".format(
-            principal=assignment.principal_id,
-            role=assignment.role_definition_id,
-            scope=assignment.scope,
-        )
-    )
+    typer.echo(f"{assignment.principal_id} -> {assignment.role_definition_id} @ {assignment.scope}")
 
 
 @roles_app.command(
@@ -94,7 +86,7 @@ def roles_list(ctx: typer.Context) -> None:
 @handle_cli_errors
 def roles_create(
     ctx: typer.Context,
-    definition: Path = typer.Option(
+    definition: Path = typer.Option(  # noqa: B008
         ...,
         "--definition",
         exists=True,
@@ -126,7 +118,7 @@ def roles_create(
 def roles_update(
     ctx: typer.Context,
     role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
-    definition: Path = typer.Option(
+    definition: Path = typer.Option(  # noqa: B008
         ...,
         "--definition",
         exists=True,
@@ -158,7 +150,7 @@ def roles_update(
 def roles_delete(
     ctx: typer.Context,
     role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
-    yes: bool = typer.Option(
+    yes: bool = typer.Option(  # noqa: B008
         False,
         "--yes",
         "-y",
@@ -168,9 +160,7 @@ def roles_delete(
     """Delete a custom role definition."""
 
     if not yes:
-        confirmed = typer.confirm(
-            f"Delete role definition '{role_definition_id}'?", default=False
-        )
+        confirmed = typer.confirm(f"Delete role definition '{role_definition_id}'?", default=False)
         if not confirmed:
             raise typer.Exit(0)
     client = AuthorizationRbacClient(get_token_getter(ctx))
@@ -185,10 +175,10 @@ def roles_delete(
 @handle_cli_errors
 def assignments_list(
     ctx: typer.Context,
-    principal_id: str | None = typer.Option(
+    principal_id: str | None = typer.Option(  # noqa: B008
         None, help="Filter assignments by principal object ID"
     ),
-    scope: str | None = typer.Option(None, help="Filter assignments by scope"),
+    scope: str | None = typer.Option(None, help="Filter assignments by scope"),  # noqa: B008
 ) -> None:
     """List role assignments with optional filters."""
 
@@ -205,15 +195,17 @@ def assignments_list(
 @handle_cli_errors
 def assignments_create(
     ctx: typer.Context,
-    principal_id: str = typer.Option(..., help="Principal object ID"),
-    role_definition_id: str = typer.Option(..., help="Role definition identifier"),
-    scope: str = typer.Option(..., help="Scope at which to grant the role"),
+    principal_id: str = typer.Option(..., help="Principal object ID"),  # noqa: B008
+    role_definition_id: str = typer.Option(..., help="Role definition identifier"),  # noqa: B008
+    scope: str = typer.Option(..., help="Scope at which to grant the role"),  # noqa: B008
 ) -> None:
     """Create a role assignment linking a principal, scope, and role definition."""
 
     try:
         request = CreateRoleAssignmentRequest(
-            principal_id=principal_id, role_definition_id=role_definition_id, scope=scope
+            principalId=principal_id,
+            roleDefinitionId=role_definition_id,
+            scope=scope,
         )
     except ValidationError as exc:
         raise typer.BadParameter(f"Invalid role assignment payload: {exc}") from exc
@@ -221,11 +213,7 @@ def assignments_create(
     client = AuthorizationRbacClient(get_token_getter(ctx))
     assignment = client.create_role_assignment(request)
     typer.echo(
-        "Assigned {principal} -> {role} @ {scope}".format(
-            principal=assignment.principal_id,
-            role=assignment.role_definition_id,
-            scope=assignment.scope,
-        )
+        f"Assigned {assignment.principal_id} -> {assignment.role_definition_id} @ {assignment.scope}"
     )
 
 
@@ -237,7 +225,7 @@ def assignments_create(
 def assignments_delete(
     ctx: typer.Context,
     assignment_id: str = typer.Argument(..., help="Role assignment identifier"),
-    yes: bool = typer.Option(
+    yes: bool = typer.Option(  # noqa: B008
         False,
         "--yes",
         "-y",
@@ -247,9 +235,7 @@ def assignments_delete(
     """Delete a role assignment by identifier."""
 
     if not yes:
-        confirmed = typer.confirm(
-            f"Delete role assignment '{assignment_id}'?", default=False
-        )
+        confirmed = typer.confirm(f"Delete role assignment '{assignment_id}'?", default=False)
         if not confirmed:
             raise typer.Exit(0)
     client = AuthorizationRbacClient(get_token_getter(ctx))
@@ -346,15 +332,11 @@ def _persist_profile(profile: Profile, *, set_default: bool) -> None:
     default_now_profile = new_default == profile.name
 
     if default_now_profile and (set_default or previous_default is None):
-        print(
-            f"Profile [bold]{profile.name}[/bold] configured and set as the default profile."
-        )
+        print(f"Profile [bold]{profile.name}[/bold] configured and set as the default profile.")
         return
 
     if set_default and not default_now_profile:
-        print(
-            f"Profile [bold]{profile.name}[/bold] configured. Existing default left unchanged."
-        )
+        print(f"Profile [bold]{profile.name}[/bold] configured. Existing default left unchanged.")
         return
 
     if not set_default and default_now_profile:
@@ -363,9 +345,7 @@ def _persist_profile(profile: Profile, *, set_default: bool) -> None:
         )
         return
 
-    print(
-        f"Profile [bold]{profile.name}[/bold] configured. Default profile not modified."
-    )
+    print(f"Profile [bold]{profile.name}[/bold] configured. Default profile not modified.")
 
 
 def _render_flow_summary(flow: FlowType, secret_backend: str | None) -> str:
@@ -381,9 +361,9 @@ def _render_flow_summary(flow: FlowType, secret_backend: str | None) -> str:
 @handle_cli_errors
 def auth_create(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    scope: str = typer.Option(
+    tenant_id: str = typer.Option(..., help="Entra ID tenant"),  # noqa: B008
+    client_id: str = typer.Option(..., help="App registration (client) ID"),  # noqa: B008
+    scope: str = typer.Option(  # noqa: B008
         DEFAULT_SCOPE,
         "--scope",
         "-s",
@@ -392,31 +372,31 @@ def auth_create(
         rich_help_panel="Authentication",
         metavar="SCOPE",
     ),
-    flow: FlowType = typer.Option(
+    flow: FlowType = typer.Option(  # noqa: B008
         "device",
         case_sensitive=False,
         help="Authentication flow: device, web, or client-credential.",
         rich_help_panel="Authentication",
     ),
-    dataverse_host: str | None = typer.Option(
+    dataverse_host: str | None = typer.Option(  # noqa: B008
         None, help="Default Dataverse host for this profile"
     ),
-    client_secret_env: str | None = typer.Option(
+    client_secret_env: str | None = typer.Option(  # noqa: B008
         None, help="Environment variable containing the client secret"
     ),
-    secret_backend: str | None = typer.Option(
+    secret_backend: str | None = typer.Option(  # noqa: B008
         None,
         help="Secret backend for client credentials (env, keyring, keyvault)",
     ),
-    secret_ref: str | None = typer.Option(
+    secret_ref: str | None = typer.Option(  # noqa: B008
         None,
         help="Backend reference: ENV_VAR, service:username, or VAULT_URL:SECRET_NAME",
     ),
-    prompt_secret: bool = typer.Option(
+    prompt_secret: bool = typer.Option(  # noqa: B008
         False,
         help="Prompt for a secret and store it in keyring when --secret-backend=keyring",
     ),
-    set_default: bool = typer.Option(
+    set_default: bool = typer.Option(  # noqa: B008
         True,
         "--set-default/--no-set-default",
         help="Set the profile as default after creation.",
@@ -458,12 +438,12 @@ def auth_use(name: str = typer.Argument(..., help="Profile to activate")) -> Non
 @handle_cli_errors
 def auth_device(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    scope: str = typer.Option(
+    tenant_id: str = typer.Option(..., help="Entra ID tenant"),  # noqa: B008
+    client_id: str = typer.Option(..., help="App registration (client) ID"),  # noqa: B008
+    scope: str = typer.Option(  # noqa: B008
         DEFAULT_SCOPE, help="Scope (default: Power Platform API scope)"
     ),
-    dataverse_host: str | None = typer.Option(
+    dataverse_host: str | None = typer.Option(  # noqa: B008
         None, help="Default Dataverse host for this profile"
     ),
 ) -> None:
@@ -487,24 +467,24 @@ def auth_device(
 @handle_cli_errors
 def auth_client(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    client_secret_env: str | None = typer.Option(
+    tenant_id: str = typer.Option(..., help="Entra ID tenant"),  # noqa: B008
+    client_id: str = typer.Option(..., help="App registration (client) ID"),  # noqa: B008
+    client_secret_env: str | None = typer.Option(  # noqa: B008
         None, help="Name of env var holding the client secret (env backend)"
     ),
-    secret_backend: str | None = typer.Option(
+    secret_backend: str | None = typer.Option(  # noqa: B008
         None, help="Secret backend: env|keyring|keyvault"
     ),
-    secret_ref: str | None = typer.Option(
+    secret_ref: str | None = typer.Option(  # noqa: B008
         None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"
     ),
-    prompt_secret: bool = typer.Option(
+    prompt_secret: bool = typer.Option(  # noqa: B008
         False, help="For keyring: prompt and store a secret under service:username"
     ),
-    scope: str = typer.Option(
+    scope: str = typer.Option(  # noqa: B008
         DEFAULT_SCOPE, help="Scope (default: Power Platform API scope)"
     ),
-    dataverse_host: str | None = typer.Option(
+    dataverse_host: str | None = typer.Option(  # noqa: B008
         None, help="Default Dataverse host for this profile"
     ),
 ) -> None:

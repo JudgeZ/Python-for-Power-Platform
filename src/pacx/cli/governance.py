@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
 import typer
 from rich import print
@@ -45,8 +45,9 @@ def _build_client(ctx: typer.Context) -> GovernanceClient:
 def _parse_payload(raw: str | None) -> dict[str, Any]:
     if raw in (None, ""):
         return {}
+    raw_str = cast(str, raw)
     try:
-        payload = json.loads(raw)
+        payload = json.loads(raw_str)
     except json.JSONDecodeError as exc:  # pragma: no cover - validation path
         raise typer.BadParameter(f"Invalid JSON payload: {exc}") from exc
     if not isinstance(payload, dict):
@@ -56,10 +57,7 @@ def _parse_payload(raw: str | None) -> dict[str, Any]:
 
 def _print_operation(message: str, handle: GovernanceOperation) -> None:
     if handle.operation_location:
-        print(
-            f"[green]{message} accepted[/green] "
-            f"location={handle.operation_location}"
-        )
+        print(f"[green]{message} accepted[/green] " f"location={handle.operation_location}")
     else:
         print(f"[green]{message} accepted[/green]")
     if handle.metadata:

@@ -70,7 +70,9 @@ def test_wait_for_operation_polls_until_terminal(respx_mock, token_getter) -> No
         ]
     )
 
-    final = client.wait_for_operation("https://api.powerplatform.com/ops/quick", interval=0.0, timeout=5.0)
+    final = client.wait_for_operation(
+        "https://api.powerplatform.com/ops/quick", interval=0.0, timeout=5.0
+    )
 
     assert route.called
     assert final["status"].lower() == "succeeded"
@@ -101,7 +103,11 @@ def test_waf_operations(respx_mock, token_getter) -> None:
     enable_route = respx_mock.post(
         "https://api.powerplatform.com/powerpages/environments/env/websites/site/enableWaf",
         params={"api-version": "2022-03-01-preview"},
-    ).mock(return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/ops/waf"}))
+    ).mock(
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/ops/waf"}
+        )
+    )
     disable_route = respx_mock.post(
         "https://api.powerplatform.com/powerpages/environments/env/websites/site/disableWaf",
         params={"api-version": "2022-03-01-preview"},
@@ -114,7 +120,11 @@ def test_waf_operations(respx_mock, token_getter) -> None:
         "https://api.powerplatform.com/powerpages/environments/env/websites/site/createWafRules",
         params={"api-version": "2022-03-01-preview"},
         json={"rules": []},
-    ).mock(return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/ops/rules"}))
+    ).mock(
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/ops/rules"}
+        )
+    )
     rules_get = respx_mock.get(
         "https://api.powerplatform.com/powerpages/environments/env/websites/site/getWafRules",
         params={"api-version": "2022-03-01-preview", "ruleType": "custom"},

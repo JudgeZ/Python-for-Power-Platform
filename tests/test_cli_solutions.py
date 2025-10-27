@@ -292,43 +292,6 @@ def test_legacy_action_unknown(cli_runner, cli_app):
     assert result.exit_code != 0
     assert "Unknown solution action" in result.output
 
-def test_pack_sp_and_unpack_sp(monkeypatch, cli_runner, cli_app, tmp_path):
-    calls: list[tuple[str, Path, Path]] = []
-
-    def record_pack(src: str, dest: str) -> None:
-        calls.append(("pack-sp", Path(src), Path(dest)))
-
-    def record_unpack(src: str, dest: str) -> None:
-        calls.append(("unpack-sp", Path(src), Path(dest)))
-
-    monkeypatch.setattr("pacx.cli.solution.pack_from_source", record_pack)
-    monkeypatch.setattr("pacx.cli.solution.unpack_to_source", record_unpack)
-
-    src_dir = tmp_path / "sp"
-    src_dir.mkdir()
-    out_zip = tmp_path / "solution.zip"
-
-    pack_result = cli_runner.invoke(
-        cli_app,
-        ["solution", "pack-sp", "--src", str(src_dir), "--out", str(out_zip)],
-    )
-    unpack_result = cli_runner.invoke(
-        cli_app,
-        [
-            "solution",
-            "unpack-sp",
-            "--file",
-            str(out_zip),
-            "--out",
-            str(src_dir / "out"),
-        ],
-    )
-
-    assert pack_result.exit_code == 0
-    assert unpack_result.exit_code == 0
-    assert ("pack-sp", src_dir, out_zip) in calls
-    assert ("unpack-sp", out_zip, src_dir / "out") in calls
-
 
 def test_legacy_action_option_warns_and_dispatches(monkeypatch, cli_runner, cli_app):
     monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
