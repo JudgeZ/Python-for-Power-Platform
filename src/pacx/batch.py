@@ -170,23 +170,46 @@ def send_batch(
         parsed = parse_batch_response(resp.headers.get("Content-Type", ""), resp.content)
 
         next_round: list[tuple[int, dict[str, Any]]] = []
-        processed_indices: set[int] = set()
-        for idx, result in zip(idxs, parsed, strict=False):
-            processed_indices.add(idx)
+        pending_indices = list(idxs)
+        position_lookup = {pos: idx for pos, idx in enumerate(pending_indices, start=1)}
+        available_indices = pending_indices.copy()
+        resolved: dict[int, dict[str, Any]] = {}
+
+        # Dataverse can emit batch responses out of order. Reconcile each part
+        # with its originating operation by Content-ID, falling back to the
+        # response order when the header is missing.
+        for result in parsed:
+            cid = result.get("content_id")
+            target_idx = position_lookup.get(cid) if cid is not None else None
+            if target_idx is not None and target_idx in resolved:
+                target_idx = None
+            if target_idx is None:
+                while available_indices and available_indices[0] in resolved:
+                    available_indices.pop(0)
+                if available_indices:
+                    target_idx = available_indices.pop(0)
+            if target_idx is None:
+                continue
+            if target_idx in available_indices:
+                available_indices.remove(target_idx)
+            resolved[target_idx] = result
+
+        for idx in pending_indices:
+            result = resolved.get(idx)
+            if result is None:
+                if idx not in final_results:
+                    final_results[idx] = {
+                        "status_code": 0,
+                        "reason": "MissingResponse",
+                        "operation_index": idx,
+                    }
+                continue
             result["operation_index"] = idx
             if result.get("status_code") in statuses and attempt <= max_retries:
                 retry_counts[idx] = retry_counts.get(idx, 0) + 1
                 next_round.append((idx, ops[idx]))
             else:
                 final_results[idx] = result
-        missing_indices = set(idxs) - processed_indices
-        for idx in missing_indices:
-            if idx not in final_results:
-                final_results[idx] = {
-                    "status_code": 0,
-                    "reason": "MissingResponse",
-                    "operation_index": idx,
-                }
         if next_round and attempt <= max_retries:
             time.sleep(base_backoff * (2 ** (attempt - 1)))
         pending = next_round
