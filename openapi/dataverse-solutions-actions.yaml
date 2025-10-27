@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Dataverse Solution Actions
+  version: v9.2
+servers:
+- url: https://{org}.api.crm.dynamics.com/api/data/v9.2/
+  variables:
+    org:
+      default: yourorg
+security:
+- oauth2Implicit:
+  - .default
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize
+          scopes:
+            .default: Dataverse Web API default scope
+paths:
+  /ExportSolution:
+    post:
+      summary: Export solution (unmanaged or managed)
+      operationId: Dataverse_ExportSolution
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+  /ImportSolution:
+    post:
+      summary: Import solution (LRO depends on settings)
+      operationId: Dataverse_ImportSolution
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+        '202':
+          description: Accepted
+  /ApplySolutionUpgrade:
+    post:
+      summary: Apply solution upgrade
+      operationId: Dataverse_ApplySolutionUpgrade
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+  /CloneAsPatch:
+    post:
+      summary: Clone solution as patch
+      operationId: Dataverse_CloneAsPatch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+  /DeleteAndPromote:
+    post:
+      summary: Delete and promote patch
+      operationId: Dataverse_DeleteAndPromote
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK

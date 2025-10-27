@@ -1,0 +1,122 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Connectivity (Connectors)
+  version: 2022-03-01-preview
+  description: Connector catalog endpoints.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+- url: https://api.powerplatform.com
+tags:
+- name: connectivity.connectors
+paths:
+  /connectivity/connectors:
+    get:
+      summary: List connectors
+      operationId: Connectivity_ListConnectors
+      tags:
+      - connectivity.connectors
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size
+      - name: $skiptoken
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Skip token
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+  /connectivity/connectors/{connectorId}:
+    get:
+      summary: Get connector by ID
+      operationId: Connectivity_GetConnectorById
+      tags:
+      - connectivity.connectors
+      parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Connector ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Not Found
+        '401':
+          description: Unauthorized
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: .default
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      additionalProperties: true
+security:
+- oauth2Implicit:
+  - .default

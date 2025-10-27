@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Power Virtual Agents (Bots)
+  version: 2022-03-01-preview
+  description: Quarantine operations.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+- url: https://api.powerplatform.com
+tags:
+- name: powervirtualagents.bots
+paths:
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/status:
+    get:
+      summary: Get bot quarantine status
+      operationId: PVA_GetBotQuarantineStatus
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/set:
+    post:
+      summary: Set bot as quarantined
+      operationId: PVA_SetBotAsQuarantined
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/unset:
+    post:
+      summary: Set bot as unquarantined
+      operationId: PVA_SetBotAsUnquarantined
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: .default
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      additionalProperties: true
+security:
+- oauth2Implicit:
+  - .default

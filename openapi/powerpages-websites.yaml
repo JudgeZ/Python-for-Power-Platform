@@ -1,0 +1,1079 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Power Pages (Websites)
+  version: 2022-03-01-preview
+  description: Website lifecycle, WAF, scanning, IP allowlist, visibility/security
+    settings.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+- url: https://api.powerplatform.com
+tags:
+- name: powerpages.websites
+paths:
+  /powerpages/environments/{environmentId}/websites:
+    get:
+      summary: Get websites
+      operationId: PowerPages_GetWebsites
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    post:
+      summary: Create website
+      operationId: PowerPages_CreateWebsite
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWebsiteRequest'
+  /powerpages/environments/{environmentId}/websites/{id}:
+    get:
+      summary: Get website by ID
+      operationId: PowerPages_GetWebsiteById
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete website
+      operationId: PowerPages_DeleteWebsite
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/start:
+    post:
+      summary: Start website
+      operationId: PowerPages_StartWebsite
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/stop:
+    post:
+      summary: Stop website
+      operationId: PowerPages_StopWebsite
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/restart:
+    post:
+      summary: Restart website
+      operationId: PowerPages_RestartWebsite
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/scan/deep/start:
+    post:
+      summary: Start deep scan
+      operationId: PowerPages_StartDeepScan
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/scan/quick/execute:
+    post:
+      summary: Start quick scan
+      operationId: PowerPages_StartQuickScan
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: lcid
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Optional LCID
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/scan/deep/getSecurityScore:
+    get:
+      summary: Get security scan score
+      operationId: PowerPages_GetSecurityScanScore
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSecurityScore'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/scan/deep/getLatestCompletedReport:
+    get:
+      summary: Get latest security scan report
+      operationId: PowerPages_GetSecurityScanReport
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSecurityResult'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/enableWaf:
+    post:
+      summary: Enable Waf
+      operationId: PowerPages_EnableWaf
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/disableWaf:
+    post:
+      summary: Disable Waf
+      operationId: PowerPages_DisableWaf
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '202':
+          description: Unused
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/getWafStatus:
+    get:
+      summary: Get Wafstatus
+      operationId: PowerPages_GetWafStatus
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '202':
+          description: Unused
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/createWafRules:
+    put:
+      summary: Create WAF rules
+      operationId: PowerPages_CreateWafRules
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebApplicationFirewallRules'
+  /powerpages/environments/{environmentId}/websites/{id}/getWafRules:
+    get:
+      summary: Get WAF rules
+      operationId: PowerPages_GetWafRules
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: ruleType
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional rule type filter
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/addAllowedIpAddresses:
+    put:
+      summary: Add allowed IP addresses
+      operationId: PowerPages_AddAllowedIpAddresses
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllowedIpAddressesConfiguration'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IpAddressConfiguration'
+  /powerpages/environments/{environmentId}/websites/{id}/updatePortalSecurityGroup:
+    post:
+      summary: Update portal security group
+      operationId: PowerPages_UpdatePortalSecurityGroup
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: securityGroupId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional security group ID
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/updateSiteVisibility:
+    post:
+      summary: Update site visibility
+      operationId: PowerPages_UpdateSiteVisibility
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: siteVisibility
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Optional site visibility
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /powerpages/environments/{environmentId}/websites/{id}/setPortalDataModelVersion:
+    post:
+      summary: Set portal data model version
+      operationId: PowerPages_SetPortalDataModelVersion
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortalDataModelVersionRequest'
+  /powerpages/environments/{environmentId}/websites/{id}/setPortalBootstrapV5Enabled:
+    post:
+      summary: Set portal bootstrap v5 enabled
+      operationId: PowerPages_SetPortalBootstrapV5Enabled
+      tags:
+      - powerpages.websites
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Website ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize?resource=https://api.powerplatform.com
+          scopes:
+            .default: .default
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        target:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+    ErrorMessage:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+      additionalProperties: true
+    NewWebsiteRequest:
+      type: object
+      properties:
+        dataverseOrganizationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        selectedBaseLanguage:
+          type: integer
+          format: int32
+        subdomain:
+          type: string
+        templateName:
+          type: string
+          enum:
+          - Default Portal Template
+          - Power Portals_Book Meeting
+          - Power Portals_Program Registration
+        websiteRecordId:
+          type: string
+      required:
+      - dataverseOrganizationId
+      - name
+      - selectedBaseLanguage
+      - subdomain
+      - templateName
+    SiteSecurityScore:
+      type: object
+      additionalProperties: true
+    SiteSecurityResult:
+      type: object
+      additionalProperties: true
+    WebApplicationFirewallRules:
+      type: object
+      properties:
+        customRules:
+          type: array
+          items:
+            type: object
+        managedRules:
+          type: array
+          items:
+            type: object
+    IpAddressConfiguration:
+      type: object
+      properties:
+        IpAddresses:
+          type: array
+          items:
+            type: object
+            properties:
+              IpAddress:
+                type: string
+              IpAddressType:
+                type: string
+      required:
+      - IpAddresses
+    AllowedIpAddressesConfiguration:
+      type: object
+      additionalProperties: true
+    PortalDataModelVersionRequest:
+      type: object
+      properties:
+        dataModelVersionValue:
+          type: boolean
+      required:
+      - dataModelVersionValue
+security:
+- oauth2Implicit:
+  - .default

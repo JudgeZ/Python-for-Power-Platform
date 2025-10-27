@@ -1,0 +1,333 @@
+openapi: 3.0.3
+info:
+  title: Dataverse Web API (generic)
+  version: v9.2
+servers:
+- url: https://{org}.api.crm.dynamics.com/api/data/v9.2/
+  variables:
+    org:
+      default: yourorg
+security:
+- oauth2Implicit:
+  - .default
+components:
+  securitySchemes:
+    oauth2Implicit:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/authorize
+          scopes:
+            .default: Dataverse Web API default scope
+  parameters:
+    OData-Version:
+      name: OData-Version
+      in: header
+      required: false
+      schema:
+        type: string
+        default: '4.0'
+    OData-MaxVersion:
+      name: OData-MaxVersion
+      in: header
+      required: false
+      schema:
+        type: string
+        default: '4.0'
+    Prefer-Return:
+      name: Prefer
+      in: header
+      required: false
+      description: Set to 'return=representation' for POST/PATCH to get content back.
+      schema:
+        type: string
+    If-Match:
+      name: If-Match
+      in: header
+      required: false
+      description: ETag for concurrency on PATCH/DELETE.
+      schema:
+        type: string
+    Select:
+      name: $select
+      in: query
+      schema:
+        type: string
+    Filter:
+      name: $filter
+      in: query
+      schema:
+        type: string
+    Expand:
+      name: $expand
+      in: query
+      schema:
+        type: string
+    Top:
+      name: $top
+      in: query
+      schema:
+        type: integer
+    Skip:
+      name: $skip
+      in: query
+      schema:
+        type: integer
+    Count:
+      name: $count
+      in: query
+      schema:
+        type: boolean
+    OrderBy:
+      name: $orderby
+      in: query
+      schema:
+        type: string
+  schemas:
+    ODataError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    ODataObject:
+      type: object
+      additionalProperties: true
+    ODataCollection:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/ODataObject'
+        '@odata.nextLink':
+          type: string
+      additionalProperties: true
+paths:
+  /$metadata:
+    get:
+      summary: Get service $metadata (CSDL)
+      operationId: Dataverse_GetMetadata
+      responses:
+        '200':
+          description: OK
+  /$batch:
+    post:
+      summary: Submit OData batch
+      operationId: Dataverse_PostBatch
+      parameters:
+      - name: Content-Type
+        in: header
+        required: true
+        schema:
+          type: string
+        example: multipart/mixed;boundary=batch_1234
+      responses:
+        '200':
+          description: OK
+        '202':
+          description: Accepted
+  /{entityset}:
+    get:
+      summary: Query entity set
+      operationId: Dataverse_ListEntities
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Select'
+      - $ref: '#/components/parameters/Filter'
+      - $ref: '#/components/parameters/Expand'
+      - $ref: '#/components/parameters/Top'
+      - $ref: '#/components/parameters/Skip'
+      - $ref: '#/components/parameters/Count'
+      - $ref: '#/components/parameters/OrderBy'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ODataCollection'
+    post:
+      summary: Create entity
+      operationId: Dataverse_CreateEntity
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Prefer-Return'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ODataObject'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ODataObject'
+  /{entityset}({id}):
+    get:
+      summary: Get by ID
+      operationId: Dataverse_GetById
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Select'
+      - $ref: '#/components/parameters/Expand'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ODataObject'
+    patch:
+      summary: Update by ID
+      operationId: Dataverse_UpdateById
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/If-Match'
+      - $ref: '#/components/parameters/Prefer-Return'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ODataObject'
+      responses:
+        '204':
+          description: No Content
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ODataObject'
+    delete:
+      summary: Delete by ID
+      operationId: Dataverse_DeleteById
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/If-Match'
+      responses:
+        '204':
+          description: No Content
+  /{entityset}({key}):
+    patch:
+      summary: Upsert by alternate key
+      operationId: Dataverse_UpsertByAlternateKey
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Alternate key expression e.g. key1='value',key2=123
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ODataObject'
+      responses:
+        '204':
+          description: No Content
+        '201':
+          description: Created
+  /{entityset}({id})/{property}/$value:
+    get:
+      summary: Download binary/file column
+      operationId: Dataverse_DownloadFileColumn
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: property
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    put:
+      summary: Upload binary/file column
+      operationId: Dataverse_UploadFileColumn
+      parameters:
+      - name: entityset
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: property
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '204':
+          description: No Content
