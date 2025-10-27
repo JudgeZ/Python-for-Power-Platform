@@ -42,17 +42,24 @@ def doctor(
         print(f"[green]Default profile:[/green] {cfg.default_profile}")
     else:
         print("[yellow]No default profile configured.[/yellow]")
-    try:
-        token_getter = resolve_token_getter(config=cfg)
-        token_preview = token_getter()
-        print("[green]Token acquisition successful.[/green]")
-        ctx.obj["token_getter"] = lambda: token_preview
-    except Exception as exc:  # pragma: no cover - error path tested separately
-        print(f"[red]Token acquisition failed:[/red] {exc}")
+    token_override = os.getenv("PACX_ACCESS_TOKEN")
+    token_getter = None
+    token_preview: str | None = None
+    if not token_override:
+        print("[red]PACX_ACCESS_TOKEN is not set.[/red]")
         ok = False
-        token_getter = None
+    else:
+        try:
+            token_getter = resolve_token_getter(config=cfg)
+            token_preview = token_getter()
+            print("[green]Token acquisition successful.[/green]")
+            ctx.obj["token_getter"] = lambda: token_preview
+        except Exception as exc:  # pragma: no cover - error path tested separately
+            print(f"[red]Token acquisition failed:[/red] {exc}")
+            ok = False
+            token_getter = None
 
-    if check_dataverse and token_getter:
+    if check_dataverse and token_getter and token_preview:
         host_value = host or os.getenv("DATAVERSE_HOST") or (cfg.dataverse_host if cfg else None)
         if not host_value:
             print("[yellow]Skipping Dataverse probe: host unknown.[/yellow]")

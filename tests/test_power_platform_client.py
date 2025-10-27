@@ -111,6 +111,37 @@ def test_list_apps_paginates_until_exhausted(respx_mock, token_getter):
     assert [app.id for app in apps] == ["app1", "app2", "app3"]
 
 
+def test_list_app_versions_returns_page(respx_mock, token_getter):
+    client = build_client(token_getter)
+    route = respx_mock.get(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1/versions",
+        params={
+            "api-version": "2022-03-01-preview",
+            "$top": "5",
+            "$skiptoken": "cursor",
+        },
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {"id": "ver1", "versionId": "1.0", "description": "Initial"},
+                    {"id": "ver2", "versionId": "1.1"},
+                ],
+                "nextLink": "https://api.powerplatform.com/.../versions?$skiptoken=more",
+                "continuationToken": "more",
+            },
+        ),
+    )
+
+    page = client.list_app_versions("env1", "app1", top=5, skiptoken="cursor")
+
+    assert route.called
+    assert [v.version_id for v in page.versions] == ["1.0", "1.1"]
+    assert page.next_link
+    assert page.continuation_token == "more"
+
+
 def test_list_cloud_flows_aggregates_pages(respx_mock, token_getter):
     client = build_client(token_getter)
     route = respx_mock.get(
@@ -185,6 +216,123 @@ def test_list_flow_runs_aggregates_workflow_pages(respx_mock, token_getter):
     assert len(route.calls) == 2
     assert route.calls[0].request.url.params["workflowId"] == "flow1"
     assert [run.id for run in runs] == ["run1", "run2"]
+
+
+def test_restore_app_posts_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"restoreVersionId": "1.0"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1:restore",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(
+            202,
+            headers={"Operation-Location": "https://api.powerplatform.com/operations/op1"},
+            json={"status": "Accepted"},
+        ),
+    )
+
+    handle = client.restore_app("env1", "app1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op1"
+
+
+def test_publish_app_posts_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"versionId": "2.0"}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1:publish",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op2"}),
+    )
+
+    handle = client.publish_app("env1", "app1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op2"
+
+
+def test_share_app_posts_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"principals": [{"id": "user", "principalType": "User", "roleName": "CanEdit"}]}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1:share",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op3"}),
+    )
+
+    handle = client.share_app("env1", "app1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op3"
+
+
+def test_revoke_app_share_posts_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"principalIds": ["user"]}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1:revokeShare",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op4"}),
+    )
+
+    handle = client.revoke_app_share("env1", "app1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op4"
+
+
+def test_set_app_owner_posts_payload(respx_mock, token_getter):
+    client = build_client(token_getter)
+    payload = {"owner": {"id": "user", "principalType": "User", "roleName": "CanEdit"}}
+    route = respx_mock.post(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1:setOwner",
+        params={"api-version": "2022-03-01-preview"},
+        json=payload,
+    ).mock(
+        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op5"}),
+    )
+
+    handle = client.set_app_owner("env1", "app1", payload)
+
+    assert route.called
+    assert handle.operation_id == "op5"
+
+
+def test_list_app_permissions_parses_assignments(respx_mock, token_getter):
+    client = build_client(token_getter)
+    respx_mock.get(
+        "https://api.powerplatform.com/powerapps/environments/env1/apps/app1/permissions",
+        params={"api-version": "2022-03-01-preview"},
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "assign1",
+                        "roleName": "CanEdit",
+                        "principalType": "User",
+                        "displayName": "User One",
+                    }
+                ]
+            },
+        ),
+    )
+
+    assignments = client.list_app_permissions("env1", "app1")
+
+    assert len(assignments) == 1
+    assert assignments[0].role_name == "CanEdit"
+    assert assignments[0].principal_type == "User"
 
 
 def test_environment_copy_request_includes_payload(respx_mock, token_getter):
