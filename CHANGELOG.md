@@ -19,5 +19,6 @@
 - Expand the Power Automate OpenAPI surface with flow lifecycle, run management, and diagnostics endpoints.
 - Expand the Power Virtual Agents bots OpenAPI document with bot metadata, publish/unpublish, package import/export, and channel configuration endpoints.
 - Extend the Dataverse solution OpenAPI definitions with clone, stage, publish-all, managed export, and translation lifecycle actions plus typed payloads.
+- Add user management client APIs and `ppx users admin-role` commands with polling-aware CLI UX and role/scope documentation.
 
 - 0.2.0 Extended features
