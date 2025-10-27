@@ -25,6 +25,18 @@ The CI workflow also uploads coverage artifacts from `pytest` and enforces a min
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Advisor Recommendations workflow
+
+Analytics scenarios follow a discovery-to-remediation flow that surfaces actionable insights and tracks closure:
+
+1. **Discover scenarios** with `GET /analytics/advisorRecommendations/scenarios` to learn the categories available.
+2. **List actionable items** using `GET /analytics/advisorRecommendations/{scenario}/recommendations` to enumerate outstanding recommendations for the selected scenario.
+3. **Inspect details** for a recommendation via `GET /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}` to review severity, impact, and remediation guidance.
+4. **Remediate and respond** by invoking `POST .../{recommendationId}:acknowledge` after taking the suggested action or `POST .../{recommendationId}:dismiss` when the item is not applicable. Both routes return an operation identifier for auditing.
+5. **Track status** through `GET /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}/status` or by polling `GET /analytics/advisorRecommendations/operations/{operationId}` until the acknowledgement or dismissal is finalized.
+
+The OpenAPI description in `openapi/analytics-recommendations.yaml` captures the payloads for each stage so clients can automate the workflow end-to-end.
+
 ## Contributing
 
 We welcome contributions from the community. Please review and abide by our [Code of Conduct](CODE_OF_CONDUCT.md) and the guidance captured in [`AGENTS.md`](AGENTS.md) before proposing changes. When opening pull requests or filing issues, use the repository templates to streamline collaboration:

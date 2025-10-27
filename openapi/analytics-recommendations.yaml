@@ -192,6 +192,212 @@ paths:
           description: Unauthorized
         '404':
           description: Not Found
+  /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}:
+    get:
+      summary: Get recommendation details
+      operationId: Analytics_GetRecommendationDetails
+      tags:
+      - analytics.recommendations
+      parameters:
+      - name: scenario
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The scenario identifier
+      - name: recommendationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The recommendation identifier
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorRecommendationDetail'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}:acknowledge:
+    post:
+      summary: Acknowledge a recommendation
+      operationId: Analytics_AcknowledgeRecommendation
+      tags:
+      - analytics.recommendations
+      parameters:
+      - name: scenario
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The scenario identifier
+      - name: recommendationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The recommendation identifier
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorRecommendationActionRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for operation status
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorRecommendationAcknowledgement'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}:dismiss:
+    post:
+      summary: Dismiss a recommendation
+      operationId: Analytics_DismissRecommendation
+      tags:
+      - analytics.recommendations
+      parameters:
+      - name: scenario
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The scenario identifier
+      - name: recommendationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The recommendation identifier
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvisorRecommendationActionRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for operation status
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorRecommendationAcknowledgement'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}/status:
+    get:
+      summary: Get current recommendation status
+      operationId: Analytics_GetRecommendationStatus
+      tags:
+      - analytics.recommendations
+      parameters:
+      - name: scenario
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The scenario identifier
+      - name: recommendationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The recommendation identifier
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorRecommendationStatus'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /analytics/advisorRecommendations/operations/{operationId}:
+    get:
+      summary: Get recommendation operation status
+      operationId: Analytics_GetRecommendationOperationStatus
+      tags:
+      - analytics.recommendations
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The operation identifier returned from an action
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisorRecommendationOperationStatus'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /analytics/actions/{actionName}:
     post:
       summary: Execute recommendation action
@@ -309,6 +515,16 @@ components:
       required:
       - actionParameters
       - scenario
+    AdvisorRecommendationActionRequest:
+      type: object
+      properties:
+        notes:
+          type: string
+          description: Optional context or remediation notes supplied by the caller
+        requestedBy:
+          type: string
+          description: User initiating the acknowledgement or dismissal
+      additionalProperties: false
     AdvisorActionResult:
       type: object
       properties:
@@ -329,6 +545,140 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdvisorActionResult'
+    AdvisorRecommendationResource:
+      type: object
+      properties:
+        resourceId:
+          type: string
+        resourceName:
+          type: string
+        resourceType:
+          type: string
+        environmentId:
+          type: string
+      additionalProperties: true
+    AdvisorRecommendationDetail:
+      type: object
+      properties:
+        recommendationId:
+          type: string
+        scenario:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+        impact:
+          type: string
+        detectedDateTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+        remediationSteps:
+          type: array
+          items:
+            type: string
+        impactedResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdvisorRecommendationResource'
+        metadata:
+          type: object
+          additionalProperties: true
+      required:
+      - recommendationId
+      - scenario
+      - title
+      - severity
+    AdvisorRecommendationAcknowledgement:
+      type: object
+      properties:
+        recommendationId:
+          type: string
+        scenario:
+          type: string
+        operationId:
+          type: string
+        status:
+          type: string
+        acknowledgedAt:
+          type: string
+          format: date-time
+        acknowledgedBy:
+          type: string
+        message:
+          type: string
+      required:
+      - recommendationId
+      - scenario
+      - operationId
+      - status
+    AdvisorRecommendationActionResultSummary:
+      type: object
+      properties:
+        outcome:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+      additionalProperties: false
+    AdvisorRecommendationStatus:
+      type: object
+      properties:
+        recommendationId:
+          type: string
+        scenario:
+          type: string
+        status:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+        acknowledged:
+          type: boolean
+        dismissed:
+          type: boolean
+        pendingOperations:
+          type: array
+          items:
+            type: string
+      required:
+      - recommendationId
+      - scenario
+      - status
+    AdvisorRecommendationOperationStatus:
+      type: object
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        lastUpdatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        resultSummary:
+          $ref: '#/components/schemas/AdvisorRecommendationActionResultSummary'
+      required:
+      - operationId
+      - status
+      - resultSummary
 security:
 - oauth2Implicit:
   - .default
