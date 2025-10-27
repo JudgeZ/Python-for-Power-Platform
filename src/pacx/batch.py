@@ -110,7 +110,7 @@ def parse_batch_response(content_type: str, body: bytes) -> list[dict[str, Any]]
         cid_m = re.search(r"Content-ID:\s*(\d+)", part, re.IGNORECASE)
         content_id = int(cid_m.group(1)) if cid_m else None
         # Status line like: HTTP/1.1 201 Created
-        status_m = re.search(r"HTTP/\d\.\d\s+(\d{3})\s+([\w\s]+)", part)
+        status_m = re.search(r"HTTP/\d\.\d\s+(\d{3})\s+([^\r\n]+)", part)
         scode = int(status_m.group(1)) if status_m else 0
         reason = status_m.group(2).strip() if status_m else "Unknown"
         # Body (after blank line following status/headers)

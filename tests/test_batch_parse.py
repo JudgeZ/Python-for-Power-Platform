@@ -46,3 +46,19 @@ HTTP/1.1 200 OK
     )
     assert len(res) == 1
     assert res[0]["status_code"] == 200
+
+
+def test_parse_batch_response_preserves_reason_phrase():
+    boundary = "batch_hyphen_reason"
+    body = f"""--{boundary}
+Content-Type: application/http
+Content-Transfer-Encoding: binary
+Content-ID: 1
+
+HTTP/1.1 207 Multi-Status
+
+{{"result": "ok"}}
+--{boundary}--
+"""
+    res = parse_batch_response(f"multipart/mixed; boundary={boundary}", body.encode("utf-8"))
+    assert res[0]["reason"] == "Multi-Status"
