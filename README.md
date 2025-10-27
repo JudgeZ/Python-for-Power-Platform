@@ -88,4 +88,5 @@ For larger changes, consult the existing [ADRs](docs/adr/) and governance polici
 - **Natural key upsert**: Pages uploads honor default/override key sets; manifest captures defaults for reuse.
 - **Batch resiliency**: `$batch` retries (429/5xx) with aggregated stats surfaced in `ppx dv bulk-csv` output.
 - **Solution parity**: `solution_sp` pack/unpack mirrors SolutionPackager folder mapping across component types.
+- **Power Automate**: Cloud flow lifecycle endpoints (detail, state, run management, diagnostics) in the OpenAPI surface.
 - **Operational tooling**: `ppx doctor` validates environment + Dataverse access; GitHub Actions `publish.yml` drives TestPyPI/PyPI releases.
