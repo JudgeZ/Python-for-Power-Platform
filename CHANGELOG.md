@@ -10,5 +10,6 @@
 - Include `respx` in the default dependency set so local pytest runs have the required mock tooling.
 - Allow Dataverse hosts passed to `DataverseClient` and CLI commands to include the scheme or bare hostname interchangeably.
 - Introduce `ppx auth create` for device, web, and client-credential flows while keeping legacy aliases with deprecation warnings.
+- Expand the Power Automate OpenAPI surface with flow lifecycle, run management, and diagnostics endpoints.
 
 - 0.2.0 Extended features
