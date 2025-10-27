@@ -3,7 +3,7 @@ Generated: 2025-10-26T21:00:36.157176
 
 This bundle adds/updates endpoints requested for:
 - Analytics (Advisor Recommendations)
-- App Management (Applications)
+- App Management (Applications) including environment-scoped listings, uninstall, and upgrade operation coverage
 - Authorization (RBAC)
 - Connectivity (Connectors)
 - Environment Management (groups, ops, managed governance, settings)
