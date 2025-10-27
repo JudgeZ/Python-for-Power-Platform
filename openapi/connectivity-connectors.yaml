@@ -221,6 +221,7 @@ paths:
           description: Forbidden
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.Read.All
     post:
       summary: Create a custom connector in an environment
@@ -261,6 +262,7 @@ paths:
           description: Forbidden
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.ReadWrite.All
   /connectivity/environments/{environmentId}/customConnectors/{connectorId}:
     get:
@@ -302,6 +304,7 @@ paths:
           description: Not Found
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.Read.All
     patch:
       summary: Update a custom connector definition
@@ -352,6 +355,7 @@ paths:
           description: Precondition failed
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.ReadWrite.All
     delete:
       summary: Delete a custom connector
@@ -390,6 +394,7 @@ paths:
           description: Not Found
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.ReadWrite.All
   /connectivity/environments/{environmentId}/customConnectors/{connectorId}:validate:
     post:
@@ -437,6 +442,7 @@ paths:
           description: Forbidden
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.ReadWrite.All
   /connectivity/environments/{environmentId}/customConnectors/{connectorId}/runtimeStatus:
     get:
@@ -478,6 +484,7 @@ paths:
           description: Not Found
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.CustomConnectors.Read.All
   /connectivity/policyTemplates:
     get:
@@ -510,6 +517,7 @@ paths:
           description: Forbidden
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.Policy.Read.All
   /connectivity/policyTemplates/{policyTemplateId}:
     get:
@@ -545,6 +553,7 @@ paths:
           description: Not Found
       security:
       - oauth2Implicit:
+        - .default
         - Connectivity.Policy.Read.All
 components:
   securitySchemes:
