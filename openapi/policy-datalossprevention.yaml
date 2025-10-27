@@ -13,7 +13,6 @@ servers:
 security:
 - oauth2:
   - Policy.DataLossPrevention.Read
-  - Policy.DataLossPrevention.Manage
 tags:
 - name: policy.dataLossPreventionPolicies
 - name: policy.dataLossPreventionPolicies.connectors
@@ -66,6 +65,9 @@ paths:
       operationId: Policy_CreateDataLossPreventionPolicy
       tags:
       - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: api-version
         in: query
@@ -124,6 +126,9 @@ paths:
       operationId: Policy_UpdateDataLossPreventionPolicy
       tags:
       - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
         in: path
@@ -160,6 +165,9 @@ paths:
       operationId: Policy_DeleteDataLossPreventionPolicy
       tags:
       - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
         in: path
@@ -221,6 +229,9 @@ paths:
       operationId: Policy_UpdateDataLossPreventionPolicyConnectors
       tags:
       - policy.dataLossPreventionPolicies.connectors
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
         in: path
@@ -295,6 +306,9 @@ paths:
       operationId: Policy_CreateDataLossPreventionPolicyAssignment
       tags:
       - policy.dataLossPreventionPolicies.assignments
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
         in: path
@@ -340,6 +354,9 @@ paths:
       operationId: Policy_DeleteDataLossPreventionPolicyAssignment
       tags:
       - policy.dataLossPreventionPolicies.assignments
+      security:
+      - oauth2:
+        - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
         in: path
@@ -379,6 +396,7 @@ components:
         implicit:
           authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
           scopes:
+            .default: Request the tenant-wide default scope required for management operations.
             Policy.DataLossPrevention.Read: Read DLP policies and assignments.
             Policy.DataLossPrevention.Manage: Create or manage DLP policies and assignments.
   schemas:
