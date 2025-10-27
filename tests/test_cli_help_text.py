@@ -53,3 +53,19 @@ def test_auth_use_help_mentions_default_profile() -> None:
     result = runner.invoke(app, ["auth", "use", "--help"])
     assert result.exit_code == 0
     assert "Set a profile as the default" in result.stdout
+
+
+def test_auth_roles_help_mentions_scopes() -> None:
+    result = runner.invoke(app, ["auth", "roles", "--help"])
+    assert result.exit_code == 0
+    output = result.stdout
+    assert "Manage RBAC role definitions" in output
+    assert "Authorization.RBAC" in output
+
+
+def test_auth_assignments_create_help_mentions_manage_scope() -> None:
+    result = runner.invoke(app, ["auth", "assignments", "create", "--help"])
+    assert result.exit_code == 0
+    output = result.stdout
+    assert "Requires Authorization.RBAC.Manage" in output
+    assert "--principal-id" in output and "Principal object ID" in output

@@ -9,9 +9,15 @@ from .cli import (
     connectors,
     dataverse,
     doctor,
+    policy,
+    governance,
+    licensing,
     pages,
     power_platform,
     profile,
+    tenant,
+    pva,
+    users,
 )
 
 PACKAGE_DIR = Path(__file__).with_name("cli")
@@ -26,7 +32,13 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "policy",
+    "governance",
+    "licensing",
     "pages",
     "power_platform",
     "profile",
+    "tenant",
+    "pva",
+    "users",
 ]

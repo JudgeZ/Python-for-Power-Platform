@@ -59,6 +59,68 @@ Import submitted (job: job123)
 * After a successful import, run `ppx solution list` to confirm the version bump and `ppx solution publish-all` if the package
   introduced unmanaged customizations that require publication.
 
+## Automate solution pipeline actions
+
+Dataverse exposes additional actions for staging upgrades, cloning patches, and managing translation artifacts. PACX surfaces
+helpers on :class:`pacx.clients.dataverse.DataverseClient` so that pipeline code can orchestrate the entire lifecycle without
+dropping to raw HTTP calls:
+
+```python
+from pacx.clients.dataverse import DataverseClient
+from pacx.models.dataverse import (
+    ApplySolutionUpgradeRequest,
+    CloneAsPatchRequest,
+    CloneAsSolutionRequest,
+    DeleteAndPromoteRequest,
+    ExportSolutionAsManagedRequest,
+    ExportSolutionUpgradeRequest,
+    ExportTranslationRequest,
+    ImportTranslationRequest,
+    StageSolutionRequest,
+)
+
+client = DataverseClient(token_getter, host="example.crm.dynamics.com")
+
+# Stage a managed upgrade package
+stage = client.stage_solution(StageSolutionRequest(CustomizationFile=zip_bytes))
+if stage.has_operation:
+    poll(stage.operation_location)
+
+# Promote a patch and export managed artifacts for downstream environments
+client.clone_as_patch(
+    CloneAsPatchRequest(
+        ParentSolutionUniqueName="core", DisplayName="Core Patch", VersionNumber="1.2.1.0"
+    )
+)
+client.clone_as_solution(
+    CloneAsSolutionRequest(
+        ParentSolutionUniqueName="core_patch", DisplayName="Core", VersionNumber="1.3.0.0"
+    )
+)
+managed_zip = client.export_solution_as_managed(
+    ExportSolutionAsManagedRequest(SolutionName="core")
+)
+upgrade_zip = client.export_solution_upgrade(
+    ExportSolutionUpgradeRequest(SolutionName="core")
+)
+
+# Synchronize translations across environments
+xliff = client.export_translation(ExportTranslationRequest(SolutionName="core"))
+translation_import = client.import_translation(
+    ImportTranslationRequest(TranslationFile=xliff, ImportJobId="translation-job")
+)
+if translation_import.has_operation:
+    poll(translation_import.operation_location)
+
+# Apply staged upgrade and clean up holding solutions when ready
+client.apply_solution_upgrade(ApplySolutionUpgradeRequest(SolutionName="core"))
+client.delete_and_promote(DeleteAndPromoteRequest(UniqueName="core_patch"))
+```
+
+The request models accept raw ``bytes`` for ZIP payloads and automatically handle base64 encoding. Responses that represent
+long-running operations (stage, import, apply, and delete/promote) expose the ``Operation-Location`` header so pipeline code
+can poll until completion.
+
 ## Publish all customizations
 
 ```bash

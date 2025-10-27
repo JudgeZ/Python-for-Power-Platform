@@ -13,10 +13,13 @@ Need a guided tour? Walk through the [end-to-end quick start](01-installation.md
 | `profile` | Inspect or change stored defaults such as the active environment or Dataverse host. | `ppx profile list` |
 | `dv` | Dataverse data access helpers (whoami, CRUD, bulk CSV). | `ppx dv list accounts --top 5` |
 | `connector` | Manage custom connector APIs within an environment. | `ppx connector list --environment-id ENV-ID` |
+| `pages` | Download/upload content and run website admin operations. | `ppx pages websites start --website-id <GUID>` |
+| `policy` | Administer Data Loss Prevention (DLP) policies and assignments. | `ppx policy dlp list` |
 | `pages` | Download, upload, and diff Power Pages site content. | `ppx pages download --website-id <GUID>` |
 | `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --out core.zip` |
 | `env`/`apps`/`flows` | List environments, canvas apps, and cloud flows. | `ppx apps --environment-id ENV-ID` |
 | `doctor` | Run environment diagnostics including token acquisition. | `ppx doctor` |
+| `tenant` | Inspect and update tenant-level toggles and feature flights. | `ppx tenant settings get` |
 
 Run `ppx --help` to see all registered groups and global options.
 
@@ -105,6 +108,28 @@ Import submitted (job: 22222222222222222222222222222222)
 {'state': 'Completed'}
 ```
 
+### Administer Data Loss Prevention policies
+
+```shell
+$ ppx policy dlp list
+Policy One  id=policy-1  state=Active  scope=Tenant
+```
+
+Create or update policies by supplying a JSON payload that mirrors the REST schema (at minimum `displayName` and `state`):
+
+```shell
+$ ppx policy dlp create --payload '{"displayName": "Finance", "state": "Draft"}' --wait
+Policy creation completed status=Succeeded
+{
+  "operationId": "...",
+  "status": "Succeeded"
+}
+```
+
+When modifying connectors or assignments, provide the `groups` or `assignments` arrays exactly as documented in
+`openapi/policy-datalossprevention.yaml`. Each command validates required scopes, so configure the active profile with
+`Policy.DataLossPrevention.Read` for read-only commands and `Policy.DataLossPrevention.Manage` when performing updates.
+
 ### Round-trip Power Pages content
 
 ```shell
@@ -137,3 +162,20 @@ $ ppx doctor
 ```
 
 `ppx doctor` exits with a non-zero status code if Dataverse connectivity fails, making it suitable for CI smoke tests.
+
+### Manage tenant settings and feature controls
+
+Tenant-wide toggles are exposed through the `tenant` command group. Inspect the current configuration with:
+
+```shell
+$ ppx tenant settings get
+```
+
+Update operations (for both settings and features) require the `TenantSettings.Manage` scope or equivalent administrator privileges. The CLI surfaces asynchronous responses when the service accepts a change for background processing—pass `--async` to request `Prefer: respond-async` and capture the operation handle from the output.
+
+Request elevated access when you do not currently hold the permission:
+
+```shell
+$ ppx tenant settings request-access --justification "Enable managed environments" --setting managedEnvironment
+Tenant settings access request submitted.
+```
