@@ -132,6 +132,7 @@ class AnnotationBinaryProvider:
         """Yield annotation records for a given web file across all pages."""
 
         next_url: str | None = None
+        yielded = 0
         while True:
             if next_url:
                 page_resp = ctx.dv.http.get(next_url)
@@ -146,6 +147,9 @@ class AnnotationBinaryProvider:
             for note in page.get("value", []):
                 if isinstance(note, Mapping):
                     yield note
+                    yielded += 1
+                    if top is not None and yielded >= top:
+                        return
             raw_next = self._extract_next_link(page)
             if not raw_next:
                 break

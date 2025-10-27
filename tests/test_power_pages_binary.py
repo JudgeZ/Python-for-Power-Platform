@@ -211,6 +211,70 @@ def test_annotation_provider_follows_pagination(tmp_path, respx_mock, token_gett
     assert second_page.called
 
 
+def test_annotation_provider_honors_top_limit(tmp_path, respx_mock, token_getter):
+    dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
+    pp = PowerPagesClient(dv)
+
+    _mock_site(respx_mock)
+
+    payload_one = base64.b64encode(b"first").decode("ascii")
+    payload_two = base64.b64encode(b"second").decode("ascii")
+
+    first_page = respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/annotations",
+        params={
+            "$select": "annotationid,filename,documentbody,_objectid_value",
+            "$filter": "_objectid_value eq wf1",
+            "$top": 1,
+        },
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "annotationid": "n1",
+                        "filename": "first.bin",
+                        "documentbody": payload_one,
+                    }
+                ],
+                "@odata.nextLink": "https://example.crm.dynamics.com/api/data/v9.2/annotations?$skiptoken=page2",
+            },
+        ),
+    )
+
+    second_page = respx_mock.get(
+        "https://example.crm.dynamics.com/api/data/v9.2/annotations?$skiptoken=page2",
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "value": [
+                    {
+                        "annotationid": "n2",
+                        "filename": "second.bin",
+                        "documentbody": payload_two,
+                    }
+                ]
+            },
+        ),
+    )
+
+    res = pp.download_site(
+        "site",
+        tmp_path,
+        tables="core",
+        binaries=True,
+        provider_options={"annotations": {"top": 1}},
+    )
+
+    bin_dir = res.output_path / "files_bin"
+    assert (bin_dir / "first.bin").read_bytes() == b"first"
+    assert not (bin_dir / "second.bin").exists()
+    assert first_page.called
+    assert not second_page.called
+
+
 def test_download_with_azure_provider(tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
