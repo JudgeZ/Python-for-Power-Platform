@@ -25,6 +25,8 @@ def load_cli_app(monkeypatch: pytest.MonkeyPatch):
 
 
 class StubAdminClient:
+    operation_results: dict[str, dict] = {}
+
     def __init__(self, token_getter, *, api_version: str = "2022-03-01-preview") -> None:
         self.token = token_getter()
         self.api_version = api_version
@@ -82,7 +84,7 @@ class StubAdminClient:
         on_update=None,
     ) -> dict:
         self.wait_calls.append((operation_url, interval, timeout))
-        return {"status": "Succeeded"}
+        return self.operation_results.get(operation_url, {"status": "Succeeded"})
 
 
 @pytest.fixture
@@ -92,6 +94,7 @@ def cli_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
         "pacx.cli.pages.resolve_environment_id_from_context", lambda ctx, option_value: option_value or "env"
     )
+    monkeypatch.setattr(StubAdminClient, "operation_results", {})
     return app
 
 
@@ -113,6 +116,31 @@ def test_websites_start_waits_for_completion(cli_runner, cli_app):
     assert result.exit_code == 0
     assert "Website start completed" in result.stdout
     assert "operation=start" in result.stdout
+
+
+def test_websites_start_exits_nonzero_when_operation_fails(cli_runner, cli_app):
+    StubAdminClient.operation_results["https://example/ops/start"] = {
+        "status": "Failed",
+        "error": {"code": "Example", "message": "It broke"},
+    }
+
+    result = cli_runner.invoke(
+        cli_app,
+        [
+            "pages",
+            "websites",
+            "start",
+            "--website-id",
+            "site",
+            "--environment-id",
+            "env",
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+
+    assert result.exit_code == 1
+    assert "Website start failed" in result.stdout
+    assert "It broke" in result.stdout
 
 
 def test_websites_scan_modes(cli_runner, cli_app):

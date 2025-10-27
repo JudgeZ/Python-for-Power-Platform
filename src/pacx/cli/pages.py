@@ -69,8 +69,24 @@ def _handle_admin_operation(
                 _echo_json(handle.metadata)
             print("Use --wait to poll for completion.")
             return
-        final = client.wait_for_operation(handle.operation_location, interval=interval, timeout=timeout)
+        final = client.wait_for_operation(
+            handle.operation_location, interval=interval, timeout=timeout
+        )
         status = final.get("status") or final.get("state")
+        normalized_status = str(status or "").strip().lower()
+        success_states = {"succeeded", "success", "completed", "complete"}
+        failure_states = {"failed", "failure", "canceled", "cancelled"}
+        if normalized_status and normalized_status not in success_states:
+            prefix = "failed" if normalized_status in failure_states else "completed with errors"
+            message = (
+                f"[red]{action} {prefix}[/red] status={status}"
+                if status
+                else f"[red]{action} {prefix}[/red]"
+            )
+            print(message)
+            if final:
+                _echo_json(final)
+            raise typer.Exit(1)
         if status:
             print(f"[green]{action} completed[/green] status={status}")
         else:
