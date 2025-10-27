@@ -1,19 +1,282 @@
+"""Typer commands that orchestrate Power Pages exports, imports, and runtime ops."""
+
 from __future__ import annotations
 
-"""Typer commands that orchestrate Power Pages exports and imports."""
-
-from collections.abc import Sequence
+import json
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import typer
 from rich import print
 
-from ..cli_utils import resolve_dataverse_host_from_context
+from ..cli_utils import (
+    resolve_dataverse_host_from_context,
+    resolve_environment_id_from_context,
+)
 from ..clients.dataverse import DataverseClient
 from ..clients.power_pages import PowerPagesClient
+from ..clients.power_pages_admin import (
+    DEFAULT_API_VERSION as ADMIN_DEFAULT_API_VERSION,
+    PowerPagesAdminClient,
+    WebsiteOperationHandle,
+)
 from ._pages_utils import ensure_mapping, load_json_or_path, merge_manifest_keys
 from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Power Pages site ops")
+websites_app = typer.Typer(help="Power Pages website lifecycle and security")
+app.add_typer(websites_app, name="websites")
+
+
+def _admin_api_version(ctx: typer.Context, override: str | None) -> str:
+    data = ctx.ensure_object(dict)
+    if override:
+        data["pages_admin_api_version"] = override
+        return override
+    cached = data.get("pages_admin_api_version")
+    if isinstance(cached, str) and cached:
+        return cached
+    data["pages_admin_api_version"] = ADMIN_DEFAULT_API_VERSION
+    return ADMIN_DEFAULT_API_VERSION
+
+
+def _build_admin_client(ctx: typer.Context, api_version: str) -> PowerPagesAdminClient:
+    token_getter = get_token_getter(ctx)
+    return PowerPagesAdminClient(token_getter, api_version=api_version)
+
+
+def _echo_json(data: Mapping[str, Any]) -> None:
+    if data:
+        print(json.dumps(dict(data), indent=2, sort_keys=True))
+
+
+def _handle_admin_operation(
+    action: str,
+    handle: WebsiteOperationHandle,
+    client: PowerPagesAdminClient,
+    *,
+    wait: bool,
+    interval: float,
+    timeout: float,
+) -> None:
+    if handle.operation_location:
+        print(
+            f"[cyan]{action} submitted[/cyan] operation={handle.operation_id} "
+            f"location={handle.operation_location}"
+        )
+        if not wait:
+            if handle.metadata:
+                _echo_json(handle.metadata)
+            print("Use --wait to poll for completion.")
+            return
+        final = client.wait_for_operation(handle.operation_location, interval=interval, timeout=timeout)
+        status = final.get("status") or final.get("state")
+        if status:
+            print(f"[green]{action} completed[/green] status={status}")
+        else:
+            print(f"[green]{action} completed[/green]")
+        if final:
+            _echo_json(final)
+    else:
+        print(f"[green]{action} completed[/green]")
+        if handle.metadata:
+            _echo_json(handle.metadata)
+
+
+@websites_app.callback()
+@handle_cli_errors
+def websites_root(
+    ctx: typer.Context,
+    api_version: str = typer.Option(
+        ADMIN_DEFAULT_API_VERSION,
+        help="Power Pages admin API version (defaults to 2022-03-01-preview)",
+    ),
+) -> None:
+    _admin_api_version(ctx, api_version)
+
+
+@websites_app.command("start")
+@handle_cli_errors
+def websites_start(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="Website ID (GUID)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID (defaults to profile configuration)",
+    ),
+    api_version: str | None = typer.Option(
+        None, help="Power Pages admin API version override",
+    ),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
+    ),
+    interval: float = typer.Option(2.0, help="Seconds between polling attempts"),
+    timeout: float = typer.Option(900.0, help="Maximum seconds to wait for completion"),
+) -> None:
+    version = _admin_api_version(ctx, api_version)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    client = _build_admin_client(ctx, version)
+    handle = client.start_website(environment, website_id)
+    _handle_admin_operation("Website start", handle, client, wait=wait, interval=interval, timeout=timeout)
+
+
+@websites_app.command("stop")
+@handle_cli_errors
+def websites_stop(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="Website ID (GUID)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID (defaults to profile configuration)",
+    ),
+    api_version: str | None = typer.Option(
+        None, help="Power Pages admin API version override",
+    ),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
+    ),
+    interval: float = typer.Option(2.0, help="Seconds between polling attempts"),
+    timeout: float = typer.Option(900.0, help="Maximum seconds to wait for completion"),
+) -> None:
+    version = _admin_api_version(ctx, api_version)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    client = _build_admin_client(ctx, version)
+    handle = client.stop_website(environment, website_id)
+    _handle_admin_operation("Website stop", handle, client, wait=wait, interval=interval, timeout=timeout)
+
+
+@websites_app.command("scan")
+@handle_cli_errors
+def websites_scan(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="Website ID (GUID)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID (defaults to profile configuration)",
+    ),
+    mode: str = typer.Option(
+        "quick",
+        "--mode",
+        case_sensitive=False,
+        help="Scan mode: quick or deep (default: quick)",
+        show_default=True,
+    ),
+    lcid: int | None = typer.Option(
+        None, help="Optional LCID for quick scans (ignored for deep scans)",
+    ),
+    api_version: str | None = typer.Option(
+        None, help="Power Pages admin API version override",
+    ),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for the operation to complete", show_default=True
+    ),
+    interval: float = typer.Option(5.0, help="Seconds between polling attempts"),
+    timeout: float = typer.Option(900.0, help="Maximum seconds to wait for completion"),
+) -> None:
+    version = _admin_api_version(ctx, api_version)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    client = _build_admin_client(ctx, version)
+    mode_value = mode.lower().strip()
+    if mode_value == "quick":
+        handle = client.start_quick_scan(environment, website_id, lcid=lcid)
+        label = "Quick scan"
+    elif mode_value == "deep":
+        if lcid is not None:
+            raise typer.BadParameter("--lcid is only valid for quick scans")
+        handle = client.start_deep_scan(environment, website_id)
+        label = "Deep scan"
+    else:  # pragma: no cover - validated by Typer choices
+        raise typer.BadParameter("--mode must be quick or deep")
+    _handle_admin_operation(label, handle, client, wait=wait, interval=interval, timeout=timeout)
+
+
+@websites_app.command("waf")
+@handle_cli_errors
+def websites_waf(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="Website ID (GUID)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID (defaults to profile configuration)",
+    ),
+    action: str = typer.Option(
+        "status",
+        "--action",
+        case_sensitive=False,
+        help="WAF action: enable, disable, status, get-rules, or set-rules",
+        show_default=True,
+    ),
+    rules: str | None = typer.Option(
+        None, help="JSON string/path describing rules for set-rules",
+    ),
+    rule_type: str | None = typer.Option(
+        None, help="Optional rule type filter for get-rules",
+    ),
+    api_version: str | None = typer.Option(
+        None, help="Power Pages admin API version override",
+    ),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for asynchronous operations", show_default=True
+    ),
+    interval: float = typer.Option(2.0, help="Seconds between polling attempts"),
+    timeout: float = typer.Option(900.0, help="Maximum seconds to wait for completion"),
+) -> None:
+    version = _admin_api_version(ctx, api_version)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    client = _build_admin_client(ctx, version)
+    action_value = action.lower().strip()
+    if action_value == "enable":
+        handle = client.enable_waf(environment, website_id)
+        _handle_admin_operation("WAF enable", handle, client, wait=wait, interval=interval, timeout=timeout)
+    elif action_value == "disable":
+        handle = client.disable_waf(environment, website_id)
+        _handle_admin_operation("WAF disable", handle, client, wait=wait, interval=interval, timeout=timeout)
+    elif action_value == "status":
+        data = client.get_waf_status(environment, website_id)
+        if data:
+            _echo_json(data)
+        else:
+            print("No WAF status returned")
+    elif action_value == "get-rules":
+        data = client.get_waf_rules(environment, website_id, rule_type=rule_type)
+        if data:
+            _echo_json(data)
+        else:
+            print("No WAF rules returned")
+    elif action_value == "set-rules":
+        if not rules:
+            raise typer.BadParameter("--rules is required when --action set-rules")
+        raw_rules = load_json_or_path(rules)
+        if not isinstance(raw_rules, Mapping):
+            raise typer.BadParameter("--rules must be a JSON object")
+        handle = client.create_waf_rules(environment, website_id, dict(raw_rules))
+        _handle_admin_operation("WAF rules update", handle, client, wait=wait, interval=interval, timeout=timeout)
+    else:  # pragma: no cover - validated by Typer choices
+        raise typer.BadParameter("Unsupported --action value")
+
+
+@websites_app.command("visibility")
+@handle_cli_errors
+def websites_visibility(
+    ctx: typer.Context,
+    website_id: str = typer.Option(..., help="Website ID (GUID)"),
+    environment_id: str | None = typer.Option(
+        None, help="Environment ID (defaults to profile configuration)",
+    ),
+    payload: str = typer.Option(
+        ..., "--payload", help="JSON string/path describing visibility settings"
+    ),
+    api_version: str | None = typer.Option(
+        None, help="Power Pages admin API version override",
+    ),
+) -> None:
+    version = _admin_api_version(ctx, api_version)
+    environment = resolve_environment_id_from_context(ctx, environment_id)
+    client = _build_admin_client(ctx, version)
+    raw_payload = load_json_or_path(payload)
+    if not isinstance(raw_payload, Mapping):
+        raise typer.BadParameter("--payload must be a JSON object")
+    result = client.update_site_visibility(environment, website_id, dict(raw_payload))
+    if result:
+        _echo_json(result)
+    else:
+        print("[green]Site visibility updated[/green]")
 
 
 @app.command("download")
@@ -155,12 +418,12 @@ def pages_upload(
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
                 if isinstance(value, Sequence)
-                and not isinstance(value, (str, bytes))
+                and not isinstance(value, str | bytes)
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
             ]
             if invalid:
                 raise ValueError(
@@ -217,12 +480,12 @@ def pages_diff_permissions(
                 key: [str(col) for col in value]
                 for key, value in mapping.items()
                 if isinstance(value, Sequence)
-                and not isinstance(value, (str, bytes))
+                and not isinstance(value, str | bytes)
             }
             invalid = [
                 key
                 for key, value in mapping.items()
-                if not isinstance(value, Sequence) or isinstance(value, (str, bytes))
+                if not isinstance(value, Sequence) or isinstance(value, str | bytes)
             ]
             if invalid:
                 raise ValueError(
