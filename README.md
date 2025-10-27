@@ -25,6 +25,9 @@ The CI workflow also uploads coverage artifacts from `pytest` and enforces a min
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Custom connector API coverage
+
+The `openapi/connectivity-connectors.yaml` document now includes custom connector CRUD, runtime status, and policy template endpoints. These APIs remain in preview and require callers to supply `api-version=2022-03-01-preview`. Service-side throttling currently enforces roughly 100 requests per minute per environment, so stagger long-running jobs or batch deployments accordingly. When acquiring Azure AD tokens for these operations, request the `Connectivity.CustomConnectors.Read.All`, `Connectivity.CustomConnectors.ReadWrite.All`, and `Connectivity.Policy.Read.All` scopes alongside the existing `.default` scope.
 ## Auditing admin role elevation
 
 Role elevation flows surface long-running operation metadata so integrators can enforce least privilege:
