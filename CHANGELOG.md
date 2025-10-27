@@ -10,7 +10,7 @@
 - Add governance client and CLI coverage for cross-tenant connection reports and rule-based policy assignments.
 - Add Power Virtual Agents bot client helpers and `pacx pva` CLI commands covering bot publication, packages, channels, and quarantine flows.
 - Fix polling utilities to raise `TimeoutError` and surface failures in `ppx solution import --wait`.
-- Add pagination support to Power Pages downloads to follow `@odata.nextLink` pointers.
+- Remove the 50-note pagination limit in Power Pages annotation exports by following `@odata.nextLink` pointers across pages.
 - Harden solution archive extraction, including SolutionPackager layouts, against Zip Slip directory traversal.
 - Ensure Azure Blob binary downloads append SAS tokens even when URLs contain query strings.
 - Expose lifecycle management on HTTP-based clients to close connections when finished.

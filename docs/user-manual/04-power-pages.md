@@ -35,7 +35,7 @@ ppx pages download --website-id <GUID> --tables full --out site_dump --host <DV>
 * `--binary-provider` may be specified multiple times. Built-ins: `annotations` (Dataverse notes) and `azure` (virtual file storage).
 * Provider options can be passed inline JSON or as a file mapping provider name to settings (`top`, `sas_env`, etc.).
 * `manifest.json` captures table summaries, provider results (checksums), and the natural key configuration used for uploads.
-* `annotations` honors an optional `top` limit (default: 50 notes per web file) and records missing `documentbody` are surfaced in the manifest as skipped entries so you can backfill the note content.
+* `annotations` streams every note for a web file by following `@odata.nextLink` pointers and records missing `documentbody` fields as skipped entries so you can backfill the note content. Provide an optional `top` value when you intentionally want to cap the export.
 * `azure` (alias for `azure-blob`) appends files under `files_virtual/` and expects a Shared Access Signature to be available when blobs are private. Export the token to an environment variable and reference it through provider options: `--provider-options '{"azure": {"sas_env": "PACX_BLOB_SAS"}}'`.
 
 Set `--include-files false` to skip `adx_webfiles`; binary providers require files to be included.
