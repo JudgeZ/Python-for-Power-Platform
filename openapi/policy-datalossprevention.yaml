@@ -67,6 +67,7 @@ paths:
       - policy.dataLossPreventionPolicies
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: api-version
@@ -128,6 +129,7 @@ paths:
       - policy.dataLossPreventionPolicies
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
@@ -167,6 +169,7 @@ paths:
       - policy.dataLossPreventionPolicies
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
@@ -231,6 +234,7 @@ paths:
       - policy.dataLossPreventionPolicies.connectors
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
@@ -308,6 +312,7 @@ paths:
       - policy.dataLossPreventionPolicies.assignments
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
@@ -356,6 +361,7 @@ paths:
       - policy.dataLossPreventionPolicies.assignments
       security:
       - oauth2:
+        - .default
         - Policy.DataLossPrevention.Manage
       parameters:
       - name: policyId
