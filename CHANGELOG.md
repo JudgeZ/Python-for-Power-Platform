@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add licensing client and CLI coverage for billing policies, allocations, storage warnings,
+  and capacity snapshots with documentation for required scopes.
 - Extend Analytics advisor recommendations OpenAPI with detail, acknowledgement, dismissal, and status polling endpoints, plus documentation covering the end-to-end workflow.
 - Fix polling utilities to raise `TimeoutError` and surface failures in `ppx solution import --wait`.
 - Add pagination support to Power Pages downloads to follow `@odata.nextLink` pointers.
