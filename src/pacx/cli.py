@@ -12,6 +12,8 @@ from .cli import (
     power_platform,
     profile,
     tenant,
+    pva,
+    users,
 )
 
 PACKAGE_DIR = Path(__file__).with_name("cli")
@@ -29,4 +31,6 @@ __all__ = [
     "power_platform",
     "profile",
     "tenant",
+    "pva",
+    "users",
 ]
