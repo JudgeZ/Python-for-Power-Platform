@@ -13,6 +13,7 @@ from pacx.utils.poller import PollTimeoutError
 class StubAppManagementClient:
     instances: list["StubAppManagementClient"] = []
     wait_should_timeout: bool = False
+    next_wait_status: str = "Succeeded"
 
     def __init__(self, token_getter, api_version: str | None = None) -> None:
         self.token = token_getter()
@@ -78,7 +79,9 @@ class StubAppManagementClient:
             StubAppManagementClient.wait_should_timeout = False
             raise PollTimeoutError(timeout, None)
         self.wait_calls.append((environment_id, interval, timeout))
-        return ApplicationPackageOperation(operation_id="op-result", status="Succeeded")
+        status = StubAppManagementClient.next_wait_status
+        StubAppManagementClient.next_wait_status = "Succeeded"
+        return ApplicationPackageOperation(operation_id="op-result", status=status)
 
     def get_install_status(self, operation_id: str) -> ApplicationPackageOperation:
         self.status_calls.append(operation_id)
@@ -99,6 +102,7 @@ def load_cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[CliRunner, object, ty
     monkeypatch.setattr("pacx.cli.app_management.AppManagementClient", StubAppManagementClient)
     StubAppManagementClient.instances = []
     StubAppManagementClient.wait_should_timeout = False
+    StubAppManagementClient.next_wait_status = "Succeeded"
     return CliRunner(), module.app, StubAppManagementClient
 
 
@@ -187,5 +191,32 @@ def test_status_environment(cli_setup):
     result = runner.invoke(app, ["app", "pkgs", "status", "op-1", "--environment-id", "env-1"])
 
     assert result.exit_code == 0
-    assert "Status completed" in result.stdout
+    assert "Status in progress" in result.stdout
     assert client_cls.instances[0].env_status_calls == [("env-1", "op-1")]
+
+
+def test_install_package_failure(cli_setup):
+    runner, app, client_cls = cli_setup
+    client_cls.next_wait_status = "Failed"
+
+    result = runner.invoke(
+        app,
+        ["app", "pkgs", "install", "pkg-1", "--environment-id", "env-1"],
+    )
+
+    assert result.exit_code == 1
+    assert "Install failed" in result.stdout
+    assert "operation=op-result" in result.stdout
+
+
+def test_upgrade_package_canceled(cli_setup):
+    runner, app, client_cls = cli_setup
+    client_cls.next_wait_status = "Canceled"
+
+    result = runner.invoke(
+        app,
+        ["app", "pkgs", "upgrade", "pkg-1", "--environment-id", "env-1"],
+    )
+
+    assert result.exit_code == 1
+    assert "Upgrade failed" in result.stdout

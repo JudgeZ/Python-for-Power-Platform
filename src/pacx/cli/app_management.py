@@ -78,9 +78,30 @@ def _render_package_line(package: ApplicationPackageSummary) -> str:
     return "  ".join(parts)
 
 
-def _print_operation(action: str, result: ApplicationPackageOperation) -> None:
+_FAILED_STATUSES = frozenset({"failed", "canceled"})
+
+
+def _print_operation(
+    action: str,
+    result: ApplicationPackageOperation,
+    *,
+    fail_on_incomplete: bool = True,
+) -> None:
     status = result.status or "Unknown"
-    print(f"[green]{action} completed[/green] status={status}")
+    normalized = status.casefold()
+    if normalized == "succeeded":
+        print(f"[green]{action} completed[/green] status={status}")
+    else:
+        is_failure = normalized in _FAILED_STATUSES
+        palette = "red" if is_failure else "yellow"
+        stage = "failed" if is_failure else "in progress"
+        print(f"[{palette}]{action} {stage}[/{palette}] status={status}")
+        if is_failure or fail_on_incomplete:
+            if result.operation_id:
+                print(f"operation={result.operation_id}")
+            if result.properties:
+                print(result.properties)
+            raise typer.Exit(1)
     if result.operation_id:
         print(f"operation={result.operation_id}")
     if result.properties:
@@ -235,7 +256,7 @@ def get_status(
     if status is None:
         print("[red]No status information available[/red]")
         raise typer.Exit(1)
-    _print_operation("Status", status)
+    _print_operation("Status", status, fail_on_incomplete=False)
 
 
 __all__ = ["app", "packages_app"]
