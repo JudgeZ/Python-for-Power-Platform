@@ -6,7 +6,7 @@ This bundle adds/updates endpoints requested for:
 - App Management (Applications) including environment-scoped listings, uninstall, and upgrade operation coverage
 - Authorization (RBAC)
 - Connectivity (Connectors)
-- Environment Management (groups, ops, managed governance, settings)
+- Environment Management (groups, ops, managed governance, settings, lifecycle provision/copy/reset/backup/restore)
 - Governance (cross-tenant connection reports, rule-based policies)
 - Licensing (billing policy, env associations, currency allocation/reports, environment billing policy, ISV contracts, storage warnings, temporary currency entitlement, tenant capacity details)
 - Power Apps (admin apps)
@@ -20,6 +20,9 @@ Security is modeled using OAuth2 implicit. RBAC read operations require the
 `Authorization.RBAC.Manage` in addition to the tenant's `.default` scope.
 Where Microsoft Learn does not expose full object schemas, responses are typed as `object` with `additionalProperties: true` and will be refined with recorded schemas later.
 Long-running operations include the `Operation-Location` response header when documented.
+Environment lifecycle operations remain under the `2022-03-01-preview` API version and surface as long-running operations; the
+Power Platform admin API throttling guidance applies (preview docs call out limits on concurrent environment copies and backup/
+restore submissions per environment).
 
 ## Power Apps admin operations modeled here
 
