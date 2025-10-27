@@ -1,5 +1,6 @@
-"""Re-export typed models for the pacx SDK."""
+"""Public re-export surface for ``pacx.models``."""
 
+from . import policy as _policy
 from .analytics import (
     AdvisorAction,
     AdvisorActionRequest,
@@ -43,19 +44,6 @@ from .dataverse import (
     StageSolutionRequest,
     StageSolutionResponse,
 )
-from .policy import (
-    AsyncOperation as PolicyAsyncOperation,
-)
-from .policy import (
-    ConnectorGroup as PolicyConnectorGroup,
-)
-from .policy import (
-    ConnectorReference as PolicyConnectorReference,
-)
-from .policy import (
-    DataLossPreventionPolicy,
-    PolicyAssignment,
-)
 from .power_platform import (
     CloudFlow,
     EnvironmentSummary,
@@ -88,6 +76,12 @@ from .user_management import (
     RemoveAdminRoleRequest,
 )
 
+PolicyAsyncOperation = _policy.AsyncOperation
+PolicyConnectorGroup = _policy.ConnectorGroup
+PolicyConnectorReference = _policy.ConnectorReference
+DataLossPreventionPolicy = _policy.DataLossPreventionPolicy
+PolicyAssignment = _policy.PolicyAssignment
+
 __all__ = [
     "AdvisorAction",
     "AdvisorActionRequest",
@@ -104,6 +98,10 @@ __all__ = [
     "ApplicationPackage",
     "ApplicationPackageOperation",
     "ApplicationPackageSummary",
+    "CreateRoleAssignmentRequest",
+    "CreateRoleDefinitionRequest",
+    "RoleAssignment",
+    "RoleDefinition",
     "ApplySolutionUpgradeRequest",
     "CloneAsPatchRequest",
     "CloneAsPatchResponse",
@@ -129,12 +127,6 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
-    "TenantFeatureControl",
-    "TenantFeatureControlList",
-    "TenantFeatureControlPatch",
-    "TenantSettings",
-    "TenantSettingsAccessRequest",
-    "TenantSettingsPatch",
     "BotListResult",
     "BotMetadata",
     "ChannelConfiguration",
@@ -144,12 +136,14 @@ __all__ = [
     "ImportBotPackageRequest",
     "PublishBotRequest",
     "UnpublishBotRequest",
+    "TenantFeatureControl",
+    "TenantFeatureControlList",
+    "TenantFeatureControlPatch",
+    "TenantSettings",
+    "TenantSettingsAccessRequest",
+    "TenantSettingsPatch",
     "AdminRoleAssignment",
     "AdminRoleAssignmentList",
     "AsyncOperationStatus",
     "RemoveAdminRoleRequest",
-    "CreateRoleAssignmentRequest",
-    "CreateRoleDefinitionRequest",
-    "RoleAssignment",
-    "RoleDefinition",
 ]
