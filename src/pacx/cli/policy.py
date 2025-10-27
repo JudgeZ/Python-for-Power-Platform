@@ -11,10 +11,10 @@ import typer
 
 from ..cli_utils import get_config_from_context
 from ..clients.policy import (
+    DEFAULT_API_VERSION,
     DataLossPreventionClient,
     PolicyOperationHandle,
     PolicyPage,
-    DEFAULT_API_VERSION,
 )
 from ..config import Profile
 from ..models.policy import ConnectorGroup, DataLossPreventionPolicy, PolicyAssignment
@@ -24,7 +24,9 @@ READ_SCOPES = ("Policy.DataLossPrevention.Read",)
 MANAGE_SCOPES = ("Policy.DataLossPrevention.Manage",)
 
 app = typer.Typer(help="Manage policy administration workloads.")
-dlp_app = typer.Typer(help="Manage data loss prevention (DLP) policies.", invoke_without_command=True)
+dlp_app = typer.Typer(
+    help="Manage data loss prevention (DLP) policies.", invoke_without_command=True
+)
 connectors_app = typer.Typer(help="Manage DLP connector classifications.")
 assignments_app = typer.Typer(help="Manage DLP environment assignments.")
 
@@ -90,7 +92,7 @@ def _ensure_api_version(ctx: typer.Context, override: str | None) -> str:
 
 
 def _parse_payload(raw: str | None) -> dict[str, Any]:
-    if raw in (None, ""):
+    if raw is None or raw == "":
         raise typer.BadParameter("Provide a JSON object via --payload.")
     try:
         payload = json.loads(raw)
@@ -131,7 +133,9 @@ def _render_operation(
     timeout: float = 600.0,
 ) -> None:
     if wait and handle.operation_location:
-        result = client.wait_for_operation(handle.operation_location, interval=interval, timeout=timeout)
+        result = client.wait_for_operation(
+            handle.operation_location, interval=interval, timeout=timeout
+        )
         console.print(f"[green]{action} completed[/green] status={result.status}")
         console.print(json.dumps(result.model_dump(by_alias=True, exclude_none=True), indent=2))
         return
@@ -141,7 +145,9 @@ def _render_operation(
         message += f" operation={handle.operation_id}"
     console.print(message)
     if handle.operation is not None:
-        console.print(json.dumps(handle.operation.model_dump(by_alias=True, exclude_none=True), indent=2))
+        console.print(
+            json.dumps(handle.operation.model_dump(by_alias=True, exclude_none=True), indent=2)
+        )
 
 
 @dlp_app.callback(invoke_without_command=True)
@@ -215,7 +221,9 @@ def create_policy(
 def update_policy(
     ctx: typer.Context,
     policy_id: str = typer.Argument(..., help="Policy identifier."),
-    payload: str = typer.Option(..., "--payload", help="JSON payload describing the policy changes."),
+    payload: str = typer.Option(
+        ..., "--payload", help="JSON payload describing the policy changes."
+    ),
     wait: bool = typer.Option(False, "--wait/--no-wait", help="Wait for operation completion."),
     api_version: str | None = typer.Option(None, help="Policy API version override."),
 ) -> None:
@@ -312,9 +320,7 @@ def list_assignments(
         console.print("[yellow]No assignments found.[/yellow]")
         return
     for assignment in assignments:
-        console.print(
-            f"[bold]{assignment.environment_id}[/bold] type={assignment.assignment_type}"
-        )
+        console.print(f"[bold]{assignment.environment_id}[/bold] type={assignment.assignment_type}")
 
 
 @assignments_app.command("assign")

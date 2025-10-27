@@ -7,7 +7,12 @@ from pacx.clients.policy import (
     DataLossPreventionClient,
     PolicyOperationHandle,
 )
-from pacx.models.policy import ConnectorGroup, ConnectorReference, DataLossPreventionPolicy, PolicyAssignment
+from pacx.models.policy import (
+    ConnectorGroup,
+    ConnectorReference,
+    DataLossPreventionPolicy,
+    PolicyAssignment,
+)
 
 
 def _make_policy_payload() -> dict[str, object]:
@@ -103,8 +108,7 @@ def test_wait_for_operation_polls_until_succeeded(respx_mock, token_getter):
     client = DataLossPreventionClient(token_getter)
     operation_url = "https://api.powerplatform.com/operations/op1"
     respx_mock.get(operation_url).mock(
-        side_effect=
-        [
+        side_effect=[
             httpx.Response(200, json={"operationId": "op1", "status": "Running"}),
             httpx.Response(200, json={"operationId": "op1", "status": "Succeeded"}),
         ]

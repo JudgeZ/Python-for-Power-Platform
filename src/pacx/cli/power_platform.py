@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
-from typing import Any, Type, cast
+from typing import Any, cast
 
 import typer
 from rich import print
@@ -11,13 +11,15 @@ from ..cli_utils import resolve_environment_id_from_context
 from ..clients.power_platform import (
     DEFAULT_API_VERSION,
     OperationHandle,
+)
+from ..clients.power_platform import (
     PowerPlatformClient as _DefaultPowerPlatformClient,
 )
 from ..models.power_platform import CloudFlow, FlowRun
 from .common import get_token_getter, handle_cli_errors
 
 
-def _resolve_client_class() -> Type[_DefaultPowerPlatformClient]:
+def _resolve_client_class() -> type[_DefaultPowerPlatformClient]:
     try:
         module = import_module("pacx.cli")
     except Exception:  # pragma: no cover - defensive fallback
@@ -26,7 +28,7 @@ def _resolve_client_class() -> Type[_DefaultPowerPlatformClient]:
     client_cls = getattr(module, "PowerPlatformClient", None)
     if client_cls is None:
         return _DefaultPowerPlatformClient
-    return cast(Type[_DefaultPowerPlatformClient], client_cls) or _DefaultPowerPlatformClient
+    return cast(type[_DefaultPowerPlatformClient], client_cls) or _DefaultPowerPlatformClient
 
 
 def _build_client(
@@ -50,7 +52,7 @@ def _ensure_api_version(ctx: typer.Context, override: str | None) -> str:
 
 
 def _parse_payload(raw: str | None) -> dict[str, Any]:
-    if raw in (None, ""):
+    if raw is None or raw == "":
         return {}
     try:
         payload = json.loads(raw)
@@ -131,7 +133,9 @@ def list_envs(
 @handle_cli_errors
 def copy_environment_command(
     ctx: typer.Context,
-    payload: str | None = typer.Option(None, "--payload", help="JSON payload for the copy request."),
+    payload: str | None = typer.Option(
+        None, "--payload", help="JSON payload for the copy request."
+    ),
     environment_id: str | None = typer.Option(
         None, help="Source environment ID (defaults to profile configuration)"
     ),
@@ -151,7 +155,9 @@ def copy_environment_command(
 @handle_cli_errors
 def reset_environment_command(
     ctx: typer.Context,
-    payload: str | None = typer.Option(None, "--payload", help="JSON payload for the reset request."),
+    payload: str | None = typer.Option(
+        None, "--payload", help="JSON payload for the reset request."
+    ),
     environment_id: str | None = typer.Option(
         None, help="Environment ID to reset (defaults to profile configuration)"
     ),
@@ -171,7 +177,9 @@ def reset_environment_command(
 @handle_cli_errors
 def backup_environment_command(
     ctx: typer.Context,
-    payload: str | None = typer.Option(None, "--payload", help="JSON payload for the backup request."),
+    payload: str | None = typer.Option(
+        None, "--payload", help="JSON payload for the backup request."
+    ),
     environment_id: str | None = typer.Option(
         None, help="Environment ID to backup (defaults to profile configuration)"
     ),
@@ -191,7 +199,9 @@ def backup_environment_command(
 @handle_cli_errors
 def restore_environment_command(
     ctx: typer.Context,
-    payload: str | None = typer.Option(None, "--payload", help="JSON payload for the restore request."),
+    payload: str | None = typer.Option(
+        None, "--payload", help="JSON payload for the restore request."
+    ),
     environment_id: str | None = typer.Option(
         None, help="Environment ID to restore (defaults to profile configuration)"
     ),
@@ -335,7 +345,8 @@ def _render_app_list(ctx: typer.Context, environment_id: str) -> None:
 def apps_root(
     ctx: typer.Context,
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     if ctx.invoked_subcommand is None:
@@ -350,7 +361,8 @@ def apps_root(
 def list_apps(
     ctx: typer.Context,
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     """List canvas apps in an environment."""
@@ -365,11 +377,13 @@ def list_app_versions_command(
     ctx: typer.Context,
     app_id: str = typer.Argument(..., help="App identifier."),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
     top: int | None = typer.Option(None, help="Maximum number of versions to return."),
     skiptoken: str | None = typer.Option(
-        None, help="Continuation token returned by a previous call.",
+        None,
+        help="Continuation token returned by a previous call.",
     ),
 ) -> None:
     """List versions of a Power App."""
@@ -392,16 +406,20 @@ def restore_app_command(
     app_id: str = typer.Argument(..., help="App identifier."),
     version_id: str = typer.Option(..., "--version-id", help="Version identifier to restore."),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
     target_environment_id: str | None = typer.Option(
-        None, help="Environment ID to receive the restored app.",
+        None,
+        help="Environment ID to receive the restored app.",
     ),
     target_app_id: str | None = typer.Option(
-        None, help="App ID to overwrite when restoring to another app.",
+        None,
+        help="App ID to overwrite when restoring to another app.",
     ),
     target_app_name: str | None = typer.Option(
-        None, help="Display name for a new app when creating one.",
+        None,
+        help="Display name for a new app when creating one.",
     ),
     make_new_app: bool = typer.Option(
         False,
@@ -433,7 +451,8 @@ def publish_app_command(
     app_id: str = typer.Argument(..., help="App identifier."),
     version_id: str = typer.Option(..., "--version-id", help="Version to publish."),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
     description: str | None = typer.Option(None, help="Optional release notes."),
 ) -> None:
@@ -454,10 +473,13 @@ def share_app_command(
     ctx: typer.Context,
     app_id: str = typer.Argument(..., help="App identifier."),
     payload: str = typer.Option(
-        ..., "--payload", help="JSON payload describing principals to share with.",
+        ...,
+        "--payload",
+        help="JSON payload describing principals to share with.",
     ),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     """Share an app with additional principals."""
@@ -475,10 +497,13 @@ def revoke_app_share_command(
     ctx: typer.Context,
     app_id: str = typer.Argument(..., help="App identifier."),
     payload: str = typer.Option(
-        ..., "--payload", help="JSON payload describing principals to revoke.",
+        ...,
+        "--payload",
+        help="JSON payload describing principals to revoke.",
     ),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     """Revoke shared access to an app."""
@@ -496,7 +521,8 @@ def list_app_permissions_command(
     ctx: typer.Context,
     app_id: str = typer.Argument(..., help="App identifier."),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     """List principals with access to a Power App."""
@@ -515,10 +541,13 @@ def set_app_owner_command(
     ctx: typer.Context,
     app_id: str = typer.Argument(..., help="App identifier."),
     payload: str = typer.Option(
-        ..., "--payload", help="JSON payload describing the new owner.",
+        ...,
+        "--payload",
+        help="JSON payload describing the new owner.",
     ),
     environment_id: str | None = typer.Option(
-        None, help="Environment ID to target (defaults to profile configuration)",
+        None,
+        help="Environment ID to target (defaults to profile configuration)",
     ),
 ) -> None:
     """Assign a new owner for a Power App."""
@@ -575,12 +604,8 @@ def list_flows(
     resource_id: str | None = typer.Option(None, help="Filter by resource ID"),
     created_by: str | None = typer.Option(None, help="Filter by creator Dataverse ID"),
     owner_id: str | None = typer.Option(None, help="Filter by owner Dataverse ID"),
-    created_on_start_date: str | None = typer.Option(
-        None, help="Created on or after (YYYY-MM-DD)"
-    ),
-    created_on_end_date: str | None = typer.Option(
-        None, help="Created on or before (YYYY-MM-DD)"
-    ),
+    created_on_start_date: str | None = typer.Option(None, help="Created on or after (YYYY-MM-DD)"),
+    created_on_end_date: str | None = typer.Option(None, help="Created on or before (YYYY-MM-DD)"),
     modified_on_start_date: str | None = typer.Option(
         None, help="Modified on or after (YYYY-MM-DD)"
     ),
@@ -680,9 +705,7 @@ def run_flow(
     ctx: typer.Context,
     flow_id: str = typer.Argument(..., help="Cloud flow identifier."),
     trigger_name: str = typer.Option(..., help="Trigger name to invoke."),
-    inputs: str | None = typer.Option(
-        None, help="Optional JSON inputs passed to the trigger."
-    ),
+    inputs: str | None = typer.Option(None, help="Optional JSON inputs passed to the trigger."),
     environment_id: str | None = typer.Option(
         None, help="Environment ID to target (defaults to profile configuration)"
     ),
@@ -690,7 +713,7 @@ def run_flow(
     """Trigger a cloud flow run."""
 
     environment = _resolve_flow_environment(ctx, environment_id)
-    payload = {"triggerName": trigger_name}
+    payload: dict[str, Any] = {"triggerName": trigger_name}
     body_inputs = _parse_payload(inputs)
     if body_inputs:
         payload["inputs"] = body_inputs

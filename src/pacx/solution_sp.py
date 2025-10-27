@@ -27,9 +27,7 @@ def _resolve_destination(root: Path, src_root: Path) -> Path:
     resolved_src_root = src_root.resolve()
     resolved_candidate = candidate.resolve()
     if not resolved_candidate.is_relative_to(resolved_src_root):
-        raise ValueError(
-            f"Archive entry '{root.as_posix()}' would extract outside '{src_root}'."
-        )
+        raise ValueError(f"Archive entry '{root.as_posix()}' would extract outside '{src_root}'.")
 
     return candidate
 

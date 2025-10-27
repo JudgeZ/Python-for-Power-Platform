@@ -34,7 +34,9 @@ def test_refresh_billing_policy_provisioning(respx_mock, token_getter) -> None:
     ).mock(
         return_value=httpx.Response(
             202,
-            headers={"Operation-Location": "https://api.powerplatform.com/licensing/operations/op123"},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/licensing/operations/op123"
+            },
             json={"status": "Accepted"},
         )
     )

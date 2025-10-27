@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Diagnostic commands for verifying PACX configuration."""
+
+from __future__ import annotations
 
 import os
 

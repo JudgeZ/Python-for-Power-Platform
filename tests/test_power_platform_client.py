@@ -16,7 +16,17 @@ def test_list_environments(respx_mock, token_getter):
         params={"api-version": "2022-03-01-preview"},
     ).mock(
         return_value=httpx.Response(
-            200, json={"value": [{"id": "env1", "name": "Env One", "environmentType": "Sandbox", "location": "US"}]}
+            200,
+            json={
+                "value": [
+                    {
+                        "id": "env1",
+                        "name": "Env One",
+                        "environmentType": "Sandbox",
+                        "location": "US",
+                    }
+                ]
+            },
         )
     )
     envs = client.list_environments()
@@ -139,7 +149,7 @@ def test_list_app_versions_returns_page(respx_mock, token_getter):
     assert route.called
     assert [v.version_id for v in page.versions] == ["1.0", "1.1"]
     assert page.next_link
-    assert page.continuation_token == "more"
+    assert page.continuation_token == "more"  # noqa: S105
 
 
 def test_list_cloud_flows_aggregates_pages(respx_mock, token_getter):
@@ -303,7 +313,7 @@ def test_list_cloud_flow_runs_returns_header_token(respx_mock, token_getter):
     page = client.list_cloud_flow_runs("env1", "flow1", status="Succeeded", top=5)
 
     assert route.called
-    assert page.continuation_token == "token123"
+    assert page.continuation_token == "token123"  # noqa: S105
     assert [run.id for run in page.runs] == ["run1"]
 
 
@@ -317,7 +327,7 @@ def test_list_cloud_flow_runs_uses_skiptoken(respx_mock, token_getter):
         },
     ).mock(return_value=httpx.Response(200, json={"value": []}))
 
-    client.list_cloud_flow_runs("env1", "flow1", continuation_token="next-token")
+    client.list_cloud_flow_runs("env1", "flow1", continuation_token="next-token")  # noqa: S106
 
     assert route.called
 
@@ -359,9 +369,7 @@ def test_resubmit_cloud_flow_run(respx_mock, token_getter):
         json={"retryFailedActions": True},
     ).mock(return_value=httpx.Response(202, json={"id": "run2", "status": "Running"}))
 
-    run = client.resubmit_cloud_flow_run(
-        "env1", "flow1", "run1", {"retryFailedActions": True}
-    )
+    run = client.resubmit_cloud_flow_run("env1", "flow1", "run1", {"retryFailedActions": True})
 
     assert route.called
     assert run.id == "run2"
@@ -418,6 +426,7 @@ def test_get_cloud_flow_run_diagnostics(respx_mock, token_getter):
     assert diagnostics.run_name == "run1"
     assert diagnostics.issues[0].code == "ERR001"
 
+
 def test_restore_app_posts_payload(respx_mock, token_getter):
     client = build_client(token_getter)
     payload = {"restoreVersionId": "1.0"}
@@ -447,7 +456,9 @@ def test_publish_app_posts_payload(respx_mock, token_getter):
         params={"api-version": "2022-03-01-preview"},
         json=payload,
     ).mock(
-        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op2"}),
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op2"}
+        ),
     )
 
     handle = client.publish_app("env1", "app1", payload)
@@ -464,7 +475,9 @@ def test_share_app_posts_payload(respx_mock, token_getter):
         params={"api-version": "2022-03-01-preview"},
         json=payload,
     ).mock(
-        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op3"}),
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op3"}
+        ),
     )
 
     handle = client.share_app("env1", "app1", payload)
@@ -481,7 +494,9 @@ def test_revoke_app_share_posts_payload(respx_mock, token_getter):
         params={"api-version": "2022-03-01-preview"},
         json=payload,
     ).mock(
-        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op4"}),
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op4"}
+        ),
     )
 
     handle = client.revoke_app_share("env1", "app1", payload)
@@ -498,7 +513,9 @@ def test_set_app_owner_posts_payload(respx_mock, token_getter):
         params={"api-version": "2022-03-01-preview"},
         json=payload,
     ).mock(
-        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op5"}),
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.powerplatform.com/operations/op5"}
+        ),
     )
 
     handle = client.set_app_owner("env1", "app1", payload)

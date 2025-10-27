@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -80,7 +80,7 @@ class TenantSettingsClient:
             return {}
         if isinstance(payload, BaseModel):
             data = payload.model_dump(exclude_none=True, by_alias=True)
-            return cast(dict[str, Any], data)
+            return data
         return {str(key): value for key, value in payload.items()}
 
     def get_settings(self) -> TenantSettings:
@@ -110,7 +110,9 @@ class TenantSettingsClient:
         resource: TenantSettings | None = None
         if resp.text:
             resource = TenantSettings.model_validate(resp.json())
-        return TenantOperationResult(resource, resp.status_code, resp.headers.get("Operation-Location"))
+        return TenantOperationResult(
+            resource, resp.status_code, resp.headers.get("Operation-Location")
+        )
 
     def request_settings_access(
         self,
@@ -162,7 +164,9 @@ class TenantSettingsClient:
         resource: TenantFeatureControl | None = None
         if resp.text:
             resource = TenantFeatureControl.model_validate(resp.json())
-        return TenantOperationResult(resource, resp.status_code, resp.headers.get("Operation-Location"))
+        return TenantOperationResult(
+            resource, resp.status_code, resp.headers.get("Operation-Location")
+        )
 
     def request_feature_access(
         self,

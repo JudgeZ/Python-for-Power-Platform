@@ -22,6 +22,29 @@ app.add_typer(settings_app, name="settings")
 app.add_typer(feature_app, name="feature")
 
 
+ROOT_API_VERSION_OPTION = typer.Option(
+    DEFAULT_API_VERSION,
+    help="Tenant settings API version (defaults to 2024-03-01-preview)",
+)
+API_VERSION_OVERRIDE_OPTION = typer.Option(None, help="Tenant settings API version override.")
+SETTINGS_PAYLOAD_OPTION = typer.Option(
+    ..., "--payload", help="JSON payload describing the setting updates."
+)
+PREFER_ASYNC_OPTION = typer.Option(
+    False,
+    "--async/--no-async",
+    help="Request asynchronous processing (sets Prefer: respond-async).",
+)
+JUSTIFICATION_OPTION = typer.Option(..., help="Reason for requesting elevated access.")
+REQUESTED_SETTINGS_OPTION = typer.Option(
+    [],
+    "--setting",
+    help="Optional setting identifiers requiring access (repeat for multiple).",
+)
+FEATURE_PAYLOAD_OPTION = typer.Option(..., "--payload", help="JSON payload for the feature update.")
+FEATURE_JUSTIFICATION_OPTION = typer.Option(..., help="Reason for requesting feature access.")
+
+
 def _set_api_version(ctx: typer.Context, api_version: str) -> None:
     ctx.ensure_object(dict)["tenant_api_version"] = api_version
 
@@ -64,10 +87,7 @@ def _print_operation(result: TenantOperationResult, success_message: str) -> Non
 @app.callback()
 def tenant_root(
     ctx: typer.Context,
-    api_version: str = typer.Option(
-        DEFAULT_API_VERSION,
-        help="Tenant settings API version (defaults to 2024-03-01-preview)",
-    ),
+    api_version: str = ROOT_API_VERSION_OPTION,
 ) -> None:
     """Initialize tenant CLI context."""
 
@@ -78,7 +98,7 @@ def tenant_root(
 @handle_cli_errors
 def settings_get(
     ctx: typer.Context,
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """Retrieve tenant settings."""
 
@@ -92,15 +112,9 @@ def settings_get(
 @handle_cli_errors
 def settings_update(
     ctx: typer.Context,
-    payload: str = typer.Option(
-        ..., "--payload", help="JSON payload describing the setting updates."
-    ),
-    prefer_async: bool = typer.Option(
-        False,
-        "--async/--no-async",
-        help="Request asynchronous processing (sets Prefer: respond-async).",
-    ),
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    payload: str = SETTINGS_PAYLOAD_OPTION,
+    prefer_async: bool = PREFER_ASYNC_OPTION,
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """Patch tenant settings with a JSON payload."""
 
@@ -115,13 +129,9 @@ def settings_update(
 @handle_cli_errors
 def settings_request_access(
     ctx: typer.Context,
-    justification: str = typer.Option(..., help="Reason for requesting elevated access."),
-    requested_settings: list[str] = typer.Option(
-        [],
-        "--setting",
-        help="Optional setting identifiers requiring access (repeat for multiple).",
-    ),
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    justification: str = JUSTIFICATION_OPTION,
+    requested_settings: list[str] = REQUESTED_SETTINGS_OPTION,
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """Request admin access to change tenant settings."""
 
@@ -138,7 +148,7 @@ def settings_request_access(
 @handle_cli_errors
 def feature_list(
     ctx: typer.Context,
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """List feature controls configured for the tenant."""
 
@@ -157,13 +167,9 @@ def feature_list(
 def feature_update(
     ctx: typer.Context,
     feature_name: str = typer.Argument(..., help="Feature identifier to update."),
-    payload: str = typer.Option(..., "--payload", help="JSON payload for the feature update."),
-    prefer_async: bool = typer.Option(
-        False,
-        "--async/--no-async",
-        help="Request asynchronous processing (sets Prefer: respond-async).",
-    ),
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    payload: str = FEATURE_PAYLOAD_OPTION,
+    prefer_async: bool = PREFER_ASYNC_OPTION,
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """Update a feature control toggle."""
 
@@ -179,8 +185,8 @@ def feature_update(
 def feature_request_access(
     ctx: typer.Context,
     feature_name: str = typer.Argument(..., help="Feature identifier to request access for."),
-    justification: str = typer.Option(..., help="Reason for requesting feature access."),
-    api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
+    justification: str = FEATURE_JUSTIFICATION_OPTION,
+    api_version: str | None = API_VERSION_OVERRIDE_OPTION,
 ) -> None:
     """Request permission to modify a feature control."""
 
@@ -188,9 +194,7 @@ def feature_request_access(
     client = _build_client(ctx, version)
     payload = {"justification": justification}
     client.request_feature_access(feature_name, payload)
-    print(
-        f"[green]Feature access request submitted for '{feature_name}'.[/green]"
-    )
+    print(f"[green]Feature access request submitted for '{feature_name}'.[/green]")
 
 
 __all__ = [

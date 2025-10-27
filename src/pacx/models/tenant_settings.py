@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -138,9 +136,7 @@ class TenantSettings(BaseModel):
     managed_environment: TenantBooleanSetting | None = Field(
         default=None, alias="managedEnvironment"
     )
-    analytics_sharing: TenantBooleanSetting | None = Field(
-        default=None, alias="analyticsSharing"
-    )
+    analytics_sharing: TenantBooleanSetting | None = Field(default=None, alias="analyticsSharing")
     experimental_features: TenantStringArraySetting | None = Field(
         default=None, alias="experimentalFeatures"
     )

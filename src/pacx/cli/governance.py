@@ -43,7 +43,7 @@ def _build_client(ctx: typer.Context) -> GovernanceClient:
 
 
 def _parse_payload(raw: str | None) -> dict[str, Any]:
-    if raw in (None, ""):
+    if raw is None or raw == "":
         return {}
     try:
         payload = json.loads(raw)
@@ -56,10 +56,7 @@ def _parse_payload(raw: str | None) -> dict[str, Any]:
 
 def _print_operation(message: str, handle: GovernanceOperation) -> None:
     if handle.operation_location:
-        print(
-            f"[green]{message} accepted[/green] "
-            f"location={handle.operation_location}"
-        )
+        print(f"[green]{message} accepted[/green] " f"location={handle.operation_location}")
     else:
         print(f"[green]{message} accepted[/green]")
     if handle.metadata:

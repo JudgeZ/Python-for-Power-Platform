@@ -120,12 +120,12 @@ class LicensingClient:
         return self._parse_dict(resp)
 
     def delete_billing_policy(self, policy_id: str) -> None:
-        self.http.delete(
-            f"licensing/billingPolicies/{policy_id}", params=self._with_api_version()
-        )
+        self.http.delete(f"licensing/billingPolicies/{policy_id}", params=self._with_api_version())
 
     def refresh_billing_policy_provisioning(self, policy_id: str) -> LicensingOperation:
-        return self._post_operation(f"licensing/billingPolicies/{policy_id}:refreshProvisioningStatus")
+        return self._post_operation(
+            f"licensing/billingPolicies/{policy_id}:refreshProvisioningStatus"
+        )
 
     # Billing policy environment operations ------------------------------------
     def list_billing_policy_environments(self, policy_id: str) -> list[dict[str, Any]]:
@@ -186,7 +186,9 @@ class LicensingClient:
 
     # ISV contracts -------------------------------------------------------------
     def create_isv_contract(self, payload: dict[str, Any]) -> dict[str, Any]:
-        resp = self.http.post("licensing/isvContracts", params=self._with_api_version(), json=payload)
+        resp = self.http.post(
+            "licensing/isvContracts", params=self._with_api_version(), json=payload
+        )
         return self._parse_dict(resp)
 
     def list_isv_contracts(self) -> list[dict[str, Any]]:
@@ -208,9 +210,7 @@ class LicensingClient:
         return self._parse_dict(resp)
 
     def delete_isv_contract(self, contract_id: str) -> None:
-        self.http.delete(
-            f"licensing/isvContracts/{contract_id}", params=self._with_api_version()
-        )
+        self.http.delete(f"licensing/isvContracts/{contract_id}", params=self._with_api_version())
 
     # Storage warnings ----------------------------------------------------------
     def list_storage_warnings(self) -> list[dict[str, Any]]:

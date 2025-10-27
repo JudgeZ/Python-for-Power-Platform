@@ -5,7 +5,6 @@ import sys
 from dataclasses import dataclass
 
 import pytest
-import typer
 
 from pacx.config import ConfigData, Profile
 
@@ -108,8 +107,8 @@ def test_client_alias_warns_and_prompts(
     assert result.exit_code == 0
     assert "Deprecated" in result.stdout
     profile = stub_store.profiles["legacy-client"]
-    assert profile.secret_backend == "keyring"
-    assert profile.secret_ref == "svc:user"
+    assert profile.secret_backend == "keyring"  # noqa: S105
+    assert profile.secret_ref == "svc:user"  # noqa: S105
     assert stub_keyring.stored == [("svc", "user", "super-secret")]
     assert stub_store.default == "legacy-client"
 

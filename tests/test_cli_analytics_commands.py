@@ -36,7 +36,7 @@ def load_cli_app(monkeypatch: pytest.MonkeyPatch):
 
 
 class StubAnalyticsClient:
-    instances: list["StubAnalyticsClient"] = []
+    instances: list[StubAnalyticsClient] = []
 
     def __init__(self, token_getter, *args, **kwargs):
         self.token = token_getter()
@@ -55,7 +55,7 @@ class StubAnalyticsClient:
     def close(self) -> None:
         return None
 
-    def __enter__(self) -> "StubAnalyticsClient":
+    def __enter__(self) -> StubAnalyticsClient:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -129,7 +129,11 @@ class StubAnalyticsClient:
         return RecommendationOperationHandle("https://example/operations/op-2", ack)
 
     def wait_for_operation(
-        self, handle: RecommendationOperationHandle, *, interval: float = 2.0, timeout: float = 300.0
+        self,
+        handle: RecommendationOperationHandle,
+        *,
+        interval: float = 2.0,
+        timeout: float = 300.0,
     ):
         self.wait_calls.append((handle, interval, timeout))
         return AdvisorRecommendationOperationStatus(
@@ -214,10 +218,11 @@ def test_cli_execute_action_serializes_parameters(cli_runner, analytics_cli_app)
             "--scenario",
             "maker",
             "--parameters",
-            "{\"force\": true}",
+            '{"force": true}',
         ],
     )
     assert result.exit_code == 0
     client = client_cls.instances[0]
-    assert client.execute_calls == [("run", {"scenario": "maker", "actionParameters": {"force": True}})]
-
+    assert client.execute_calls == [
+        ("run", {"scenario": "maker", "actionParameters": {"force": True}})
+    ]

@@ -8,10 +8,12 @@ from pacx.utils.poller import PollTimeoutError, poll_until
 
 
 def test_poll_until_tracks_progress(monkeypatch):
-    statuses = iter([
-        {"done": False, "progress": 10},
-        {"done": True, "progress": 90},
-    ])
+    statuses = iter(
+        [
+            {"done": False, "progress": 10},
+            {"done": True, "progress": 90},
+        ]
+    )
     updates: list[int] = []
 
     monkeypatch.setattr("pacx.utils.poller.time.sleep", lambda _: None)

@@ -49,7 +49,9 @@ class StubGovernanceClient:
         )
         return {"value": []}
 
-    def create_environment_assignment(self, policy_id: str, environment_id: str) -> GovernanceOperation:
+    def create_environment_assignment(
+        self, policy_id: str, environment_id: str
+    ) -> GovernanceOperation:
         self.assignment_calls.append(
             {
                 "policy_id": policy_id,
@@ -169,7 +171,9 @@ def test_assignment_create_targets_environment(monkeypatch: pytest.MonkeyPatch, 
     ]
 
 
-def test_assignment_create_requires_single_target(monkeypatch: pytest.MonkeyPatch, cli_runner) -> None:
+def test_assignment_create_requires_single_target(
+    monkeypatch: pytest.MonkeyPatch, cli_runner
+) -> None:
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.governance.GovernanceClient", StubGovernanceClient)
 

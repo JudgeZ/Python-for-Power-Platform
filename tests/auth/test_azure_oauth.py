@@ -7,6 +7,8 @@ import pytest
 from pacx.auth.azure_ad import AzureADTokenProvider
 from pacx.config import Profile
 
+INTERACTIVE_REFRESH_TOKEN = "interactive-refresh"  # noqa: S105 - deterministic test token
+
 
 class RecordingStore:
     def __init__(self) -> None:
@@ -179,9 +181,7 @@ def test_refresh_failure_routes_to_interactive_flow(
 
     assert token == "interactive-token"  # noqa: S105 - deterministic test token
     assert base_profile.access_token == "interactive-token"  # noqa: S105 - deterministic test token
-    assert (
-        base_profile.refresh_token == "interactive-refresh"
-    )  # noqa: S105 - deterministic test token
+    assert base_profile.refresh_token == INTERACTIVE_REFRESH_TOKEN
     assert store.saved_profiles[-1] is base_profile
 
 

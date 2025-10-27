@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import httpx
 
 from ..http_client import HttpClient
 from ..models.user_management import (
-    AdminRoleAssignment,
     AdminRoleAssignmentList,
     AsyncOperationStatus,
     RemoveAdminRoleRequest,
@@ -102,7 +102,7 @@ class UserManagementClient:
         """Remove a specific admin role assignment from the user."""
 
         if isinstance(payload, str):
-            body = RemoveAdminRoleRequest(role_definition_id=payload)
+            body = RemoveAdminRoleRequest(roleDefinitionId=payload)
         else:
             body = payload
         return self._post_operation(
