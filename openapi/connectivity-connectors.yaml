@@ -645,7 +645,7 @@ components:
         policyTemplateInstances:
           type: array
           items:
-            $ref: '#/components/schemas/PolicyRuleSet'
+            $ref: '#/components/schemas/PolicyTemplateInstance'
         runtimeUrls:
           type: array
           items:
@@ -701,6 +701,22 @@ components:
             $ref: '#/components/schemas/PolicyRule'
         version:
           type: string
+      additionalProperties: true
+    PolicyTemplateInstance:
+      type: object
+      required:
+      - policyTemplateId
+      properties:
+        policyTemplateId:
+          type: string
+          description: Identifier of the policy template being applied
+        title:
+          type: string
+          description: Optional display name for the template instance in the connector definition
+        parameters:
+          type: object
+          description: Values supplied for template parameters keyed by parameter name
+          additionalProperties: true
       additionalProperties: true
     PolicyRule:
       type: object
