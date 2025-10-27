@@ -25,6 +25,15 @@ The CI workflow also uploads coverage artifacts from `pytest` and enforces a min
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Auditing admin role elevation
+
+Role elevation flows surface long-running operation metadata so integrators can enforce least privilege:
+
+1. **Review assignments:** Call `GET /usermanagement/users/{userId}/adminRoles?api-version=2022-03-01-preview` to retrieve the `AdminRoleAssignmentList` records that capture who elevated access, when it occurred, and the intended scope.
+2. **Track status:** When submitting role changes, capture the `Operation-Location` header and poll `GET /usermanagement/operations/{operationId}?api-version=2022-03-01-preview` for an `AsyncOperationStatus` payload that includes timestamps, percent completion, and detailed failure information.
+3. **Roll back quickly:** Use `POST /usermanagement/users/{userId}:removeAdminRole?api-version=2022-03-01-preview` with the stored `roleDefinitionId` to revert elevated assignments and confirm completion through the same status endpoint.
+
+Combining these endpoints with existing tenant logging enables routine audits and rapid rollback should an elevation request fail validation or exceed its planned window.
 ## Authorization (RBAC) management
 
 - OpenAPI specs now include role definition read/write operations so you can

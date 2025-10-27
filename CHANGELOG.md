@@ -11,6 +11,7 @@
 - Include `respx` in the default dependency set so local pytest runs have the required mock tooling.
 - Allow Dataverse hosts passed to `DataverseClient` and CLI commands to include the scheme or bare hostname interchangeably.
 - Introduce `ppx auth create` for device, web, and client-credential flows while keeping legacy aliases with deprecation warnings.
+- Extend the User Management OpenAPI with admin role audit/rollback endpoints, detailed role assignment schemas, and async operation tracking models, with README guidance for integrators.
 - Extend the RBAC OpenAPI spec with role definition CRUD endpoints, modeled
   schemas, and explicit `Authorization.RBAC.*` scope requirements.
 - Model Power Apps admin versioning, restore/publish, and sharing ownership APIs in the OpenAPI bundle for SDK generation.
