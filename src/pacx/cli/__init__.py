@@ -17,6 +17,7 @@ from . import (
     profile,
     pva,
     solution,
+    tenant,
     users,
 )
 from .auth import auth_create
@@ -38,6 +39,7 @@ _register_sub_app("connector", connectors.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("pva", pva.app)
 _register_sub_app("solution", solution.app)
+_register_sub_app("tenant", tenant.app)
 _register_sub_app("users", users.app)
 
 
@@ -116,6 +118,7 @@ __all__ = [
     "power_platform",
     "profile",
     "solution",
+    "tenant",
     "UserManagementClient",
     "users",
 ]

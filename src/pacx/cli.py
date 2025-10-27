@@ -11,6 +11,7 @@ from .cli import (
     pages,
     power_platform,
     profile,
+    tenant,
     pva,
     users,
 )
@@ -29,6 +30,7 @@ __all__ = [
     "pages",
     "power_platform",
     "profile",
+    "tenant",
     "pva",
     "users",
 ]

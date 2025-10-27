@@ -43,6 +43,12 @@ from .dataverse import (
 from .dataverse import (
     Solution as Solution,
 )
+from .power_platform import CloudFlow as CloudFlow
+from .power_platform import EnvironmentSummary as EnvironmentSummary
+from .power_platform import FlowRun as FlowRun
+from .power_platform import PowerApp as PowerApp
+from .tenant_settings import (
+    TenantFeatureControl as TenantFeatureControl,
 from .dataverse import (
     StageSolutionRequest as StageSolutionRequest,
 )
@@ -52,14 +58,20 @@ from .dataverse import (
 from .power_platform import (
     CloudFlow as CloudFlow,
 )
-from .power_platform import (
-    EnvironmentSummary as EnvironmentSummary,
+from .tenant_settings import (
+    TenantFeatureControlList as TenantFeatureControlList,
 )
-from .power_platform import (
-    FlowRun as FlowRun,
+from .tenant_settings import (
+    TenantFeatureControlPatch as TenantFeatureControlPatch,
 )
-from .power_platform import (
-    PowerApp as PowerApp,
+from .tenant_settings import (
+    TenantSettings as TenantSettings,
+)
+from .tenant_settings import (
+    TenantSettingsAccessRequest as TenantSettingsAccessRequest,
+)
+from .tenant_settings import (
+    TenantSettingsPatch as TenantSettingsPatch,
 )
 from .pva import BotListResult as BotListResult
 from .pva import BotMetadata as BotMetadata
@@ -115,6 +127,12 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
+    "TenantFeatureControl",
+    "TenantFeatureControlList",
+    "TenantFeatureControlPatch",
+    "TenantSettings",
+    "TenantSettingsAccessRequest",
+    "TenantSettingsPatch",
     "BotListResult",
     "BotMetadata",
     "ChannelConfiguration",
