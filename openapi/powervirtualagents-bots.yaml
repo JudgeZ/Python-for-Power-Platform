@@ -11,6 +11,544 @@ servers:
 tags:
 - name: powervirtualagents.bots
 paths:
+  /powervirtualagents/environments/{environmentId}/bots:
+    get:
+      summary: List bots in an environment
+      operationId: PVA_ListBots
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: top
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+        description: Optional page size limit.
+      responses:
+        '200':
+          description: A paginated list of bots.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotListResult'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  /powervirtualagents/environments/{environmentId}/bots/{botId}:
+    get:
+      summary: Get bot metadata
+      operationId: PVA_GetBot
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: Bot metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BotMetadata'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/publish:
+    post:
+      summary: Publish a bot
+      operationId: PVA_PublishBot
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishBotRequest'
+      responses:
+        '202':
+          description: Publish operation accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running publish operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/unpublish:
+    post:
+      summary: Unpublish a bot
+      operationId: PVA_UnpublishBot
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnpublishBotRequest'
+      responses:
+        '202':
+          description: Unpublish operation accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running unpublish operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/export:
+    post:
+      summary: Export a bot package
+      operationId: PVA_ExportBotPackage
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportBotPackageRequest'
+      responses:
+        '202':
+          description: Export operation accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running export operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/import:
+    post:
+      summary: Import a bot package
+      operationId: PVA_ImportBotPackage
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBotPackageRequest'
+      responses:
+        '202':
+          description: Import operation accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running import operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/channels:
+    get:
+      summary: List channel configurations
+      operationId: PVA_ListBotChannels
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: A list of channel configurations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfigurationListResult'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+    post:
+      summary: Create or enable a channel configuration
+      operationId: PVA_CreateBotChannel
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelConfigurationPayload'
+      responses:
+        '202':
+          description: Channel enablement accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfiguration'
+          headers:
+            Operation-Location:
+              description: URL of the long-running channel configuration operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+  /powervirtualagents/environments/{environmentId}/bots/{botId}/channels/{channelId}:
+    get:
+      summary: Get a channel configuration
+      operationId: PVA_GetBotChannel
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Channel ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: The channel configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfiguration'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    put:
+      summary: Update a channel configuration
+      operationId: PVA_UpdateBotChannel
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Channel ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelConfigurationPayload'
+      responses:
+        '202':
+          description: Channel update accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelConfiguration'
+          headers:
+            Operation-Location:
+              description: URL of the long-running channel update operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+    delete:
+      summary: Disable a channel configuration
+      operationId: PVA_DeleteBotChannel
+      tags:
+      - powervirtualagents.bots
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: botId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Bot ID
+      - name: channelId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Channel ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Channel disablement accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+          headers:
+            Operation-Location:
+              description: URL of the long-running channel disablement operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Recommended wait time in seconds before polling the operation status.
+              schema:
+                type: integer
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
   /powervirtualagents/environments/{environmentId}/bots/{botId}/quarantine/status:
     get:
       summary: Get bot quarantine status
@@ -276,6 +814,179 @@ components:
         instance:
           type: string
       additionalProperties: true
+    BotMetadata:
+      type: object
+      required:
+      - id
+      - name
+      - environmentId
+      properties:
+        id:
+          type: string
+          description: Unique bot identifier.
+        name:
+          type: string
+          description: Bot name.
+        environmentId:
+          type: string
+          description: Environment containing the bot.
+        displayName:
+          type: string
+          description: Display name for the bot.
+        description:
+          type: string
+          description: Summary of the bot purpose.
+        locale:
+          type: string
+          description: Default locale for the bot content.
+        lastPublishedTime:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent publish operation.
+        createdTime:
+          type: string
+          format: date-time
+          description: Creation timestamp.
+        modifiedTime:
+          type: string
+          format: date-time
+          description: Last modification timestamp.
+        status:
+          type: string
+          description: Lifecycle status (Draft, Published, Disabled).
+        author:
+          type: string
+          description: User principal name of the last author.
+    BotListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/BotMetadata'
+        nextLink:
+          type: string
+          description: Continuation token for the next page of results.
+    PublishBotRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Release notes shown to collaborators.
+        locale:
+          type: string
+          description: Locale to publish.
+        targetEnvironmentId:
+          type: string
+          description: Alternate environment ID to publish to when using managed environments.
+        includedChannels:
+          type: array
+          description: Channel identifiers to publish.
+          items:
+            type: string
+      additionalProperties: false
+    UnpublishBotRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+          description: Reason for unpublishing the bot.
+        channels:
+          type: array
+          description: Channel identifiers to unpublish. Empty removes all active channels.
+          items:
+            type: string
+      additionalProperties: false
+    ExportBotPackageRequest:
+      type: object
+      required:
+      - packageFormat
+      properties:
+        packageFormat:
+          type: string
+          description: Export format identifier (e.g., application/zip).
+        includeAnalytics:
+          type: boolean
+          description: Whether to include analytics telemetry in the export.
+        includeSecrets:
+          type: boolean
+          description: Include secrets and environment variables.
+        storageUrl:
+          type: string
+          description: Shared access signature or storage container URL for export delivery.
+      additionalProperties: false
+    ImportBotPackageRequest:
+      type: object
+      required:
+      - packageUrl
+      properties:
+        packageUrl:
+          type: string
+          description: Location of the package to import.
+        overwriteExistingResources:
+          type: boolean
+          description: Whether to overwrite existing resources.
+        publishOnCompletion:
+          type: boolean
+          description: Publish the bot after successful import.
+        localeMappings:
+          type: object
+          additionalProperties:
+            type: string
+          description: Mapping of source locales to target locales.
+      additionalProperties: false
+    ChannelConfiguration:
+      type: object
+      required:
+      - id
+      - channelType
+      properties:
+        id:
+          type: string
+          description: Unique channel identifier.
+        channelType:
+          type: string
+          description: Channel type (e.g., WebChat, Teams, Facebook).
+        status:
+          type: string
+          description: Channel provisioning status.
+        lastModifiedTime:
+          type: string
+          format: date-time
+          description: Last update timestamp.
+        configuration:
+          type: object
+          description: Channel-specific configuration payload.
+          additionalProperties: true
+        provisioningState:
+          type: string
+          description: Detailed provisioning state for the channel.
+    ChannelConfigurationPayload:
+      type: object
+      required:
+      - channelType
+      properties:
+        channelType:
+          type: string
+          description: Channel type to enable or update.
+        configuration:
+          type: object
+          description: Channel-specific configuration payload.
+          additionalProperties: true
+        isEnabled:
+          type: boolean
+          description: Whether the channel should be enabled.
+      additionalProperties: false
+    ChannelConfigurationListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChannelConfiguration'
+        nextLink:
+          type: string
+          description: Continuation token for the next page of results.
 security:
 - oauth2Implicit:
   - .default

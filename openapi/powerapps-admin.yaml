@@ -83,6 +83,332 @@ paths:
                 type: object
         '404':
           description: Not Found
+  /powerapps/environments/{environmentId}/apps/{appId}/versions:
+    get:
+      summary: List admin app versions
+      operationId: PowerApps_ListAdminAppVersions
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Maximum number of versions to return.
+      - name: $skiptoken
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Continuation token for paging.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppVersionListResult'
+  '/powerapps/environments/{environmentId}/apps/{appId}:restore':
+    post:
+      summary: Restore an app to a specific version or environment
+      operationId: PowerApps_RestoreAdminApp
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreAppRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for restore status.
+              schema:
+                type: string
+                format: uri
+            Retry-After:
+              description: Recommended delay in seconds between polling attempts.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  '/powerapps/environments/{environmentId}/apps/{appId}:publish':
+    post:
+      summary: Publish an app version to make it available to users
+      operationId: PowerApps_PublishAdminApp
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishAppRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for publish status.
+              schema:
+                type: string
+                format: uri
+            Retry-After:
+              description: Recommended delay in seconds between polling attempts.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  '/powerapps/environments/{environmentId}/apps/{appId}:share':
+    post:
+      summary: Grant access to an app for users or groups
+      operationId: PowerApps_ShareAdminApp
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShareAppRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for share status.
+              schema:
+                type: string
+                format: uri
+            Retry-After:
+              description: Recommended delay in seconds between polling attempts.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  '/powerapps/environments/{environmentId}/apps/{appId}:revokeShare':
+    post:
+      summary: Revoke access from one or more principals
+      operationId: PowerApps_RevokeAdminAppShare
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeShareRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for revoke status.
+              schema:
+                type: string
+                format: uri
+            Retry-After:
+              description: Recommended delay in seconds between polling attempts.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  '/powerapps/environments/{environmentId}/apps/{appId}:setOwner':
+    post:
+      summary: Assign a new owner for an app
+      operationId: PowerApps_SetAdminAppOwner
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetOwnerRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Operation-Location:
+              description: URL to poll for ownership transfer status.
+              schema:
+                type: string
+                format: uri
+            Retry-After:
+              description: Recommended delay in seconds between polling attempts.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+  /powerapps/environments/{environmentId}/apps/{appId}/permissions:
+    get:
+      summary: List app permissions
+      operationId: PowerApps_ListAdminAppPermissions
+      tags:
+      - powerapps.apps
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: appId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: App ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppPermissionListResult'
 components:
   securitySchemes:
     oauth2Implicit:
@@ -125,6 +451,144 @@ components:
         instance:
           type: string
       additionalProperties: true
+    AppVersion:
+      type: object
+      description: Power Apps version metadata. Properties are intentionally loose until recording schemas.
+      additionalProperties: true
+    AppVersionListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppVersion'
+        nextLink:
+          type: string
+          nullable: true
+        continuationToken:
+          type: string
+          nullable: true
+      additionalProperties: false
+    RestoreAppRequest:
+      type: object
+      required:
+      - restoreVersionId
+      properties:
+        restoreVersionId:
+          type: string
+          description: The source version to restore.
+        targetEnvironmentId:
+          type: string
+          description: Optional environment to receive the restored app.
+        targetAppId:
+          type: string
+          description: Optional app ID when restoring into a different app.
+        targetAppName:
+          type: string
+          description: Optional app display name to use when creating a new app.
+        makeNewApp:
+          type: boolean
+          description: Indicates whether the restore should create a new app instead of overwriting the source.
+      additionalProperties: false
+    PublishAppRequest:
+      type: object
+      required:
+      - versionId
+      properties:
+        versionId:
+          type: string
+          description: App version to publish.
+        description:
+          type: string
+          description: Optional release notes for the published version.
+      additionalProperties: false
+    SharePrincipal:
+      type: object
+      required:
+      - id
+      - principalType
+      - roleName
+      properties:
+        id:
+          type: string
+          description: Azure AD object ID of the principal.
+        principalType:
+          type: string
+          description: Type of principal receiving permissions.
+          enum:
+          - User
+          - Group
+          - Tenant
+          - ServicePrincipal
+        roleName:
+          type: string
+          description: Permission level to grant (for example CanView, CanEdit, or CanViewWithShare).
+        email:
+          type: string
+          format: email
+          description: Contact email to notify.
+      additionalProperties: false
+    ShareAppRequest:
+      type: object
+      required:
+      - principals
+      properties:
+        principals:
+          type: array
+          items:
+            $ref: '#/components/schemas/SharePrincipal'
+        notifyShareTargets:
+          type: boolean
+          description: Whether to send share notification emails.
+      additionalProperties: false
+    RevokeShareRequest:
+      type: object
+      required:
+      - principalIds
+      properties:
+        principalIds:
+          type: array
+          description: Principals that should have their access removed.
+          items:
+            type: string
+        notifyShareTargets:
+          type: boolean
+          description: Whether to send email notifications to revoked users.
+      additionalProperties: false
+    SetOwnerRequest:
+      type: object
+      required:
+      - owner
+      properties:
+        owner:
+          $ref: '#/components/schemas/SharePrincipal'
+          description: Principal who will become the new app owner.
+        keepExistingOwnerAsCoOwner:
+          type: boolean
+          description: Whether to grant the previous owner co-owner permissions.
+      additionalProperties: false
+    AppPermissionAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+        roleName:
+          type: string
+        principalType:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+      additionalProperties: true
+    AppPermissionListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppPermissionAssignment'
+      additionalProperties: false
 security:
 - oauth2Implicit:
   - .default
