@@ -1,0 +1,561 @@
+openapi: 3.0.3
+info:
+  title: Power Platform - Data Loss Prevention Policies
+  version: 2023-10-01-preview
+  description: |
+    Tenant-wide and environment-specific data loss prevention (DLP) policy management
+    including connector classifications and environment assignments.
+  contact:
+    name: Microsoft Power Platform APIs
+    url: https://learn.microsoft.com/en-us/rest/api/power-platform/
+servers:
+- url: https://api.powerplatform.com
+security:
+- oauth2:
+  - Policy.DataLossPrevention.Read
+tags:
+- name: policy.dataLossPreventionPolicies
+- name: policy.dataLossPreventionPolicies.connectors
+- name: policy.dataLossPreventionPolicies.assignments
+paths:
+  /policy/dataLossPreventionPolicies:
+    get:
+      summary: List data loss prevention policies
+      operationId: Policy_ListDataLossPreventionPolicies
+      tags:
+      - policy.dataLossPreventionPolicies
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+        description: Optional page size limit.
+      - name: $skip
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+        description: Optional offset into the collection.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DataLossPreventionPolicy'
+                  nextLink:
+                    type: string
+                    description: URL to retrieve the next page of policies.
+    post:
+      summary: Create data loss prevention policy
+      operationId: Policy_CreateDataLossPreventionPolicy
+      tags:
+      - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataLossPreventionPolicy'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+  /policy/dataLossPreventionPolicies/{policyId}:
+    get:
+      summary: Get data loss prevention policy
+      operationId: Policy_GetDataLossPreventionPolicy
+      tags:
+      - policy.dataLossPreventionPolicies
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataLossPreventionPolicy'
+        '404':
+          description: Not Found
+    patch:
+      summary: Update data loss prevention policy
+      operationId: Policy_UpdateDataLossPreventionPolicy
+      tags:
+      - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataLossPreventionPolicy'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+    delete:
+      summary: Delete data loss prevention policy
+      operationId: Policy_DeleteDataLossPreventionPolicy
+      tags:
+      - policy.dataLossPreventionPolicies
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+  /policy/dataLossPreventionPolicies/{policyId}/connectors:
+    get:
+      summary: List connector groups for policy
+      operationId: Policy_ListDataLossPreventionPolicyConnectors
+      tags:
+      - policy.dataLossPreventionPolicies.connectors
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConnectorGroup'
+    patch:
+      summary: Update connector groups for policy
+      operationId: Policy_UpdateDataLossPreventionPolicyConnectors
+      tags:
+      - policy.dataLossPreventionPolicies.connectors
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groups:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ConnectorGroup'
+              required:
+              - groups
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+  /policy/dataLossPreventionPolicies/{policyId}/assignments:
+    get:
+      summary: List environment assignments for policy
+      operationId: Policy_ListDataLossPreventionPolicyAssignments
+      tags:
+      - policy.dataLossPreventionPolicies.assignments
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  value:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PolicyAssignment'
+    post:
+      summary: Assign policy to environments
+      operationId: Policy_CreateDataLossPreventionPolicyAssignment
+      tags:
+      - policy.dataLossPreventionPolicies.assignments
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assignments:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/PolicyAssignment'
+              required:
+              - assignments
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+  /policy/dataLossPreventionPolicies/{policyId}/assignments/{assignmentId}:
+    delete:
+      summary: Remove policy assignment
+      operationId: Policy_DeleteDataLossPreventionPolicyAssignment
+      tags:
+      - policy.dataLossPreventionPolicies.assignments
+      security:
+      - oauth2:
+        - .default
+        - Policy.DataLossPrevention.Manage
+      parameters:
+      - name: policyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Policy identifier.
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Assignment identifier.
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+          headers:
+            Operation-Location:
+              description: URL of the asynchronous operation.
+              schema:
+                type: string
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+          scopes:
+            .default: Request the tenant-wide default scope required for management operations.
+            Policy.DataLossPrevention.Read: Read DLP policies and assignments.
+            Policy.DataLossPrevention.Manage: Create or manage DLP policies and assignments.
+  schemas:
+    DataLossPreventionPolicy:
+      type: object
+      required:
+      - displayName
+      - state
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the policy.
+          readOnly: true
+        displayName:
+          type: string
+          description: Friendly name for the policy.
+        description:
+          type: string
+          description: Explains the purpose of the policy.
+        createdTime:
+          type: string
+          format: date-time
+          description: Creation timestamp in UTC.
+          readOnly: true
+        modifiedTime:
+          type: string
+          format: date-time
+          description: Last modification timestamp in UTC.
+          readOnly: true
+        state:
+          type: string
+          description: Lifecycle state for the policy.
+          enum:
+          - Draft
+          - Active
+          - Retired
+        policyScope:
+          type: string
+          description: Scope of the policy (tenant or environment-specific).
+          enum:
+          - Tenant
+          - Environment
+        owner:
+          type: object
+          description: Administrative owner details.
+          additionalProperties: true
+        connectorGroups:
+          type: array
+          description: Optional inline view of connector classifications.
+          items:
+            $ref: '#/components/schemas/ConnectorGroup'
+        assignments:
+          type: array
+          description: Optional inline view of assignments.
+          items:
+            $ref: '#/components/schemas/PolicyAssignment'
+        etag:
+          type: string
+          description: Concurrency token used for updates.
+    ConnectorGroup:
+      type: object
+      required:
+      - classification
+      - connectors
+      properties:
+        classification:
+          type: string
+          description: Classification bucket applied to connectors within the policy.
+          enum:
+          - Business
+          - NonBusiness
+          - Blocked
+        connectors:
+          type: array
+          description: Connectors captured under the classification.
+          items:
+            type: object
+            required:
+            - id
+            properties:
+              id:
+                type: string
+                description: Connector ID or logical name.
+              displayName:
+                type: string
+                description: Display name for the connector.
+              tier:
+                type: string
+                description: Connector tier or licensing tier classification.
+              category:
+                type: string
+                description: Business category for the connector.
+              isCustom:
+                type: boolean
+                description: Indicates whether the connector is custom.
+    PolicyAssignment:
+      type: object
+      required:
+      - environmentId
+      - assignmentType
+      properties:
+        assignmentId:
+          type: string
+          description: Unique identifier for the assignment entry.
+        environmentId:
+          type: string
+          description: Environment logical name.
+        environmentName:
+          type: string
+          description: Friendly name for the environment.
+        assignmentType:
+          type: string
+          description: Indicates whether the environment is included or exempted.
+          enum:
+          - Include
+          - Exclude
+        regionGroup:
+          type: string
+          description: Geographic grouping the environment belongs to.
+        appliedOn:
+          type: string
+          format: date-time
+          description: Timestamp when the assignment became active.
+    AsyncOperation:
+      type: object
+      required:
+      - operationId
+      - status
+      properties:
+        operationId:
+          type: string
+          description: Identifier for tracking the operation status.
+        status:
+          type: string
+          description: Current status of the long-running operation.
+          enum:
+          - NotStarted
+          - Running
+          - Succeeded
+          - Failed
+          - Canceled
+        createdTime:
+          type: string
+          format: date-time
+          description: Timestamp when the operation was created.
+        lastUpdatedTime:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent status update.
+        resourceLocation:
+          type: string
+          description: Location of the resulting resource.
+        error:
+          type: object
+          description: Error details when the operation fails.
+          additionalProperties: true

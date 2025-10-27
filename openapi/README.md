@@ -8,6 +8,7 @@ This bundle adds/updates endpoints requested for:
 - Connectivity (Connectors)
 - Environment Management (groups, ops, managed governance, settings, lifecycle provision/copy/reset/backup/restore)
 - Governance (cross-tenant connection reports, rule-based policies)
+- Policy (data loss prevention policies, connector classifications, environment assignments)
 - Licensing (billing policy, env associations, currency allocation/reports, environment billing policy, ISV contracts, storage warnings, temporary currency entitlement, tenant capacity details)
 - Tenant settings (maker onboarding, feature controls, throttling policies)
 - Power Apps (admin apps)
@@ -20,6 +21,7 @@ This bundle adds/updates endpoints requested for:
 Security is modeled using OAuth2 implicit. RBAC read operations require the
 `Authorization.RBAC.Read` scope, while create/update/delete flows require
 `Authorization.RBAC.Manage` in addition to the tenant's `.default` scope.
+Data loss prevention read operations require the `Policy.DataLossPrevention.Read` scope, while create/update/delete flows require `Policy.DataLossPrevention.Manage` together with the tenant `.default` scope.
 Tenant-level configuration changes further require the `TenantSettings.Manage`
 scope; read-only integrations can use `TenantSettings.Read`.
 Where Microsoft Learn does not expose full object schemas, responses are typed as `object` with `additionalProperties: true` and will be refined with recorded schemas later.
