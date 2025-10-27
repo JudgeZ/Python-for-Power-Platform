@@ -36,6 +36,21 @@ Analytics scenarios follow a discovery-to-remediation flow that surfaces actiona
 5. **Track status** through `GET /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}/status` or by polling `GET /analytics/advisorRecommendations/operations/{operationId}` until the acknowledgement or dismissal is finalized.
 
 The OpenAPI description in `openapi/analytics-recommendations.yaml` captures the payloads for each stage so clients can automate the workflow end-to-end.
+## Power Virtual Agents bot management
+
+The `openapi/powervirtualagents-bots.yaml` contract now captures day-to-day bot lifecycle management so SDKs can automate Power
+Virtual Agents administration:
+
+- Enumerate bots and inspect metadata (`GET /powervirtualagents/environments/{environmentId}/bots` and `GET .../{botId}`)
+- Publish and unpublish bots with long-running-operation headers for polling (`POST .../{botId}/publish`, `POST .../{botId}/unpublish`)
+- Export or import bot packages to external storage endpoints (`POST .../{botId}/export`, `POST .../{botId}/import`)
+- Configure channels programmatically, including enable/disable flows (`GET|POST /channels` and `GET|PUT|DELETE /channels/{channelId}`)
+
+### Prerequisites
+
+- Tenant administrators must enable the Power Platform tenant settings that unlock Power Virtual Agents admin APIs.
+- Bots require Power Virtual Agents licensing (per-user or capacity-based) to publish to production channels.
+- Export/import package operations rely on customer-managed storage accounts with shared access signatures or equivalent tokens.
 
 ## Contributing
 
