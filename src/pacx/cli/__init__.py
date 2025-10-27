@@ -16,11 +16,16 @@ from . import (
     pages,
     power_platform,
     profile,
+    pva,
     solution,
+    tenant,
+    users,
 )
 from .auth import auth_create
 from .licensing import LicensingClient
 from .power_platform import PowerPlatformClient
+from .pva import PVAClient
+from ..clients.user_management import UserManagementClient
 
 app = typer.Typer(help="PACX CLI")
 
@@ -35,7 +40,10 @@ _register_sub_app("dv", dataverse.app)
 _register_sub_app("connector", connectors.app)
 _register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
+_register_sub_app("pva", pva.app)
 _register_sub_app("solution", solution.app)
+_register_sub_app("tenant", tenant.app)
+_register_sub_app("users", users.app)
 
 
 def _called_from_typer_main() -> bool:
@@ -110,7 +118,12 @@ __all__ = [
     "PowerPlatformClient",
     "pages",
     "licensing",
+    "pva",
+    "PVAClient",
     "power_platform",
     "profile",
     "solution",
+    "tenant",
+    "UserManagementClient",
+    "users",
 ]
