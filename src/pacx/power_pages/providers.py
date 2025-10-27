@@ -146,10 +146,18 @@ class AnnotationBinaryProvider:
             for note in page.get("value", []):
                 if isinstance(note, Mapping):
                     yield note
-            raw_next = page.get("@odata.nextLink")
+            raw_next = self._extract_next_link(page)
             if not raw_next:
                 break
-            next_url = str(raw_next)
+            next_url = raw_next
+
+    @staticmethod
+    def _extract_next_link(payload: Mapping[str, object]) -> str | None:
+        for key in ("@odata.nextLink", "odata.nextLink"):
+            value = payload.get(key)
+            if isinstance(value, str) and value:
+                return value
+        return None
 
 
 class AzureBlobVirtualFileProvider:
