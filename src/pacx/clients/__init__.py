@@ -1,3 +1,5 @@
+from .app_management import AppManagementClient as AppManagementClient
+from .app_management import ApplicationOperationHandle as ApplicationOperationHandle
 from .analytics import AnalyticsClient as AnalyticsClient
 from .authorization import AuthorizationRbacClient as AuthorizationRbacClient
 from .connectors import ConnectorsClient as ConnectorsClient
@@ -15,6 +17,8 @@ from .user_management import (
 )
 
 __all__ = [
+    "AppManagementClient",
+    "ApplicationOperationHandle",
     "AnalyticsClient",
     "AuthorizationRbacClient",
     "ConnectorsClient",

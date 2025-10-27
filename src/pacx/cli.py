@@ -5,6 +5,7 @@ from pathlib import Path
 from .cli import (
     analytics,
     app,
+    app_management,
     auth,
     connectors,
     dataverse,
@@ -28,6 +29,7 @@ if PACKAGE_DIR.exists():
 __all__ = [
     "analytics",
     "app",
+    "app_management",
     "auth",
     "connectors",
     "dataverse",
