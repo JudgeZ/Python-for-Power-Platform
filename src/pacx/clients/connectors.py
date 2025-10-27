@@ -331,7 +331,7 @@ class ConnectorsClient:
             json=payload,
             headers=self._connectivity_headers(),
         )
-        return cast(dict[str, Any], resp.json())
+        return cast(dict[str, Any], resp.json()) if resp.text else {}
 
     def delete_custom_connector(self, environment_id: str, connector_id: str) -> bool:
         """Delete a custom connector resource."""
