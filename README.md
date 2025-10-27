@@ -25,6 +25,13 @@ The CI workflow also uploads coverage artifacts from `pytest` and enforces a min
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Authorization (RBAC) management
+
+- OpenAPI specs now include role definition read/write operations so you can
+  automate custom RBAC definitions alongside assignments.
+- Managing role definitions or assignments requires granting the
+  `Authorization.RBAC.Manage` scope (with `.default` still required for the
+  tenant). Read-only automation can use the `Authorization.RBAC.Read` scope.
 ## Advisor Recommendations workflow
 
 Analytics scenarios follow a discovery-to-remediation flow that surfaces actionable insights and tracks closure:

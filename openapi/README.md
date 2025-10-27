@@ -15,7 +15,9 @@ This bundle adds/updates endpoints requested for:
 - Power Virtual Agents (bots quarantine)
 - User Management (apply admin role)
 
-Security is modeled using OAuth2 implicit with `.default` scope.
+Security is modeled using OAuth2 implicit. RBAC read operations require the
+`Authorization.RBAC.Read` scope, while create/update/delete flows require
+`Authorization.RBAC.Manage` in addition to the tenant's `.default` scope.
 Where Microsoft Learn does not expose full object schemas, responses are typed as `object` with `additionalProperties: true` and will be refined with recorded schemas later.
 Long-running operations include the `Operation-Location` response header when documented.
 
