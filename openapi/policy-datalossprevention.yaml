@@ -409,14 +409,13 @@ components:
     DataLossPreventionPolicy:
       type: object
       required:
-      - id
       - displayName
-      - createdTime
       - state
       properties:
         id:
           type: string
           description: Unique identifier of the policy.
+          readOnly: true
         displayName:
           type: string
           description: Friendly name for the policy.
@@ -427,10 +426,12 @@ components:
           type: string
           format: date-time
           description: Creation timestamp in UTC.
+          readOnly: true
         modifiedTime:
           type: string
           format: date-time
           description: Last modification timestamp in UTC.
+          readOnly: true
         state:
           type: string
           description: Lifecycle state for the policy.
