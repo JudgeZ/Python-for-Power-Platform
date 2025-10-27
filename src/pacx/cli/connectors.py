@@ -14,6 +14,14 @@ from ..clients.connectors import ConnectorsClient
 from ..errors import HttpError
 from .common import get_token_getter, handle_cli_errors
 
+
+# Connectivity calls fail with 401/403 when the caller lacks the scopes required for
+# the new endpoints. 404/405 are returned when the feature flag is disabled or the
+# route is not implemented in the current region. Treat them all as signals to
+# retry against the legacy Power Apps endpoints when the CLI is configured to
+# allow fallback.
+_CONNECTIVITY_FALLBACK_STATUS = frozenset({401, 403, 404, 405})
+
 T = TypeVar("T")
 
 
@@ -46,7 +54,7 @@ def _with_endpoint(
             if (
                 prefer_connectivity
                 and fallback_on_404
-                and exc.status_code in {404, 405}
+                and exc.status_code in _CONNECTIVITY_FALLBACK_STATUS
             ):
                 fallback = ConnectorsClient(token_getter, use_connectivity=False)
                 return action(fallback)

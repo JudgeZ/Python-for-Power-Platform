@@ -265,6 +265,33 @@ def test_connectors_list_falls_back_on_missing_connectivity(monkeypatch, cli_run
     assert MissingConnectivityStub.instances[1].use_connectivity is False
 
 
+@pytest.mark.parametrize("status_code", [401, 403])
+def test_connectors_list_falls_back_on_unauthorized_connectivity(
+    monkeypatch, cli_runner, status_code
+):
+    class UnauthorizedConnectivityStub(StubConnectorsClient):
+        def list_apis(self, environment: str, *, top: int | None = None):  # type: ignore[override]
+            if self.use_connectivity:
+                raise HttpError(status_code, "Forbidden")
+            return super().list_apis(environment, top=top)
+
+    app = load_cli_app(monkeypatch)
+    monkeypatch.setattr(
+        "pacx.cli.connectors.ConnectorsClient", UnauthorizedConnectivityStub
+    )
+
+    result = cli_runner.invoke(
+        app,
+        ["connector", "list", "--environment-id", "ENV"],
+        env={"PACX_ACCESS_TOKEN": "test-token"},
+    )
+
+    assert result.exit_code == 0
+    assert len(UnauthorizedConnectivityStub.instances) == 2
+    assert UnauthorizedConnectivityStub.instances[0].use_connectivity is True
+    assert UnauthorizedConnectivityStub.instances[1].use_connectivity is False
+
+
 def test_connectors_validate_reads_definition(monkeypatch, cli_runner, tmp_path):
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.connectors.ConnectorsClient", StubConnectorsClient)
