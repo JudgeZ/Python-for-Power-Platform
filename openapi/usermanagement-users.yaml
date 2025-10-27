@@ -42,6 +42,89 @@ paths:
               description: URL of the long-running operation.
               schema:
                 type: string
+  /usermanagement/users/{userId}:removeAdminRole:
+    post:
+      summary: Remove admin role
+      operationId: UserMgmt_RemoveAdminRole
+      tags:
+      - usermanagement.users
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User object ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperationStatus'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+  /usermanagement/users/{userId}/adminRoles:
+    get:
+      summary: List admin roles for user
+      operationId: UserMgmt_ListAdminRoles
+      tags:
+      - usermanagement.users
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: User object ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminRoleAssignmentList'
+  /usermanagement/operations/{operationId}:
+    get:
+      summary: Get user management operation status
+      operationId: UserMgmt_GetOperation
+      tags:
+      - usermanagement.operations
+      parameters:
+      - name: operationId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Operation ID returned by role management requests
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperationStatus'
 components:
   securitySchemes:
     oauth2Implicit:
@@ -52,6 +135,51 @@ components:
           scopes:
             .default: .default
   schemas:
+    AdminRoleAssignment:
+      type: object
+      description: Details about an admin role assignment for a specific user.
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the role assignment record.
+        userId:
+          type: string
+          description: Azure AD object ID of the assigned user.
+        roleDefinitionId:
+          type: string
+          description: Identifier of the admin role definition.
+        roleDisplayName:
+          type: string
+          description: Display name of the applied admin role.
+        scope:
+          type: string
+          description: Scope at which the admin role applies (tenant, environment, etc.).
+        assignedBy:
+          type: string
+          description: Object ID of the administrator who initiated the role change.
+        assignedDateTime:
+          type: string
+          format: date-time
+          description: Timestamp when the role assignment became effective.
+        removalDateTime:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp when the role assignment was removed, if applicable.
+      additionalProperties: false
+    AdminRoleAssignmentList:
+      type: object
+      description: Paged collection of admin role assignments for a user.
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminRoleAssignment'
+        nextLink:
+          type: string
+          nullable: true
+          description: URL to retrieve the next page of results, if present.
+      additionalProperties: false
     Error:
       type: object
       properties:
@@ -84,6 +212,48 @@ components:
         instance:
           type: string
       additionalProperties: true
+    AsyncOperationStatus:
+      type: object
+      description: Status details for a long-running user management operation.
+      properties:
+        id:
+          type: string
+          description: Operation identifier.
+        name:
+          type: string
+          description: Friendly operation name.
+        status:
+          type: string
+          description: Current operation state.
+          enum:
+          - NotStarted
+          - Running
+          - Succeeded
+          - Failed
+          - Canceled
+        startTime:
+          type: string
+          format: date-time
+          description: Operation start timestamp.
+        lastUpdatedTime:
+          type: string
+          format: date-time
+          description: Timestamp of the most recent status update.
+        percentComplete:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Percentage progress reported by the service.
+        targetResourceId:
+          type: string
+          description: Resource identifier impacted by the operation.
+        targetResourceType:
+          type: string
+          description: Type of resource impacted by the operation.
+        error:
+          $ref: '#/components/schemas/Error'
+      additionalProperties: false
 security:
 - oauth2Implicit:
   - .default
