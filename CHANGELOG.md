@@ -19,5 +19,6 @@
 - Expand the Power Automate OpenAPI surface with flow lifecycle, run management, and diagnostics endpoints.
 - Expand the Power Virtual Agents bots OpenAPI document with bot metadata, publish/unpublish, package import/export, and channel configuration endpoints.
 - Extend the Dataverse solution OpenAPI definitions with clone, stage, publish-all, managed export, and translation lifecycle actions plus typed payloads.
+- Introduce a DLP policy client and CLI commands covering CRUD, connector grouping, and environment assignments with async polling helpers and scope validation.
 
 - 0.2.0 Extended features

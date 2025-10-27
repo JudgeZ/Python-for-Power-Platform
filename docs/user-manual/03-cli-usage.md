@@ -13,6 +13,7 @@ Need a guided tour? Walk through the [end-to-end quick start](01-installation.md
 | `profile` | Inspect or change stored defaults such as the active environment or Dataverse host. | `ppx profile list` |
 | `dv` | Dataverse data access helpers (whoami, CRUD, bulk CSV). | `ppx dv list accounts --top 5` |
 | `connector` | Manage custom connector APIs within an environment. | `ppx connector list --environment-id ENV-ID` |
+| `policy` | Administer Data Loss Prevention (DLP) policies and assignments. | `ppx policy dlp list` |
 | `pages` | Download, upload, and diff Power Pages site content. | `ppx pages download --website-id <GUID>` |
 | `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --out core.zip` |
 | `env`/`apps`/`flows` | List environments, canvas apps, and cloud flows. | `ppx apps --environment-id ENV-ID` |
@@ -104,6 +105,28 @@ $ ppx solution import --file dist/contoso_solution_managed.zip --wait
 Import submitted (job: 22222222222222222222222222222222)
 {'state': 'Completed'}
 ```
+
+### Administer Data Loss Prevention policies
+
+```shell
+$ ppx policy dlp list
+Policy One  id=policy-1  state=Active  scope=Tenant
+```
+
+Create or update policies by supplying a JSON payload that mirrors the REST schema (at minimum `displayName` and `state`):
+
+```shell
+$ ppx policy dlp create --payload '{"displayName": "Finance", "state": "Draft"}' --wait
+Policy creation completed status=Succeeded
+{
+  "operationId": "...",
+  "status": "Succeeded"
+}
+```
+
+When modifying connectors or assignments, provide the `groups` or `assignments` arrays exactly as documented in
+`openapi/policy-datalossprevention.yaml`. Each command validates required scopes, so configure the active profile with
+`Policy.DataLossPrevention.Read` for read-only commands and `Policy.DataLossPrevention.Manage` when performing updates.
 
 ### Round-trip Power Pages content
 

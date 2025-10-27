@@ -19,6 +19,21 @@ from .power_platform import (
 from .power_platform import (
     PowerApp as PowerApp,
 )
+from .policy import (
+    AsyncOperation as PolicyAsyncOperation,
+)
+from .policy import (
+    ConnectorGroup as PolicyConnectorGroup,
+)
+from .policy import (
+    ConnectorReference as PolicyConnectorReference,
+)
+from .policy import (
+    DataLossPreventionPolicy as DataLossPreventionPolicy,
+)
+from .policy import (
+    PolicyAssignment as PolicyAssignment,
+)
 
 __all__ = [
     "ExportSolutionRequest",
@@ -28,4 +43,9 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
+    "PolicyAsyncOperation",
+    "PolicyConnectorGroup",
+    "PolicyConnectorReference",
+    "DataLossPreventionPolicy",
+    "PolicyAssignment",
 ]
