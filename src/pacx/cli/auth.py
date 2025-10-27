@@ -3,13 +3,30 @@ from __future__ import annotations
 """Authentication-related Typer commands and their signatures."""
 
 import re
-from typing import Literal, Sequence, cast
+import json
+from pathlib import Path
+from typing import Any, Literal, Sequence, cast
 
 import typer
 from rich import print
+from pydantic import ValidationError
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - optional dependency handled at runtime
+    yaml = None
 
 from ..config import ConfigStore, Profile
+from ..clients.authorization import AuthorizationRbacClient
+from ..models.authorization import (
+    CreateRoleAssignmentRequest,
+    CreateRoleDefinitionRequest,
+    RoleAssignment,
+    RoleDefinition,
+    UpdateRoleDefinitionRequest,
+)
 from .common import handle_cli_errors
+from .common import get_token_getter
 
 KEYRING_BACKEND = "keyring"
 KEYVAULT_BACKEND = "keyvault"
@@ -18,6 +35,226 @@ DEFAULT_SCOPE = "https://api.powerplatform.com/.default"
 FlowType = Literal["device", "web", "client-credential"]
 
 app = typer.Typer(help="Authentication and profiles")
+roles_app = typer.Typer(
+    help="Manage RBAC role definitions (Authorization.RBAC.Read/Manage scopes)"
+)
+assignments_app = typer.Typer(
+    help="Manage RBAC role assignments (Authorization.RBAC.Read/Manage scopes)"
+)
+app.add_typer(roles_app, name="roles")
+app.add_typer(assignments_app, name="assignments")
+
+
+def _load_payload(path: Path) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8")
+    loader = json.loads
+    if path.suffix.lower() in {".yaml", ".yml"}:
+        if yaml is None:  # pragma: no cover - fallback path when dependency missing
+            raise typer.BadParameter("PyYAML is required to parse YAML payloads")
+        loader = cast(Any, yaml.safe_load)
+    data = loader(text) or {}
+    if not isinstance(data, dict):
+        raise typer.BadParameter("Payload file must contain a JSON or YAML object")
+    return cast(dict[str, Any], data)
+
+
+def _render_role(role: RoleDefinition) -> None:
+    scopes = ", ".join(role.assignable_scopes) if role.assignable_scopes else "(no scopes)"
+    typer.echo(f"{role.name} [{role.id}] -> {scopes}")
+
+
+def _render_assignment(assignment: RoleAssignment) -> None:
+    typer.echo(
+        "{principal} -> {role} @ {scope}".format(
+            principal=assignment.principal_id,
+            role=assignment.role_definition_id,
+            scope=assignment.scope,
+        )
+    )
+
+
+@roles_app.command(
+    "list",
+    help="List RBAC role definitions. Requires Authorization.RBAC.Read scope.",
+)
+@handle_cli_errors
+def roles_list(ctx: typer.Context) -> None:
+    """List role definitions available to the caller."""
+
+    token_getter = get_token_getter(ctx)
+    client = AuthorizationRbacClient(token_getter)
+    for role in client.list_role_definitions():
+        _render_role(role)
+
+
+@roles_app.command(
+    "create",
+    help="Create a custom role definition. Requires Authorization.RBAC.Manage scope.",
+)
+@handle_cli_errors
+def roles_create(
+    ctx: typer.Context,
+    definition: Path = typer.Option(
+        ...,
+        "--definition",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        resolve_path=True,
+        help="Path to JSON or YAML role payload",
+    ),
+) -> None:
+    """Create a custom role definition from a JSON/YAML payload."""
+
+    if not definition.exists():
+        raise typer.BadParameter(f"Definition file not found: {definition}")
+    try:
+        request = CreateRoleDefinitionRequest.model_validate(_load_payload(definition))
+    except ValidationError as exc:
+        raise typer.BadParameter(f"Invalid role definition payload: {exc}") from exc
+
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    role = client.create_role_definition(request)
+    typer.echo(f"Created {role.name} [{role.id}]")
+
+
+@roles_app.command(
+    "update",
+    help="Update a custom role definition. Requires Authorization.RBAC.Manage scope.",
+)
+@handle_cli_errors
+def roles_update(
+    ctx: typer.Context,
+    role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
+    definition: Path = typer.Option(
+        ...,
+        "--definition",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        resolve_path=True,
+        help="Path to JSON or YAML role payload",
+    ),
+) -> None:
+    """Update a custom role definition from a JSON/YAML payload."""
+
+    if not definition.exists():
+        raise typer.BadParameter(f"Definition file not found: {definition}")
+    try:
+        request = UpdateRoleDefinitionRequest.model_validate(_load_payload(definition))
+    except ValidationError as exc:
+        raise typer.BadParameter(f"Invalid role definition payload: {exc}") from exc
+
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    role = client.update_role_definition(role_definition_id, request)
+    typer.echo(f"Updated {role.name} [{role.id}]")
+
+
+@roles_app.command(
+    "delete",
+    help="Delete a custom role definition. Requires Authorization.RBAC.Manage scope.",
+)
+@handle_cli_errors
+def roles_delete(
+    ctx: typer.Context,
+    role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Confirm deletion without prompting",
+    ),
+) -> None:
+    """Delete a custom role definition."""
+
+    if not yes:
+        confirmed = typer.confirm(
+            f"Delete role definition '{role_definition_id}'?", default=False
+        )
+        if not confirmed:
+            raise typer.Exit(0)
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    client.delete_role_definition(role_definition_id)
+    typer.echo(f"Deleted role definition '{role_definition_id}'")
+
+
+@assignments_app.command(
+    "list",
+    help="List role assignments. Requires Authorization.RBAC.Read scope.",
+)
+@handle_cli_errors
+def assignments_list(
+    ctx: typer.Context,
+    principal_id: str | None = typer.Option(
+        None, help="Filter assignments by principal object ID"
+    ),
+    scope: str | None = typer.Option(None, help="Filter assignments by scope"),
+) -> None:
+    """List role assignments with optional filters."""
+
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    assignments = client.list_role_assignments(principal_id=principal_id, scope=scope)
+    for assignment in assignments:
+        _render_assignment(assignment)
+
+
+@assignments_app.command(
+    "create",
+    help="Create a role assignment. Requires Authorization.RBAC.Manage scope.",
+)
+@handle_cli_errors
+def assignments_create(
+    ctx: typer.Context,
+    principal_id: str = typer.Option(..., help="Principal object ID"),
+    role_definition_id: str = typer.Option(..., help="Role definition identifier"),
+    scope: str = typer.Option(..., help="Scope at which to grant the role"),
+) -> None:
+    """Create a role assignment linking a principal, scope, and role definition."""
+
+    try:
+        request = CreateRoleAssignmentRequest(
+            principal_id=principal_id, role_definition_id=role_definition_id, scope=scope
+        )
+    except ValidationError as exc:
+        raise typer.BadParameter(f"Invalid role assignment payload: {exc}") from exc
+
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    assignment = client.create_role_assignment(request)
+    typer.echo(
+        "Assigned {principal} -> {role} @ {scope}".format(
+            principal=assignment.principal_id,
+            role=assignment.role_definition_id,
+            scope=assignment.scope,
+        )
+    )
+
+
+@assignments_app.command(
+    "delete",
+    help="Delete a role assignment. Requires Authorization.RBAC.Manage scope.",
+)
+@handle_cli_errors
+def assignments_delete(
+    ctx: typer.Context,
+    assignment_id: str = typer.Argument(..., help="Role assignment identifier"),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Confirm deletion without prompting",
+    ),
+) -> None:
+    """Delete a role assignment by identifier."""
+
+    if not yes:
+        confirmed = typer.confirm(
+            f"Delete role assignment '{assignment_id}'?", default=False
+        )
+        if not confirmed:
+            raise typer.Exit(0)
+    client = AuthorizationRbacClient(get_token_getter(ctx))
+    client.delete_role_assignment(assignment_id)
+    typer.echo(f"Deleted role assignment '{assignment_id}'")
 
 
 def _ensure_secret_reference(secret_ref: str | None) -> tuple[str, str]:
@@ -291,4 +528,19 @@ def auth_client(
     )
 
 
-__all__ = ["app", "auth_create", "auth_device", "auth_client", "auth_use"]
+__all__ = [
+    "app",
+    "roles_app",
+    "assignments_app",
+    "roles_list",
+    "roles_create",
+    "roles_update",
+    "roles_delete",
+    "assignments_list",
+    "assignments_create",
+    "assignments_delete",
+    "auth_create",
+    "auth_device",
+    "auth_client",
+    "auth_use",
+]
