@@ -94,7 +94,11 @@ def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter)
         assert raw.startswith(f"--{boundary}")
         assert raw.strip().endswith(f"--{boundary}--")
 
-        segments = [part.strip() for part in raw.split(f"--{boundary}") if part.strip() and part.strip() != "--"]
+        segments = [
+            part.strip()
+            for part in raw.split(f"--{boundary}")
+            if part.strip() and part.strip() != "--"
+        ]
         assert len(segments) == 2
 
         first_part, second_part = segments
@@ -127,7 +131,9 @@ def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter)
             content=_build_body([200, 204]),
         )
 
-    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(side_effect=responder)
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(
+        side_effect=responder
+    )
 
     result = send_batch(
         dv,

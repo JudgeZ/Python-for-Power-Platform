@@ -50,9 +50,7 @@ class AuthorizationRbacClient:
     def list_role_definitions(self) -> list[RoleDefinition]:
         """Return all role definitions available to the caller."""
 
-        response = self.http.get(
-            "authorization/rbac/roleDefinitions", params=self._with_version()
-        )
+        response = self.http.get("authorization/rbac/roleDefinitions", params=self._with_version())
         data = RoleDefinitionListResult.model_validate(response.json())
         return data.value
 
@@ -148,4 +146,3 @@ class AuthorizationRbacClient:
 
 
 __all__ = ["AuthorizationRbacClient"]
-

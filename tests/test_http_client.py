@@ -42,10 +42,14 @@ def make_response(
     return httpx.Response(status, text=text, headers=headers, request=request)
 
 
-def setup_client(monkeypatch: pytest.MonkeyPatch, responses: Iterable[object]) -> tuple[HttpClient, StubClient]:
+def setup_client(
+    monkeypatch: pytest.MonkeyPatch, responses: Iterable[object]
+) -> tuple[HttpClient, StubClient]:
     stub = StubClient(responses)
     monkeypatch.setattr("pacx.http_client.httpx.Client", lambda *_, **__: stub)
-    client = HttpClient("https://example.test", token_getter=lambda: "token", default_headers={"X": "1"})
+    client = HttpClient(
+        "https://example.test", token_getter=lambda: "token", default_headers={"X": "1"}
+    )
     return client, stub
 
 

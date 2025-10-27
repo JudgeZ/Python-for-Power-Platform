@@ -2,26 +2,28 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Generic, TypeVar
+
+StatusType = TypeVar("StatusType")
 
 
-class PollTimeoutError(TimeoutError):
+class PollTimeoutError(TimeoutError, Generic[StatusType]):
     """Timeout raised by :func:`poll_until` with last status metadata."""
 
-    def __init__(self, timeout: float, last_status: dict[str, Any] | None) -> None:
+    def __init__(self, timeout: float, last_status: StatusType | None) -> None:
         super().__init__(f"Operation did not complete within {timeout} seconds")
         self.timeout = timeout
         self.last_status = last_status
 
 
 def poll_until(
-    get_status: Callable[[], dict[str, Any]],
-    is_done: Callable[[dict[str, Any]], bool],
-    get_progress: Callable[[dict[str, Any]], int | None] | None = None,
+    get_status: Callable[[], StatusType],
+    is_done: Callable[[StatusType], bool],
+    get_progress: Callable[[StatusType], int | None] | None = None,
     interval: float = 2.0,
     timeout: float = 600.0,
-    on_update: Callable[[dict[str, Any]], None] | None = None,
-) -> dict[str, Any]:
+    on_update: Callable[[StatusType], None] | None = None,
+) -> StatusType:
     """Generic polling loop for long-running operations."""
     start = time.time()
     last_pct = None

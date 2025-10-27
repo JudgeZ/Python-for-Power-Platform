@@ -1,23 +1,24 @@
-from __future__ import annotations
-
 """Authentication-related Typer commands and their signatures."""
 
-import re
+from __future__ import annotations
+
 import json
+import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Sequence, cast
+from typing import Any, Literal, cast
 
 import typer
-from rich import print
 from pydantic import ValidationError
+from rich import print
 
 try:
-    import yaml
+    import yaml  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - optional dependency handled at runtime
     yaml = None
 
-from ..config import ConfigStore, Profile
 from ..clients.authorization import AuthorizationRbacClient
+from ..config import ConfigStore, Profile
 from ..models.authorization import (
     CreateRoleAssignmentRequest,
     CreateRoleDefinitionRequest,
@@ -25,8 +26,7 @@ from ..models.authorization import (
     RoleDefinition,
     UpdateRoleDefinitionRequest,
 )
-from .common import handle_cli_errors
-from .common import get_token_getter
+from .common import get_token_getter, handle_cli_errors
 
 KEYRING_BACKEND = "keyring"
 KEYVAULT_BACKEND = "keyvault"
@@ -35,14 +35,86 @@ DEFAULT_SCOPE = "https://api.powerplatform.com/.default"
 FlowType = Literal["device", "web", "client-credential"]
 
 app = typer.Typer(help="Authentication and profiles")
-roles_app = typer.Typer(
-    help="Manage RBAC role definitions (Authorization.RBAC.Read/Manage scopes)"
-)
+roles_app = typer.Typer(help="Manage RBAC role definitions (Authorization.RBAC.Read/Manage scopes)")
 assignments_app = typer.Typer(
     help="Manage RBAC role assignments (Authorization.RBAC.Read/Manage scopes)"
 )
 app.add_typer(roles_app, name="roles")
 app.add_typer(assignments_app, name="assignments")
+
+
+ROLE_DEFINITION_OPTION = typer.Option(
+    ...,  # required option
+    "--definition",
+    exists=True,
+    file_okay=True,
+    dir_okay=False,
+    resolve_path=True,
+    help="Path to JSON or YAML role payload",
+)
+CONFIRM_DELETE_OPTION = typer.Option(
+    False,
+    "--yes",
+    "-y",
+    help="Confirm deletion without prompting",
+)
+ASSIGNMENT_PRINCIPAL_FILTER_OPTION = typer.Option(
+    None, help="Filter assignments by principal object ID"
+)
+ASSIGNMENT_SCOPE_FILTER_OPTION = typer.Option(None, help="Filter assignments by scope")
+ASSIGNMENT_PRINCIPAL_OPTION = typer.Option(..., help="Principal object ID")
+ASSIGNMENT_ROLE_OPTION = typer.Option(..., help="Role definition identifier")
+ASSIGNMENT_SCOPE_OPTION = typer.Option(..., help="Scope at which to grant the role")
+
+PROFILE_TENANT_OPTION = typer.Option(..., help="Entra ID tenant")
+PROFILE_CLIENT_OPTION = typer.Option(..., help="App registration (client) ID")
+PROFILE_SCOPE_OPTION = typer.Option(
+    DEFAULT_SCOPE,
+    "--scope",
+    "-s",
+    help="Scopes requested during authentication (comma or space separated).",
+    show_default=False,
+    rich_help_panel="Authentication",
+    metavar="SCOPE",
+)
+PROFILE_FLOW_OPTION = typer.Option(
+    "device",
+    case_sensitive=False,
+    help="Authentication flow: device, web, or client-credential.",
+    rich_help_panel="Authentication",
+)
+PROFILE_DATAVERSE_OPTION = typer.Option(None, help="Default Dataverse host for this profile")
+PROFILE_CLIENT_SECRET_ENV_OPTION = typer.Option(
+    None, help="Environment variable containing the client secret"
+)
+PROFILE_SECRET_BACKEND_OPTION = typer.Option(
+    None,
+    help="Secret backend for client credentials (env, keyring, keyvault)",
+)
+PROFILE_SECRET_REF_OPTION = typer.Option(
+    None,
+    help="Backend reference: ENV_VAR, service:username, or VAULT_URL:SECRET_NAME",
+)
+PROFILE_PROMPT_SECRET_OPTION = typer.Option(
+    False,
+    help="Prompt for a secret and store it in keyring when --secret-backend=keyring",
+)
+PROFILE_SET_DEFAULT_OPTION = typer.Option(
+    True,
+    "--set-default/--no-set-default",
+    help="Set the profile as default after creation.",
+)
+BASIC_SCOPE_OPTION = typer.Option(DEFAULT_SCOPE, help="Scope (default: Power Platform API scope)")
+CLIENT_SECRET_ENV_ALIAS_OPTION = typer.Option(
+    None, help="Name of env var holding the client secret (env backend)"
+)
+SECRET_BACKEND_ALIAS_OPTION = typer.Option(None, help="Secret backend: env|keyring|keyvault")
+SECRET_REF_ALIAS_OPTION = typer.Option(
+    None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"
+)
+PROMPT_SECRET_ALIAS_OPTION = typer.Option(
+    False, help="For keyring: prompt and store a secret under service:username"
+)
 
 
 def _load_payload(path: Path) -> dict[str, Any]:
@@ -64,13 +136,7 @@ def _render_role(role: RoleDefinition) -> None:
 
 
 def _render_assignment(assignment: RoleAssignment) -> None:
-    typer.echo(
-        "{principal} -> {role} @ {scope}".format(
-            principal=assignment.principal_id,
-            role=assignment.role_definition_id,
-            scope=assignment.scope,
-        )
-    )
+    typer.echo(f"{assignment.principal_id} -> {assignment.role_definition_id} @ {assignment.scope}")
 
 
 @roles_app.command(
@@ -94,15 +160,7 @@ def roles_list(ctx: typer.Context) -> None:
 @handle_cli_errors
 def roles_create(
     ctx: typer.Context,
-    definition: Path = typer.Option(
-        ...,
-        "--definition",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        resolve_path=True,
-        help="Path to JSON or YAML role payload",
-    ),
+    definition: Path = ROLE_DEFINITION_OPTION,
 ) -> None:
     """Create a custom role definition from a JSON/YAML payload."""
 
@@ -126,15 +184,7 @@ def roles_create(
 def roles_update(
     ctx: typer.Context,
     role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
-    definition: Path = typer.Option(
-        ...,
-        "--definition",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        resolve_path=True,
-        help="Path to JSON or YAML role payload",
-    ),
+    definition: Path = ROLE_DEFINITION_OPTION,
 ) -> None:
     """Update a custom role definition from a JSON/YAML payload."""
 
@@ -158,19 +208,12 @@ def roles_update(
 def roles_delete(
     ctx: typer.Context,
     role_definition_id: str = typer.Argument(..., help="Role definition identifier"),
-    yes: bool = typer.Option(
-        False,
-        "--yes",
-        "-y",
-        help="Confirm deletion without prompting",
-    ),
+    yes: bool = CONFIRM_DELETE_OPTION,
 ) -> None:
     """Delete a custom role definition."""
 
     if not yes:
-        confirmed = typer.confirm(
-            f"Delete role definition '{role_definition_id}'?", default=False
-        )
+        confirmed = typer.confirm(f"Delete role definition '{role_definition_id}'?", default=False)
         if not confirmed:
             raise typer.Exit(0)
     client = AuthorizationRbacClient(get_token_getter(ctx))
@@ -185,10 +228,8 @@ def roles_delete(
 @handle_cli_errors
 def assignments_list(
     ctx: typer.Context,
-    principal_id: str | None = typer.Option(
-        None, help="Filter assignments by principal object ID"
-    ),
-    scope: str | None = typer.Option(None, help="Filter assignments by scope"),
+    principal_id: str | None = ASSIGNMENT_PRINCIPAL_FILTER_OPTION,
+    scope: str | None = ASSIGNMENT_SCOPE_FILTER_OPTION,
 ) -> None:
     """List role assignments with optional filters."""
 
@@ -205,15 +246,15 @@ def assignments_list(
 @handle_cli_errors
 def assignments_create(
     ctx: typer.Context,
-    principal_id: str = typer.Option(..., help="Principal object ID"),
-    role_definition_id: str = typer.Option(..., help="Role definition identifier"),
-    scope: str = typer.Option(..., help="Scope at which to grant the role"),
+    principal_id: str = ASSIGNMENT_PRINCIPAL_OPTION,
+    role_definition_id: str = ASSIGNMENT_ROLE_OPTION,
+    scope: str = ASSIGNMENT_SCOPE_OPTION,
 ) -> None:
     """Create a role assignment linking a principal, scope, and role definition."""
 
     try:
         request = CreateRoleAssignmentRequest(
-            principal_id=principal_id, role_definition_id=role_definition_id, scope=scope
+            principalId=principal_id, roleDefinitionId=role_definition_id, scope=scope
         )
     except ValidationError as exc:
         raise typer.BadParameter(f"Invalid role assignment payload: {exc}") from exc
@@ -221,11 +262,7 @@ def assignments_create(
     client = AuthorizationRbacClient(get_token_getter(ctx))
     assignment = client.create_role_assignment(request)
     typer.echo(
-        "Assigned {principal} -> {role} @ {scope}".format(
-            principal=assignment.principal_id,
-            role=assignment.role_definition_id,
-            scope=assignment.scope,
-        )
+        f"Assigned {assignment.principal_id} -> {assignment.role_definition_id} @ {assignment.scope}"
     )
 
 
@@ -237,19 +274,12 @@ def assignments_create(
 def assignments_delete(
     ctx: typer.Context,
     assignment_id: str = typer.Argument(..., help="Role assignment identifier"),
-    yes: bool = typer.Option(
-        False,
-        "--yes",
-        "-y",
-        help="Confirm deletion without prompting",
-    ),
+    yes: bool = CONFIRM_DELETE_OPTION,
 ) -> None:
     """Delete a role assignment by identifier."""
 
     if not yes:
-        confirmed = typer.confirm(
-            f"Delete role assignment '{assignment_id}'?", default=False
-        )
+        confirmed = typer.confirm(f"Delete role assignment '{assignment_id}'?", default=False)
         if not confirmed:
             raise typer.Exit(0)
     client = AuthorizationRbacClient(get_token_getter(ctx))
@@ -346,15 +376,11 @@ def _persist_profile(profile: Profile, *, set_default: bool) -> None:
     default_now_profile = new_default == profile.name
 
     if default_now_profile and (set_default or previous_default is None):
-        print(
-            f"Profile [bold]{profile.name}[/bold] configured and set as the default profile."
-        )
+        print(f"Profile [bold]{profile.name}[/bold] configured and set as the default profile.")
         return
 
     if set_default and not default_now_profile:
-        print(
-            f"Profile [bold]{profile.name}[/bold] configured. Existing default left unchanged."
-        )
+        print(f"Profile [bold]{profile.name}[/bold] configured. Existing default left unchanged.")
         return
 
     if not set_default and default_now_profile:
@@ -363,9 +389,7 @@ def _persist_profile(profile: Profile, *, set_default: bool) -> None:
         )
         return
 
-    print(
-        f"Profile [bold]{profile.name}[/bold] configured. Default profile not modified."
-    )
+    print(f"Profile [bold]{profile.name}[/bold] configured. Default profile not modified.")
 
 
 def _render_flow_summary(flow: FlowType, secret_backend: str | None) -> str:
@@ -381,46 +405,16 @@ def _render_flow_summary(flow: FlowType, secret_backend: str | None) -> str:
 @handle_cli_errors
 def auth_create(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    scope: str = typer.Option(
-        DEFAULT_SCOPE,
-        "--scope",
-        "-s",
-        help="Scopes requested during authentication (comma or space separated).",
-        show_default=False,
-        rich_help_panel="Authentication",
-        metavar="SCOPE",
-    ),
-    flow: FlowType = typer.Option(
-        "device",
-        case_sensitive=False,
-        help="Authentication flow: device, web, or client-credential.",
-        rich_help_panel="Authentication",
-    ),
-    dataverse_host: str | None = typer.Option(
-        None, help="Default Dataverse host for this profile"
-    ),
-    client_secret_env: str | None = typer.Option(
-        None, help="Environment variable containing the client secret"
-    ),
-    secret_backend: str | None = typer.Option(
-        None,
-        help="Secret backend for client credentials (env, keyring, keyvault)",
-    ),
-    secret_ref: str | None = typer.Option(
-        None,
-        help="Backend reference: ENV_VAR, service:username, or VAULT_URL:SECRET_NAME",
-    ),
-    prompt_secret: bool = typer.Option(
-        False,
-        help="Prompt for a secret and store it in keyring when --secret-backend=keyring",
-    ),
-    set_default: bool = typer.Option(
-        True,
-        "--set-default/--no-set-default",
-        help="Set the profile as default after creation.",
-    ),
+    tenant_id: str = PROFILE_TENANT_OPTION,
+    client_id: str = PROFILE_CLIENT_OPTION,
+    scope: str = PROFILE_SCOPE_OPTION,
+    flow: FlowType = PROFILE_FLOW_OPTION,
+    dataverse_host: str | None = PROFILE_DATAVERSE_OPTION,
+    client_secret_env: str | None = PROFILE_CLIENT_SECRET_ENV_OPTION,
+    secret_backend: str | None = PROFILE_SECRET_BACKEND_OPTION,
+    secret_ref: str | None = PROFILE_SECRET_REF_OPTION,
+    prompt_secret: bool = PROFILE_PROMPT_SECRET_OPTION,
+    set_default: bool = PROFILE_SET_DEFAULT_OPTION,
 ) -> None:
     """Create or update an authentication profile."""
 
@@ -458,14 +452,10 @@ def auth_use(name: str = typer.Argument(..., help="Profile to activate")) -> Non
 @handle_cli_errors
 def auth_device(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    scope: str = typer.Option(
-        DEFAULT_SCOPE, help="Scope (default: Power Platform API scope)"
-    ),
-    dataverse_host: str | None = typer.Option(
-        None, help="Default Dataverse host for this profile"
-    ),
+    tenant_id: str = PROFILE_TENANT_OPTION,
+    client_id: str = PROFILE_CLIENT_OPTION,
+    scope: str = BASIC_SCOPE_OPTION,
+    dataverse_host: str | None = PROFILE_DATAVERSE_OPTION,
 ) -> None:
     """Deprecated alias for ``ppx auth create --flow device``."""
 
@@ -487,26 +477,14 @@ def auth_device(
 @handle_cli_errors
 def auth_client(
     name: str = typer.Argument(..., help="Profile name"),
-    tenant_id: str = typer.Option(..., help="Entra ID tenant"),
-    client_id: str = typer.Option(..., help="App registration (client) ID"),
-    client_secret_env: str | None = typer.Option(
-        None, help="Name of env var holding the client secret (env backend)"
-    ),
-    secret_backend: str | None = typer.Option(
-        None, help="Secret backend: env|keyring|keyvault"
-    ),
-    secret_ref: str | None = typer.Option(
-        None, help="Backend ref: ENV_VAR or service:username or VAULT_URL:SECRET"
-    ),
-    prompt_secret: bool = typer.Option(
-        False, help="For keyring: prompt and store a secret under service:username"
-    ),
-    scope: str = typer.Option(
-        DEFAULT_SCOPE, help="Scope (default: Power Platform API scope)"
-    ),
-    dataverse_host: str | None = typer.Option(
-        None, help="Default Dataverse host for this profile"
-    ),
+    tenant_id: str = PROFILE_TENANT_OPTION,
+    client_id: str = PROFILE_CLIENT_OPTION,
+    client_secret_env: str | None = CLIENT_SECRET_ENV_ALIAS_OPTION,
+    secret_backend: str | None = SECRET_BACKEND_ALIAS_OPTION,
+    secret_ref: str | None = SECRET_REF_ALIAS_OPTION,
+    prompt_secret: bool = PROMPT_SECRET_ALIAS_OPTION,
+    scope: str = BASIC_SCOPE_OPTION,
+    dataverse_host: str | None = PROFILE_DATAVERSE_OPTION,
 ) -> None:
     """Deprecated alias for ``ppx auth create --flow client-credential``."""
 

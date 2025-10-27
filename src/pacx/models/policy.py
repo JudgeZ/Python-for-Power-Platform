@@ -52,9 +52,7 @@ class DataLossPreventionPolicy(BaseModel):
     state: str
     policy_scope: str | None = Field(default=None, alias="policyScope")
     owner: dict[str, Any] | None = None
-    connector_groups: list[ConnectorGroup] | None = Field(
-        default=None, alias="connectorGroups"
-    )
+    connector_groups: list[ConnectorGroup] | None = Field(default=None, alias="connectorGroups")
     assignments: list[PolicyAssignment] | None = None
     etag: str | None = None
 

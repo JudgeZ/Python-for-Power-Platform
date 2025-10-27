@@ -56,7 +56,9 @@ class StubLicensingClient:
         self.wait_calls.append((operation_url, interval, timeout))
         return {"status": "Succeeded"}
 
-    def patch_currency_allocation(self, environment_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def patch_currency_allocation(
+        self, environment_id: str, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         self.currency_patch_calls.append((environment_id, payload))
         return {"ok": True, **payload}
 
@@ -120,7 +122,7 @@ def test_currency_patch_passes_payload(cli_runner, cli_app) -> None:
             "patch",
             "env-1",
             "--payload",
-            "{\"limit\": 100}",
+            '{"limit": 100}',
         ],
         env={"PACX_ACCESS_TOKEN": "token"},
     )

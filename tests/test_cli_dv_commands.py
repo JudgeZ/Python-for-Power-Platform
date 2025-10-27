@@ -30,9 +30,9 @@ def test_cli_dv_get_strips_braces(monkeypatch, respx_mock):
     monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
     raw_id = "{00000000-0000-0000-0000-000000000123}"
     clean_id = "00000000-0000-0000-0000-000000000123"
-    respx_mock.get(
-        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
-    ).mock(return_value=httpx.Response(200, json={"accountid": clean_id}))
+    respx_mock.get(f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})").mock(
+        return_value=httpx.Response(200, json={"accountid": clean_id})
+    )
 
     result = runner.invoke(app, ["dv", "get", "accounts", raw_id])
 
@@ -50,9 +50,9 @@ def test_cli_dv_update_strips_braces(monkeypatch, respx_mock):
     monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
     raw_id = " {ABCDEFAB-1234-5678-9ABC-DEF012345678}"
     clean_id = "ABCDEFAB-1234-5678-9ABC-DEF012345678"
-    respx_mock.patch(
-        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
-    ).mock(return_value=httpx.Response(204))
+    respx_mock.patch(f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})").mock(
+        return_value=httpx.Response(204)
+    )
 
     payload = json.dumps({"name": "Updated"})
     result = runner.invoke(
@@ -73,9 +73,9 @@ def test_cli_dv_delete_strips_braces(monkeypatch, respx_mock):
     monkeypatch.setenv("DATAVERSE_HOST", "example.crm.dynamics.com")
     raw_id = "{DEF0DEF0-0000-0000-0000-000000000000}"
     clean_id = "DEF0DEF0-0000-0000-0000-000000000000"
-    respx_mock.delete(
-        f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})"
-    ).mock(return_value=httpx.Response(204))
+    respx_mock.delete(f"https://example.crm.dynamics.com/api/data/v9.2/accounts({clean_id})").mock(
+        return_value=httpx.Response(204)
+    )
 
     result = runner.invoke(app, ["dv", "delete", "accounts", raw_id])
 

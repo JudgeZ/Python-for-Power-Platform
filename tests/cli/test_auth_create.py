@@ -5,6 +5,7 @@ import sys
 from dataclasses import dataclass
 
 import pytest
+import typer
 
 from pacx.config import ConfigData, Profile
 
@@ -44,7 +45,7 @@ def stub_store(monkeypatch: pytest.MonkeyPatch) -> StubStore:
 
 
 @pytest.fixture
-def cli_app() -> "typer.Typer":
+def cli_app() -> typer.Typer:
     from pacx.cli import app
 
     return app
@@ -123,9 +124,9 @@ def test_client_credentials_uses_secret_hints(cli_runner, cli_app, stub_store: S
     assert result.exit_code == 0
     profile = stub_store.profiles["svc"]
     assert profile.use_device_code is False
-    assert profile.client_secret_env == "SERVICE_SECRET"
-    assert profile.secret_backend == "keyvault"
-    assert profile.secret_ref == "https://vault.vault.azure.net:secret-name"
+    assert profile.client_secret_env == "SERVICE_SECRET"  # noqa: S105
+    assert profile.secret_backend == "keyvault"  # noqa: S105
+    assert profile.secret_ref == "https://vault.vault.azure.net:secret-name"  # noqa: S105
     assert "client credentials via keyvault" in result.stdout
 
 

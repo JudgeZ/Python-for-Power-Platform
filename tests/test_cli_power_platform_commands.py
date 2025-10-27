@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 
 import pytest
 import typer
@@ -46,7 +46,7 @@ class StubSummary:
 
 
 class StubPowerPlatformClient:
-    instances: list["StubPowerPlatformClient"] = []
+    instances: list[StubPowerPlatformClient] = []
 
     def __init__(self, token_getter, api_version: str | None = None) -> None:
         self.token = token_getter()
@@ -98,7 +98,9 @@ class StubPowerPlatformClient:
         self, environment_id: str, flow_id: str, payload: dict[str, object]
     ) -> CloudFlow:
         self.flow_update_calls.append((environment_id, flow_id, payload))
-        return CloudFlow(id=flow_id, name=f"Flow {flow_id}", properties={"state": payload.get("state")})
+        return CloudFlow(
+            id=flow_id, name=f"Flow {flow_id}", properties={"state": payload.get("state")}
+        )
 
     def delete_cloud_flow(self, environment_id: str, flow_id: str) -> None:
         self.flow_delete_calls.append((environment_id, flow_id))
@@ -111,11 +113,15 @@ class StubPowerPlatformClient:
         self.reset_calls.append((environment_id, payload))
         return OperationHandle("https://example/operations/reset", {})
 
-    def backup_environment(self, environment_id: str, payload: dict[str, object]) -> OperationHandle:
+    def backup_environment(
+        self, environment_id: str, payload: dict[str, object]
+    ) -> OperationHandle:
         self.backup_calls.append((environment_id, payload))
         return OperationHandle("https://example/operations/backup", {})
 
-    def restore_environment(self, environment_id: str, payload: dict[str, object]) -> OperationHandle:
+    def restore_environment(
+        self, environment_id: str, payload: dict[str, object]
+    ) -> OperationHandle:
         self.restore_calls.append((environment_id, payload))
         return OperationHandle("https://example/operations/restore", {})
 
@@ -137,17 +143,23 @@ class StubPowerPlatformClient:
             AppVersion(id="ver-1", version_id="1.0"),
             AppVersion(id="ver-2", version_id="2.0"),
         ]
-        return AppVersionPage(versions, next_link="next", continuation_token="token")
+        return AppVersionPage(versions, next_link="next", continuation_token="token")  # noqa: S106
 
-    def restore_app(self, environment_id: str, app_id: str, payload: dict[str, object]) -> OperationHandle:
+    def restore_app(
+        self, environment_id: str, app_id: str, payload: dict[str, object]
+    ) -> OperationHandle:
         self.app_restore_calls.append((environment_id, app_id, payload))
         return OperationHandle("https://example/operations/app-restore", {})
 
-    def publish_app(self, environment_id: str, app_id: str, payload: dict[str, object]) -> OperationHandle:
+    def publish_app(
+        self, environment_id: str, app_id: str, payload: dict[str, object]
+    ) -> OperationHandle:
         self.publish_calls.append((environment_id, app_id, payload))
         return OperationHandle("https://example/operations/app-publish", {})
 
-    def share_app(self, environment_id: str, app_id: str, payload: dict[str, object]) -> OperationHandle:
+    def share_app(
+        self, environment_id: str, app_id: str, payload: dict[str, object]
+    ) -> OperationHandle:
         self.share_calls.append((environment_id, app_id, payload))
         return OperationHandle("https://example/operations/app-share", {})
 
@@ -200,7 +212,7 @@ class StubPowerPlatformClient:
             params["continuationToken"] = continuation_token
         self.flow_run_list_calls.append((environment_id, flow_id, params))
         runs = [FlowRun(id="run-1", name="run-1", status="Succeeded")]
-        return FlowRunPage(runs, continuation_token="token-2")
+        return FlowRunPage(runs, continuation_token="token-2")  # noqa: S106
 
     def get_cloud_flow_run(self, environment_id: str, flow_id: str, run_name: str) -> FlowRun:
         self.flow_run_get_calls.append((environment_id, flow_id, run_name))
@@ -227,7 +239,9 @@ class StubPowerPlatformClient:
     def create_environment_group(self, payload: dict[str, object]) -> dict[str, object]:
         return {"id": "group-created", **payload}
 
-    def update_environment_group(self, group_id: str, payload: dict[str, object]) -> dict[str, object]:
+    def update_environment_group(
+        self, group_id: str, payload: dict[str, object]
+    ) -> dict[str, object]:
         return {"id": group_id, **payload}
 
     def delete_environment_group(self, group_id: str) -> OperationHandle:
@@ -377,7 +391,9 @@ def test_power_flows_run_handles_empty_response(
 ) -> None:
     app, client_cls = cli_app
 
-    def empty_trigger(self, environment_id: str, flow_id: str, payload: dict[str, object]) -> FlowRun:
+    def empty_trigger(
+        self, environment_id: str, flow_id: str, payload: dict[str, object]
+    ) -> FlowRun:
         self.flow_run_calls.append((environment_id, flow_id, payload))
         return FlowRun()
 
@@ -567,9 +583,7 @@ def test_apps_publish_command(cli_runner, cli_app) -> None:
 
 def test_apps_share_command(cli_runner, cli_app) -> None:
     app, client_cls = cli_app
-    payload = (
-        '{"principals":[{"id":"user","principalType":"User","roleName":"CanEdit"}]}'
-    )
+    payload = '{"principals":[{"id":"user","principalType":"User","roleName":"CanEdit"}]}'
 
     result = cli_runner.invoke(
         app,
@@ -631,9 +645,7 @@ def test_apps_permissions_command(cli_runner, cli_app) -> None:
 
 def test_apps_set_owner_command(cli_runner, cli_app) -> None:
     app, client_cls = cli_app
-    payload = (
-        '{"owner":{"id":"user","principalType":"User","roleName":"CanEdit"}}'
-    )
+    payload = '{"owner":{"id":"user","principalType":"User","roleName":"CanEdit"}}'
 
     result = cli_runner.invoke(
         app,

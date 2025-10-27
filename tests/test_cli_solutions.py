@@ -229,7 +229,7 @@ def test_pack_and_unpack(monkeypatch, cli_runner, cli_app, tmp_path):
     assert ("unpack", out_zip, src_dir / "out") in calls
 
 
-def test_pack_sp_and_unpack_sp(monkeypatch, cli_runner, cli_app, tmp_path):
+def test_pack_sp_and_unpack_sp_default_output(monkeypatch, cli_runner, cli_app, tmp_path):
     calls: list[tuple[str, Path, Path]] = []
 
     def record_pack(src: str, dest: str) -> None:
@@ -291,6 +291,7 @@ def test_legacy_action_unknown(cli_runner, cli_app):
 
     assert result.exit_code != 0
     assert "Unknown solution action" in result.output
+
 
 def test_pack_sp_and_unpack_sp(monkeypatch, cli_runner, cli_app, tmp_path):
     calls: list[tuple[str, Path, Path]] = []
