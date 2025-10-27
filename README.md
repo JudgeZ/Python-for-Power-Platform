@@ -25,6 +25,33 @@ The CI workflow also uploads coverage artifacts from `pytest` and enforces a min
 
 See `tests/` for TDD baselines and `openapi/` for the starter OpenAPI spec.
 
+## Advisor Recommendations workflow
+
+Analytics scenarios follow a discovery-to-remediation flow that surfaces actionable insights and tracks closure:
+
+1. **Discover scenarios** with `GET /analytics/advisorRecommendations/scenarios` to learn the categories available.
+2. **List actionable items** using `GET /analytics/advisorRecommendations/{scenario}/recommendations` to enumerate outstanding recommendations for the selected scenario.
+3. **Inspect details** for a recommendation via `GET /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}` to review severity, impact, and remediation guidance.
+4. **Remediate and respond** by invoking `POST .../{recommendationId}:acknowledge` after taking the suggested action or `POST .../{recommendationId}:dismiss` when the item is not applicable. Both routes return an operation identifier for auditing.
+5. **Track status** through `GET /analytics/advisorRecommendations/{scenario}/recommendations/{recommendationId}/status` or by polling `GET /analytics/advisorRecommendations/operations/{operationId}` until the acknowledgement or dismissal is finalized.
+
+The OpenAPI description in `openapi/analytics-recommendations.yaml` captures the payloads for each stage so clients can automate the workflow end-to-end.
+## Power Virtual Agents bot management
+
+The `openapi/powervirtualagents-bots.yaml` contract now captures day-to-day bot lifecycle management so SDKs can automate Power
+Virtual Agents administration:
+
+- Enumerate bots and inspect metadata (`GET /powervirtualagents/environments/{environmentId}/bots` and `GET .../{botId}`)
+- Publish and unpublish bots with long-running-operation headers for polling (`POST .../{botId}/publish`, `POST .../{botId}/unpublish`)
+- Export or import bot packages to external storage endpoints (`POST .../{botId}/export`, `POST .../{botId}/import`)
+- Configure channels programmatically, including enable/disable flows (`GET|POST /channels` and `GET|PUT|DELETE /channels/{channelId}`)
+
+### Prerequisites
+
+- Tenant administrators must enable the Power Platform tenant settings that unlock Power Virtual Agents admin APIs.
+- Bots require Power Virtual Agents licensing (per-user or capacity-based) to publish to production channels.
+- Export/import package operations rely on customer-managed storage accounts with shared access signatures or equivalent tokens.
+
 ## Contributing
 
 We welcome contributions from the community. Please review and abide by our [Code of Conduct](CODE_OF_CONDUCT.md) and the guidance captured in [`AGENTS.md`](AGENTS.md) before proposing changes. When opening pull requests or filing issues, use the repository templates to streamline collaboration:
