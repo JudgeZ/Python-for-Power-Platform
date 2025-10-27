@@ -3,15 +3,48 @@ from __future__ import annotations
 import base64
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, cast
 from urllib.parse import urlparse
 
+import httpx
+
 from ..http_client import HttpClient
-from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest, Solution
+from ..models.dataverse import (
+    ApplySolutionUpgradeRequest,
+    CloneAsPatchRequest,
+    CloneAsPatchResponse,
+    CloneAsSolutionRequest,
+    CloneAsSolutionResponse,
+    DeleteAndPromoteRequest,
+    ExportSolutionAsManagedRequest,
+    ExportSolutionRequest,
+    ExportSolutionUpgradeRequest,
+    ExportTranslationRequest,
+    ImportSolutionRequest,
+    ImportTranslationRequest,
+    Solution,
+    StageSolutionRequest,
+    StageSolutionResponse,
+)
 from ..utils.guid import sanitize_guid
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DataverseOperationHandle:
+    """Metadata returned by Dataverse long-running operations."""
+
+    operation_location: str | None
+    metadata: dict[str, Any]
+
+    @property
+    def has_operation(self) -> bool:
+        """Return ``True`` when an operation URL is provided."""
+
+        return bool(self.operation_location)
 
 
 class DataverseClient:
@@ -109,6 +142,28 @@ class DataverseClient:
         data = cast(dict[str, Any], resp.json())
         return [Solution.model_validate(o) for o in data.get("value", [])]
 
+    @staticmethod
+    def _parse_response_dict(resp: httpx.Response) -> dict[str, Any]:
+        if not resp.content:
+            return {}
+        try:
+            data = resp.json()
+        except Exception:  # pragma: no cover - defensive logging
+            logger.debug("Failed to decode Dataverse response payload", exc_info=True)
+            return {}
+        return cast(dict[str, Any], data) if isinstance(data, dict) else {}
+
+    def _post_action(
+        self, path: str, payload: dict[str, Any] | None = None
+    ) -> tuple[httpx.Response, dict[str, Any]]:
+        resp = self.http.post(path, json=payload)
+        data = self._parse_response_dict(resp)
+        return resp, data
+
+    @staticmethod
+    def _operation_handle(resp: httpx.Response, data: dict[str, Any]) -> DataverseOperationHandle:
+        return DataverseOperationHandle(resp.headers.get("Operation-Location"), data)
+
     def export_solution(self, req: ExportSolutionRequest) -> bytes:
         """Export a solution as a ZIP payload.
 
@@ -118,21 +173,93 @@ class DataverseClient:
         Returns:
             Raw bytes of the exported solution package.
         """
-        payload = req.model_dump()
-        resp = self.http.post("ExportSolution", json=payload)
-        data = cast(dict[str, Any], resp.json())
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("ExportSolution", payload)
         b64 = data.get("ExportSolutionFile", "")
         return base64.b64decode(b64)
 
-    def import_solution(self, req: ImportSolutionRequest) -> None:
+    def export_solution_as_managed(self, req: ExportSolutionAsManagedRequest) -> bytes:
+        """Export a managed solution package."""
+
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("ExportSolutionAsManaged", payload)
+        b64 = data.get("ExportSolutionFile", "")
+        return base64.b64decode(b64)
+
+    def export_solution_upgrade(self, req: ExportSolutionUpgradeRequest) -> bytes:
+        """Export a solution upgrade package."""
+
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("ExportSolutionUpgrade", payload)
+        b64 = data.get("ExportSolutionFile", "")
+        return base64.b64decode(b64)
+
+    def export_translation(self, req: ExportTranslationRequest) -> bytes:
+        """Export localized solution translations."""
+
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("ExportTranslation", payload)
+        b64 = data.get("ExportTranslationFile", "")
+        return base64.b64decode(b64)
+
+    def import_solution(self, req: ImportSolutionRequest) -> DataverseOperationHandle:
         """Import a solution package into the environment.
 
         Args:
             req: Request model containing the base64 solution payload and
                 import configuration.
         """
-        payload = req.model_dump()
-        self.http.post("ImportSolution", json=payload)
+        payload = req.model_dump(exclude_none=True)
+        resp, data = self._post_action("ImportSolution", payload)
+        return self._operation_handle(resp, data)
+
+    def stage_solution(self, req: StageSolutionRequest) -> DataverseOperationHandle:
+        """Stage a solution for upgrade validation."""
+
+        payload = req.model_dump(exclude_none=True)
+        resp, data = self._post_action("StageSolution", payload)
+        if data:
+            try:
+                parsed = StageSolutionResponse.model_validate(data)
+                data = parsed.model_dump(exclude_none=True)
+            except Exception:  # pragma: no cover - keep raw payload
+                logger.debug("Unexpected StageSolution response payload", exc_info=True)
+        return self._operation_handle(resp, data)
+
+    def apply_solution_upgrade(self, req: ApplySolutionUpgradeRequest) -> DataverseOperationHandle:
+        """Apply a previously staged solution upgrade."""
+
+        payload = req.model_dump(exclude_none=True)
+        resp, data = self._post_action("ApplySolutionUpgrade", payload)
+        return self._operation_handle(resp, data)
+
+    def import_translation(self, req: ImportTranslationRequest) -> DataverseOperationHandle:
+        """Import localized solution translations."""
+
+        payload = req.model_dump(exclude_none=True)
+        resp, data = self._post_action("ImportTranslation", payload)
+        return self._operation_handle(resp, data)
+
+    def clone_as_patch(self, req: CloneAsPatchRequest) -> CloneAsPatchResponse:
+        """Clone an existing solution as a patch."""
+
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("CloneAsPatch", payload)
+        return CloneAsPatchResponse.model_validate(data)
+
+    def clone_as_solution(self, req: CloneAsSolutionRequest) -> CloneAsSolutionResponse:
+        """Promote a patch solution back into the primary managed solution."""
+
+        payload = req.model_dump(exclude_none=True)
+        _, data = self._post_action("CloneAsSolution", payload)
+        return CloneAsSolutionResponse.model_validate(data)
+
+    def delete_and_promote(self, req: DeleteAndPromoteRequest) -> DataverseOperationHandle:
+        """Delete a patch solution and promote the base solution."""
+
+        payload = req.model_dump(exclude_none=True)
+        resp, data = self._post_action("DeleteAndPromote", payload)
+        return self._operation_handle(resp, data)
 
     def publish_all(self) -> None:
         """Trigger a publish-all operation for customizations."""
