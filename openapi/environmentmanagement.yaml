@@ -50,6 +50,47 @@ paths:
                 type: object
         '401':
           description: Unauthorized
+    post:
+      summary: Provision a new environment
+      description: Create a new Power Platform environment.
+      operationId: Env_ProvisionEnvironment
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentCreateRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentLifecycleOperationResponse'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict
   /environmentmanagement/environments/{environmentId}:
     get:
       summary: Get environment by ID for user
@@ -78,6 +119,206 @@ paths:
                 type: object
         '404':
           description: Not Found
+  /environmentmanagement/environments/{environmentId}:copy:
+    post:
+      summary: Copy environment
+      description: Copy an existing environment into a new target environment.
+      operationId: Env_CopyEnvironment
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Source environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentCopyRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentLifecycleOperationResponse'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /environmentmanagement/environments/{environmentId}:reset:
+    post:
+      summary: Reset environment
+      description: Reset an existing environment to a previous state.
+      operationId: Env_ResetEnvironment
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentResetRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentLifecycleOperationResponse'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /environmentmanagement/environments/{environmentId}:backup:
+    post:
+      summary: Backup environment
+      description: Create a manual backup for an environment.
+      operationId: Env_BackupEnvironment
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentBackupRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentLifecycleOperationResponse'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
+  /environmentmanagement/environments/{environmentId}:restore:
+    post:
+      summary: Restore environment
+      description: Restore an environment from a backup.
+      operationId: Env_RestoreEnvironment
+      tags:
+      - environmentmanagement.environments
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvironmentRestoreRequest'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvironmentLifecycleOperationResponse'
+          headers:
+            Operation-Location:
+              description: URL of the long-running operation.
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '409':
+          description: Conflict
     delete:
       summary: Delete environment by ID
       operationId: Env_DeleteEnvironmentById
@@ -845,6 +1086,188 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/Error'
+    EnvironmentBackupRequest:
+      type: object
+      required:
+      - label
+      properties:
+        label:
+          type: string
+          description: Friendly name for the backup.
+        description:
+          type: string
+          description: Optional description for the backup.
+        isManual:
+          type: boolean
+          description: Indicates whether the backup was manually triggered.
+        retentionDays:
+          type: integer
+          description: Number of days to retain the backup.
+        timeZone:
+          type: string
+          description: Time zone identifier used when capturing the backup metadata.
+      additionalProperties: true
+    EnvironmentCopyRequest:
+      type: object
+      required:
+      - targetEnvironmentName
+      - targetEnvironmentRegion
+      properties:
+        targetEnvironmentName:
+          type: string
+          description: Display name for the copied environment.
+        targetEnvironmentRegion:
+          type: string
+          description: Azure region for the new environment.
+        targetEnvironmentSku:
+          type: string
+          description: SKU for the new environment (for example, Sandbox or Production).
+        copyType:
+          type: string
+          description: Copy operation type (such as Full or Minimal copy).
+        includeAuditData:
+          type: boolean
+          description: Whether to include audit data in the copy.
+        includeFlowHistory:
+          type: boolean
+          description: Whether to include Power Automate flow history.
+        overrideExistingEnvironment:
+          type: boolean
+          description: Allows overwriting an existing target environment when supported.
+        securityGroupId:
+          type: string
+          format: uuid
+          description: Azure AD security group that will manage the environment.
+        targetEnvironmentId:
+          type: string
+          format: uuid
+          description: Identifier for an existing environment to overwrite when allowed.
+        notes:
+          type: string
+          description: Additional notes recorded for the copy.
+      additionalProperties: true
+    EnvironmentCreateRequest:
+      type: object
+      required:
+      - displayName
+      - region
+      - environmentSku
+      properties:
+        displayName:
+          type: string
+          description: Display name for the environment.
+        description:
+          type: string
+          description: Optional description for administrators.
+        region:
+          type: string
+          description: Azure region for the environment (for example, unitedstates).
+        environmentSku:
+          type: string
+          description: SKU of the environment (Developer, Sandbox, Production, and so on).
+        environmentType:
+          type: string
+          description: Deployment type (Production, Trial, Sandbox, Developer).
+        domainName:
+          type: string
+          description: Desired environment domain prefix.
+        securityGroupId:
+          type: string
+          format: uuid
+          description: Azure AD security group to restrict access to the environment.
+        tenantId:
+          type: string
+          format: uuid
+          description: Tenant identifier when provisioning across tenants.
+        azureSubscriptionId:
+          type: string
+          format: uuid
+          description: Azure subscription used for pay-as-you-go environments.
+        billingPolicyId:
+          type: string
+          format: uuid
+          description: Billing policy to associate with the environment.
+        dataLakeStorageAccountLocation:
+          type: string
+          description: Region of the linked Dataverse data lake storage account.
+        dataLakeStorageAccountName:
+          type: string
+          description: Name of the linked Dataverse data lake storage account.
+        additionalSettings:
+          type: object
+          description: Additional provisioning settings passed through to the platform.
+          additionalProperties: true
+      additionalProperties: true
+    EnvironmentLifecycleOperationResponse:
+      type: object
+      properties:
+        operationId:
+          type: string
+          description: Identifier of the operation tracking resource.
+        status:
+          type: string
+          description: Current status of the long-running operation.
+        resourceLocation:
+          type: string
+          description: URL of the environment resource once the operation completes.
+        createdDateTime:
+          type: string
+          format: date-time
+          description: Timestamp when the operation was created.
+        lastUpdatedDateTime:
+          type: string
+          format: date-time
+          description: Timestamp for the last status update.
+      additionalProperties: true
+    EnvironmentResetRequest:
+      type: object
+      required:
+      - resetType
+      properties:
+        resetType:
+          type: string
+          description: Type of reset to perform (for example, Soft or Hard reset).
+        targetEnvironmentId:
+          type: string
+          format: uuid
+          description: Identifier of the target environment when restoring to another environment.
+        backupId:
+          type: string
+          format: uuid
+          description: Identifier of the backup used for the reset when applicable.
+        notes:
+          type: string
+          description: Additional context about the reset operation.
+        skipEmailNotification:
+          type: boolean
+          description: When true, suppresses notification emails for the reset.
+      additionalProperties: true
+    EnvironmentRestoreRequest:
+      type: object
+      required:
+      - backupId
+      properties:
+        backupId:
+          type: string
+          format: uuid
+          description: Identifier of the backup that will be restored.
+        targetEnvironmentId:
+          type: string
+          format: uuid
+          description: Identifier of the target environment for the restore.
+        targetEnvironmentRegion:
+          type: string
+          description: Region for the restored environment when creating a new one.
+        restoreReason:
+          type: string
+          description: Reason the restore was requested.
+        notes:
+          type: string
+          description: Additional notes about the restore operation.
+        skipAuditData:
+          type: boolean
+          description: When true, excludes audit data from the restore.
+      additionalProperties: true
     ProblemDetails:
       type: object
       properties:
