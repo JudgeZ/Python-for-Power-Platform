@@ -372,6 +372,37 @@ def test_power_flows_run(cli_runner, cli_app) -> None:
     assert payload["inputs"]["foo"] == "bar"
 
 
+def test_power_flows_run_handles_empty_response(
+    cli_runner, cli_app, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app, client_cls = cli_app
+
+    def empty_trigger(self, environment_id: str, flow_id: str, payload: dict[str, object]) -> FlowRun:
+        self.flow_run_calls.append((environment_id, flow_id, payload))
+        return FlowRun()
+
+    monkeypatch.setattr(client_cls, "trigger_cloud_flow_run", empty_trigger, raising=False)
+
+    result = cli_runner.invoke(
+        app,
+        [
+            "power",
+            "flows",
+            "run",
+            "flow-1",
+            "--environment-id",
+            "ENV",
+            "--trigger-name",
+            "manual",
+        ],
+        env={"PACX_ACCESS_TOKEN": "token"},
+    )
+
+    assert result.exit_code == 0
+    assert "Cloud flow run triggered" in result.stdout
+    assert "status=" not in result.stdout
+
+
 def test_power_runs_commands(cli_runner, cli_app) -> None:
     app, client_cls = cli_app
 

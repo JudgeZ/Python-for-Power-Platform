@@ -32,6 +32,7 @@ class FlowRun(BaseModel):
     status: str | None = None
     start_time: str | None = Field(default=None, alias="startTime")
     end_time: str | None = Field(default=None, alias="endTime")
+    properties: dict[str, Any] = Field(default_factory=dict)
 
     model_config = ConfigDict(populate_by_name=True)
 

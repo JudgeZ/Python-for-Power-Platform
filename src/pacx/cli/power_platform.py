@@ -556,8 +556,9 @@ def _status_from_flow(flow: CloudFlow) -> str | None:
 def _status_from_run(run: FlowRun) -> str | None:
     if run.status:
         return run.status
-    if isinstance(run.properties, dict):
-        value = run.properties.get("status")
+    properties = getattr(run, "properties", None)
+    if isinstance(properties, dict):
+        value = properties.get("status")
         if isinstance(value, str):
             return value
     return None
