@@ -14,6 +14,7 @@ This bundle adds/updates endpoints requested for:
 - Power Pages (websites lifecycle, WAF, scanning, IP allowlist, security/visibility)
 - Power Virtual Agents (bots quarantine)
 - User Management (apply admin role)
+- Dataverse solution lifecycle (patch promotion, staging, managed exports, translation import/export, publish-all)
 
 Security is modeled using OAuth2 implicit. RBAC read operations require the
 `Authorization.RBAC.Read` scope, while create/update/delete flows require
