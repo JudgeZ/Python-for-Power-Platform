@@ -8,6 +8,7 @@ import typer
 from typer.models import CommandInfo
 
 from . import (
+    app_management,
     auth,
     connectors,
     dataverse,
@@ -17,6 +18,7 @@ from . import (
     profile,
     solution,
 )
+from .app_management import AppManagementClient
 from .auth import auth_create
 from .power_platform import PowerPlatformClient
 
@@ -27,6 +29,7 @@ def _register_sub_app(name: str, sub_app: typer.Typer) -> None:
     app.add_typer(sub_app, name=name)
 
 
+_register_sub_app("app", app_management.app)
 _register_sub_app("auth", auth.app)
 _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
@@ -97,9 +100,11 @@ def common(ctx: typer.Context) -> None:
 
 
 __all__ = [
+    "AppManagementClient",
     "app",
     "auth",
     "auth_create",
+    "app_management",
     "connectors",
     "dataverse",
     "doctor",
