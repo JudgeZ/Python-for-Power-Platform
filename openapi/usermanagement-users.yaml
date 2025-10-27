@@ -61,6 +61,12 @@ paths:
         schema:
           type: string
         description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveAdminRoleRequest'
       responses:
         '202':
           description: Accepted
@@ -179,6 +185,16 @@ components:
           type: string
           nullable: true
           description: URL to retrieve the next page of results, if present.
+      additionalProperties: false
+    RemoveAdminRoleRequest:
+      type: object
+      description: Parameters for revoking a previously assigned admin role.
+      required:
+      - roleDefinitionId
+      properties:
+        roleDefinitionId:
+          type: string
+          description: Identifier of the admin role definition to remove from the user.
       additionalProperties: false
     Error:
       type: object
