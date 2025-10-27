@@ -19,6 +19,15 @@ from .power_platform import (
 from .power_platform import (
     PowerApp as PowerApp,
 )
+from .pva import BotListResult as BotListResult
+from .pva import BotMetadata as BotMetadata
+from .pva import ChannelConfiguration as ChannelConfiguration
+from .pva import ChannelConfigurationListResult as ChannelConfigurationListResult
+from .pva import ChannelConfigurationPayload as ChannelConfigurationPayload
+from .pva import ExportBotPackageRequest as ExportBotPackageRequest
+from .pva import ImportBotPackageRequest as ImportBotPackageRequest
+from .pva import PublishBotRequest as PublishBotRequest
+from .pva import UnpublishBotRequest as UnpublishBotRequest
 
 __all__ = [
     "ExportSolutionRequest",
@@ -28,4 +37,13 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
+    "BotListResult",
+    "BotMetadata",
+    "ChannelConfiguration",
+    "ChannelConfigurationListResult",
+    "ChannelConfigurationPayload",
+    "ExportBotPackageRequest",
+    "ImportBotPackageRequest",
+    "PublishBotRequest",
+    "UnpublishBotRequest",
 ]

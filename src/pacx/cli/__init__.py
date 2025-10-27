@@ -15,10 +15,12 @@ from . import (
     pages,
     power_platform,
     profile,
+    pva,
     solution,
 )
 from .auth import auth_create
 from .power_platform import PowerPlatformClient
+from .pva import PVAClient
 
 app = typer.Typer(help="PACX CLI")
 
@@ -32,6 +34,7 @@ _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
 _register_sub_app("connector", connectors.app)
 _register_sub_app("pages", pages.app)
+_register_sub_app("pva", pva.app)
 _register_sub_app("solution", solution.app)
 
 
@@ -105,6 +108,8 @@ __all__ = [
     "doctor",
     "PowerPlatformClient",
     "pages",
+    "pva",
+    "PVAClient",
     "power_platform",
     "profile",
     "solution",
