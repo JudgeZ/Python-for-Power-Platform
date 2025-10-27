@@ -75,6 +75,102 @@ paths:
           description: Not Found
         '401':
           description: Unauthorized
+  /connectivity/environments/{environmentId}/connectors:
+    get:
+      summary: List connectors in an environment
+      operationId: Connectivity_ListConnectorsByEnvironment
+      parameters:
+      - name: $filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter expression
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Page size
+      - name: $skiptoken
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Skip token
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: environmentId
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version (e.g., 2022-03-01-preview)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /connectivity/environments/{environmentId}/connectors/{connectorId}:
+    get:
+      summary: Get connector by ID in an environment
+      operationId: Connectivity_GetConnectorByIdInEnvironment
+      parameters:
+      - name: $filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter expression
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: environmentId
+      - name: connectorId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: connectorId
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version (e.g., 2022-03-01-preview)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
 components:
   securitySchemes:
     oauth2Implicit:
