@@ -9,7 +9,14 @@ from urllib.parse import parse_qsl, urlparse
 import httpx
 
 from ..http_client import HttpClient
-from ..models.power_platform import CloudFlow, EnvironmentSummary, FlowRun, PowerApp
+from ..models.power_platform import (
+    AppPermissionAssignment,
+    AppVersion,
+    CloudFlow,
+    EnvironmentSummary,
+    FlowRun,
+    PowerApp,
+)
 
 DEFAULT_API_VERSION = "2022-03-01-preview"
 
@@ -38,6 +45,15 @@ class OperationHandle:
         if not self.operation_location:
             return None
         return self.operation_location.rstrip("/").split("/")[-1]
+
+
+@dataclass(frozen=True)
+class AppVersionPage:
+    """Container for a page of Power App version results."""
+
+    versions: list[AppVersion]
+    next_link: str | None = None
+    continuation_token: str | None = None
 
 
 class PowerPlatformClient:
@@ -319,6 +335,104 @@ class PowerPlatformClient:
             next_link_field="@odata.nextLink",
         )
         return [PowerApp.model_validate(o) for o in items]
+
+    def list_app_versions(
+        self,
+        environment_id: str,
+        app_id: str,
+        *,
+        top: int | None = None,
+        skiptoken: str | None = None,
+    ) -> AppVersionPage:
+        """List versions for a Power App."""
+
+        params = self._with_api_version()
+        if top is not None:
+            params["$top"] = top
+        if skiptoken:
+            params["$skiptoken"] = skiptoken
+        resp = self.http.get(
+            f"powerapps/environments/{environment_id}/apps/{app_id}/versions",
+            params=params,
+        )
+        payload = self._parse_response_dict(resp)
+        raw_versions = payload.get("value")
+        versions = (
+            [AppVersion.model_validate(obj) for obj in cast(list[dict[str, Any]], raw_versions)]
+            if isinstance(raw_versions, list)
+            else []
+        )
+        next_link = cast(str | None, payload.get("nextLink"))
+        continuation = cast(str | None, payload.get("continuationToken"))
+        return AppVersionPage(versions, next_link, continuation)
+
+    def restore_app(
+        self, environment_id: str, app_id: str, payload: dict[str, Any]
+    ) -> OperationHandle:
+        """Restore an app to a specified version or target environment."""
+
+        return self._post_operation(
+            f"powerapps/environments/{environment_id}/apps/{app_id}:restore",
+            body=payload,
+        )
+
+    def publish_app(
+        self, environment_id: str, app_id: str, payload: dict[str, Any]
+    ) -> OperationHandle:
+        """Publish an app version."""
+
+        return self._post_operation(
+            f"powerapps/environments/{environment_id}/apps/{app_id}:publish",
+            body=payload,
+        )
+
+    def share_app(
+        self, environment_id: str, app_id: str, payload: dict[str, Any]
+    ) -> OperationHandle:
+        """Share an app with additional principals."""
+
+        return self._post_operation(
+            f"powerapps/environments/{environment_id}/apps/{app_id}:share",
+            body=payload,
+        )
+
+    def revoke_app_share(
+        self, environment_id: str, app_id: str, payload: dict[str, Any]
+    ) -> OperationHandle:
+        """Revoke previously granted app permissions."""
+
+        return self._post_operation(
+            f"powerapps/environments/{environment_id}/apps/{app_id}:revokeShare",
+            body=payload,
+        )
+
+    def set_app_owner(
+        self, environment_id: str, app_id: str, payload: dict[str, Any]
+    ) -> OperationHandle:
+        """Assign a new owner for an app."""
+
+        return self._post_operation(
+            f"powerapps/environments/{environment_id}/apps/{app_id}:setOwner",
+            body=payload,
+        )
+
+    def list_app_permissions(
+        self, environment_id: str, app_id: str
+    ) -> list[AppPermissionAssignment]:
+        """List permissions granted to principals for an app."""
+
+        resp = self.http.get(
+            f"powerapps/environments/{environment_id}/apps/{app_id}/permissions",
+            params=self._with_api_version(),
+        )
+        payload = self._parse_response_dict(resp)
+        assignments = payload.get("value")
+        if not isinstance(assignments, list):
+            return []
+        return [
+            AppPermissionAssignment.model_validate(obj)
+            for obj in cast(list[dict[str, Any]], assignments)
+        ]
 
     def list_cloud_flows(self, environment_id: str, **filters: Any) -> list[CloudFlow]:
         params: dict[str, Any] = {"api-version": self.api_version}
