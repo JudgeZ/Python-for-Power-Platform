@@ -61,6 +61,17 @@ from .power_platform import (
 from .power_platform import (
     PowerApp as PowerApp,
 )
+from .user_management import (
+    AdminRoleAssignment as AdminRoleAssignment,
+)
+from .user_management import (
+    AdminRoleAssignmentList as AdminRoleAssignmentList,
+)
+from .user_management import (
+    AsyncOperationStatus as AsyncOperationStatus,
+)
+from .user_management import (
+    RemoveAdminRoleRequest as RemoveAdminRoleRequest,
 from .authorization import (
     CreateRoleAssignmentRequest as CreateRoleAssignmentRequest,
 )
@@ -95,6 +106,10 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
+    "AdminRoleAssignment",
+    "AdminRoleAssignmentList",
+    "AsyncOperationStatus",
+    "RemoveAdminRoleRequest",
     "CreateRoleAssignmentRequest",
     "CreateRoleDefinitionRequest",
     "RoleAssignment",
