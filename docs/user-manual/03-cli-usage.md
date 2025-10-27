@@ -17,6 +17,7 @@ Need a guided tour? Walk through the [end-to-end quick start](01-installation.md
 | `solution` | Perform solution lifecycle operations (list, export/import, pack/unpack). | `ppx solution export --name core --out core.zip` |
 | `env`/`apps`/`flows` | List environments, canvas apps, and cloud flows. | `ppx apps --environment-id ENV-ID` |
 | `doctor` | Run environment diagnostics including token acquisition. | `ppx doctor` |
+| `tenant` | Inspect and update tenant-level toggles and feature flights. | `ppx tenant settings get` |
 
 Run `ppx --help` to see all registered groups and global options.
 
@@ -137,3 +138,20 @@ $ ppx doctor
 ```
 
 `ppx doctor` exits with a non-zero status code if Dataverse connectivity fails, making it suitable for CI smoke tests.
+
+### Manage tenant settings and feature controls
+
+Tenant-wide toggles are exposed through the `tenant` command group. Inspect the current configuration with:
+
+```shell
+$ ppx tenant settings get
+```
+
+Update operations (for both settings and features) require the `TenantSettings.Manage` scope or equivalent administrator privileges. The CLI surfaces asynchronous responses when the service accepts a change for background processing—pass `--async` to request `Prefer: respond-async` and capture the operation handle from the output.
+
+Request elevated access when you do not currently hold the permission:
+
+```shell
+$ ppx tenant settings request-access --justification "Enable managed environments" --setting managedEnvironment
+Tenant settings access request submitted.
+```
