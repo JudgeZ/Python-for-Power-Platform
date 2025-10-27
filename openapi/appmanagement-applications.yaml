@@ -32,15 +32,57 @@ paths:
         description: API version
       responses:
         '200':
-          description: OK
+          description: Application package details
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/ApplicationPackage'
         '404':
           description: Not Found
         '401':
           description: Unauthorized
+    delete:
+      summary: Uninstall tenant application package
+      operationId: AppMgmt_UninstallTenantApplicationPackage
+      tags:
+      - appmanagement.applications
+      parameters:
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Tenant-level application package ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Uninstall request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPackageOperation'
+          headers:
+            Operation-Location:
+              description: URL of the long-running uninstall operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Suggested polling interval in seconds.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   /appmanagement/applications/environments/{environmentId}/applicationPackages/{packageId}:
     get:
       summary: Get environment application package
@@ -68,15 +110,63 @@ paths:
         description: API version
       responses:
         '200':
-          description: OK
+          description: Application package details
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/ApplicationPackage'
         '404':
           description: Not Found
         '401':
           description: Unauthorized
+    delete:
+      summary: Uninstall environment application package
+      operationId: AppMgmt_UninstallEnvironmentApplicationPackage
+      tags:
+      - appmanagement.applications
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment-level application package ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Uninstall request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPackageOperation'
+          headers:
+            Operation-Location:
+              description: URL of the long-running uninstall operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Suggested polling interval in seconds.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '404':
+          description: Not Found
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   /appmanagement/applications/installApplicationPackage:
     post:
       summary: Install application package
@@ -92,16 +182,20 @@ paths:
         description: API version
       responses:
         '202':
-          description: Accepted
+          description: Install request accepted
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/ApplicationPackageOperation'
           headers:
             Operation-Location:
-              description: URL of the long-running operation.
+              description: URL of the long-running install operation.
               schema:
                 type: string
+            Retry-After:
+              description: Suggested polling interval in seconds.
+              schema:
+                type: integer
         '400':
           description: Bad Request
         '401':
@@ -135,11 +229,11 @@ paths:
         description: API version
       responses:
         '200':
-          description: OK
+          description: Operation status
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/ApplicationPackageOperation'
         '404':
           description: Not Found
         '401':
@@ -157,12 +251,45 @@ paths:
         description: API version (e.g., 2022-03-01-preview)
       responses:
         '200':
-          description: OK
+          description: Application package summaries
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ApplicationPackageSummaryListResult'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /appmanagement/environments/{environmentId}/applicationPackages:
+    get:
+      summary: List environment application packages
+      operationId: AppMgmt_ListEnvironmentApplicationPackages
+      tags:
+      - appmanagement.applications
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version (e.g., 2022-03-01-preview)
+      responses:
+        '200':
+          description: Application package summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPackageSummaryListResult'
         '400':
           description: Bad Request
         '401':
@@ -195,13 +322,21 @@ paths:
           type: string
         description: API version (e.g., 2022-03-01-preview)
       responses:
-        '200':
-          description: OK
+        '202':
+          description: Install request accepted
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ApplicationPackageOperation'
+          headers:
+            Operation-Location:
+              description: URL of the long-running install operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Suggested polling interval in seconds.
+              schema:
+                type: integer
         '400':
           description: Bad Request
         '401':
@@ -217,6 +352,99 @@ paths:
             schema:
               type: object
               additionalProperties: true
+  /appmanagement/environments/{environmentId}/applicationPackages/{packageId}:upgrade:
+    post:
+      summary: Upgrade environment application package
+      operationId: AppMgmt_UpgradeEnvironmentApplicationPackage
+      tags:
+      - appmanagement.applications
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Application package ID to upgrade
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version (e.g., 2022-03-01-preview)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradeApplicationPackageRequest'
+      responses:
+        '202':
+          description: Upgrade request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPackageOperation'
+          headers:
+            Operation-Location:
+              description: URL of the long-running upgrade operation.
+              schema:
+                type: string
+            Retry-After:
+              description: Suggested polling interval in seconds.
+              schema:
+                type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+  /appmanagement/environments/{environmentId}/applicationPackages/{packageId}/operations:
+    get:
+      summary: List environment application package operations
+      operationId: AppMgmt_ListEnvironmentApplicationPackageOperations
+      tags:
+      - appmanagement.applications
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: packageId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Application package ID
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version (e.g., 2022-03-01-preview)
+      responses:
+        '200':
+          description: Application package operations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationPackageOperationListResult'
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /appmanagement/environments/{environmentId}/operations/{operationId}:
     get:
       summary: Get environment application operation status
@@ -242,12 +470,11 @@ paths:
         description: API version (e.g., 2022-03-01-preview)
       responses:
         '200':
-          description: OK
+          description: Operation status
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/ApplicationPackageOperation'
         '400':
           description: Bad Request
         '401':
@@ -311,6 +538,115 @@ components:
       required:
       - packageId
       - environmentId
+    UpgradeApplicationPackageRequest:
+      type: object
+      properties:
+        targetVersion:
+          type: string
+          description: Target version to upgrade the package to.
+        parameters:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    ApplicationPackage:
+      type: object
+      properties:
+        id:
+          type: string
+        packageId:
+          type: string
+        uniqueName:
+          type: string
+        displayName:
+          type: string
+        publisher:
+          type: string
+        version:
+          type: string
+        environmentId:
+          type: string
+        applicationType:
+          type: string
+        availabilityState:
+          type: string
+        isManaged:
+          type: boolean
+        installState:
+          type: string
+        createdTime:
+          type: string
+          format: date-time
+        lastUpdatedTime:
+          type: string
+          format: date-time
+        properties:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    ApplicationPackageSummary:
+      type: object
+      properties:
+        packageId:
+          type: string
+        uniqueName:
+          type: string
+        displayName:
+          type: string
+        environmentId:
+          type: string
+        applicationType:
+          type: string
+        version:
+          type: string
+        availabilityState:
+          type: string
+        installState:
+          type: string
+        managed:
+          type: boolean
+      additionalProperties: false
+    ApplicationPackageSummaryListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationPackageSummary'
+        nextLink:
+          type: string
+      additionalProperties: false
+    ApplicationPackageOperation:
+      type: object
+      properties:
+        operationId:
+          type: string
+        status:
+          type: string
+        operationType:
+          type: string
+        createdTime:
+          type: string
+          format: date-time
+        lastUpdatedTime:
+          type: string
+          format: date-time
+        percentComplete:
+          type: number
+          format: float
+        properties:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    ApplicationPackageOperationListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationPackageOperation'
+        nextLink:
+          type: string
+      additionalProperties: false
 security:
 - oauth2Implicit:
   - .default

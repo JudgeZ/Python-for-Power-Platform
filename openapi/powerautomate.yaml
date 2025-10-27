@@ -12,6 +12,7 @@ tags:
 - name: powerautomate.cloudFlows
 - name: powerautomate.flowActions
 - name: powerautomate.flowRuns
+- name: powerautomate.flowDiagnostics
 paths:
   /powerautomate/environments/{environmentId}/cloudFlows:
     get:
@@ -83,10 +84,13 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            x-ms-continuation-token:
+              $ref: '#/components/headers/XMsContinuationToken'
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/CloudFlowListResult'
         '204':
           description: No Content
         '400':
@@ -99,8 +103,160 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
         '500':
           description: Internal Server Error
+  /powerautomate/environments/{environmentId}/cloudFlows/{flowId}:
+    get:
+      summary: Get cloud flow
+      operationId: PowerAutomate_GetCloudFlow
+      tags:
+      - powerautomate.cloudFlows
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudFlow'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+    patch:
+      summary: Update cloud flow state
+      operationId: PowerAutomate_UpdateCloudFlowState
+      tags:
+      - powerautomate.cloudFlows
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloudFlowStatePatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudFlow'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+    delete:
+      summary: Delete cloud flow
+      operationId: PowerAutomate_DeleteCloudFlow
+      tags:
+      - powerautomate.cloudFlows
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
   /powerautomate/environments/{environmentId}/flowActions:
     get:
       summary: List flow actions
@@ -168,7 +324,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/FlowActionListResult'
         '204':
           description: No Content
         '400':
@@ -214,7 +370,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/FlowRunListResult'
+          headers:
+            x-ms-continuation-token:
+              $ref: '#/components/headers/XMsContinuationToken'
+        '204':
+          description: No Content
         '400':
           description: Bad Request
           content:
@@ -225,7 +386,434 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+  /powerautomate/environments/{environmentId}/cloudFlows/{flowId}/runs:
+    get:
+      summary: List runs for cloud flow
+      operationId: PowerAutomate_ListCloudFlowRuns
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by run status
+      - name: triggerName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Filter by trigger name
+      - name: $top
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Maximum number of runs to return
+      - name: $skiptoken
+        in: query
+        required: false
+        schema:
+          type: string
+        description: Continuation token for paging
+      responses:
+        '200':
+          description: OK
+          headers:
+            x-ms-continuation-token:
+              $ref: '#/components/headers/XMsContinuationToken'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRunListResult'
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+    post:
+      summary: Trigger cloud flow run
+      operationId: PowerAutomate_CreateCloudFlowRun
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRunTriggerRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRun'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+  /powerautomate/environments/{environmentId}/cloudFlows/{flowId}/runs/{runName}:
+    get:
+      summary: Get cloud flow run
+      operationId: PowerAutomate_GetCloudFlowRun
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: runName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Run name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRun'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+    post:
+      summary: Resubmit cloud flow run
+      operationId: PowerAutomate_ResubmitCloudFlowRun
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: runName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Run name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRunResubmitRequest'
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRun'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+    delete:
+      summary: Delete cloud flow run
+      operationId: PowerAutomate_DeleteCloudFlowRun
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: runName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Run name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '204':
+          description: No Content
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+  /powerautomate/environments/{environmentId}/cloudFlows/{flowId}/runs/{runName}:cancel:
+    post:
+      summary: Cancel cloud flow run
+      operationId: PowerAutomate_CancelCloudFlowRun
+      tags:
+      - powerautomate.flowRuns
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: runName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Run name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '202':
+          description: Accepted
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+  /powerautomate/environments/{environmentId}/cloudFlows/{flowId}/runs/{runName}/diagnostics:
+    get:
+      summary: Get diagnostics for cloud flow run
+      operationId: PowerAutomate_GetCloudFlowRunDiagnostics
+      tags:
+      - powerautomate.flowDiagnostics
+      parameters:
+      - name: environmentId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Environment ID
+      - name: flowId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Cloud flow ID (guid)
+      - name: runName
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Run name
+      - name: api-version
+        in: query
+        required: true
+        schema:
+          type: string
+        description: API version
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowRunDiagnostics'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorMessage'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
+        '404':
+          description: Not Found
+        '429':
+          description: Too Many Requests
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
 components:
+  headers:
+    XMsContinuationToken:
+      description: Token to continue enumeration in a subsequent request.
+      schema:
+        type: string
+    RetryAfter:
+      description: Number of seconds to wait before sending a follow-up request.
+      schema:
+        type: integer
+        format: int32
   securitySchemes:
     oauth2Implicit:
       type: oauth2
@@ -267,6 +855,220 @@ components:
         instance:
           type: string
       additionalProperties: true
+    CloudFlow:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        properties:
+          type: object
+          properties:
+            displayName:
+              type: string
+            description:
+              type: string
+            environment:
+              type: object
+              properties:
+                id:
+                  type: string
+                name:
+                  type: string
+            createdTime:
+              type: string
+              format: date-time
+            lastModifiedTime:
+              type: string
+              format: date-time
+            state:
+              type: string
+              enum:
+              - Started
+              - Stopped
+              - Suspended
+            triggers:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlowTrigger'
+            definition:
+              type: object
+              description: Logic App definition for the flow.
+              additionalProperties: true
+            creator:
+              type: object
+              properties:
+                id:
+                  type: string
+                displayName:
+                  type: string
+          additionalProperties: true
+      additionalProperties: false
+    CloudFlowListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/CloudFlow'
+        nextLink:
+          type: string
+      additionalProperties: false
+    CloudFlowStatePatch:
+      type: object
+      properties:
+        state:
+          type: string
+          enum:
+          - Started
+          - Stopped
+          - Suspended
+      required:
+      - state
+    FlowTrigger:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        kind:
+          type: string
+        description:
+          type: string
+        recurrence:
+          type: object
+          additionalProperties: true
+        inputs:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    FlowAction:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        description:
+          type: string
+        connector:
+          type: string
+        operationId:
+          type: string
+        inputs:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    FlowActionListResult:
+      type: object
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlowAction'
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlowTrigger'
+      additionalProperties: false
+    FlowRun:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+        type:
+          type: string
+        properties:
+          type: object
+          properties:
+            startTime:
+              type: string
+              format: date-time
+            endTime:
+              type: string
+              format: date-time
+            status:
+              type: string
+            triggerName:
+              type: string
+            correlation:
+              type: object
+              properties:
+                clientTrackingId:
+                  type: string
+              additionalProperties: true
+            error:
+              type: object
+              additionalProperties: true
+            outputs:
+              type: object
+              additionalProperties: true
+          additionalProperties: true
+      additionalProperties: false
+    FlowRunListResult:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            $ref: '#/components/schemas/FlowRun'
+        nextLink:
+          type: string
+      additionalProperties: false
+    FlowRunTriggerRequest:
+      type: object
+      properties:
+        triggerName:
+          type: string
+        inputs:
+          type: object
+          additionalProperties: true
+      required:
+      - triggerName
+      additionalProperties: false
+    FlowRunResubmitRequest:
+      type: object
+      properties:
+        retryFailedActions:
+          type: boolean
+        inputsOverride:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+    FlowRunDiagnostics:
+      type: object
+      properties:
+        runName:
+          type: string
+        correlationId:
+          type: string
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              actionName:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+              recommendation:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+            additionalProperties: false
+      additionalProperties: false
 security:
 - oauth2Implicit:
   - .default
