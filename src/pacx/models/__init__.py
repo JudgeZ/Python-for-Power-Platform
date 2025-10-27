@@ -61,6 +61,18 @@ from .power_platform import (
 from .power_platform import (
     PowerApp as PowerApp,
 )
+from .authorization import (
+    CreateRoleAssignmentRequest as CreateRoleAssignmentRequest,
+)
+from .authorization import (
+    CreateRoleDefinitionRequest as CreateRoleDefinitionRequest,
+)
+from .authorization import (
+    RoleAssignment as RoleAssignment,
+)
+from .authorization import (
+    RoleDefinition as RoleDefinition,
+)
 
 __all__ = [
     "ApplySolutionUpgradeRequest",
@@ -83,4 +95,8 @@ __all__ = [
     "EnvironmentSummary",
     "FlowRun",
     "PowerApp",
+    "CreateRoleAssignmentRequest",
+    "CreateRoleDefinitionRequest",
+    "RoleAssignment",
+    "RoleDefinition",
 ]
