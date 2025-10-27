@@ -12,6 +12,7 @@ from . import (
     connectors,
     dataverse,
     doctor,
+    licensing,
     pages,
     power_platform,
     profile,
@@ -21,6 +22,7 @@ from . import (
     users,
 )
 from .auth import auth_create
+from .licensing import LicensingClient
 from .power_platform import PowerPlatformClient
 from .pva import PVAClient
 from ..clients.user_management import UserManagementClient
@@ -36,6 +38,7 @@ _register_sub_app("auth", auth.app)
 _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
 _register_sub_app("connector", connectors.app)
+_register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("pva", pva.app)
 _register_sub_app("solution", solution.app)
@@ -111,8 +114,10 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "LicensingClient",
     "PowerPlatformClient",
     "pages",
+    "licensing",
     "pva",
     "PVAClient",
     "power_platform",
