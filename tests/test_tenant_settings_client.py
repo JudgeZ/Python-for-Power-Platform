@@ -64,7 +64,9 @@ def test_update_feature_control_payload(token_getter, respx_mock) -> None:
     route = respx_mock.patch(
         "https://api.powerplatform.com/tenantsettings/featureControl/ExperimentalFeature"
     ).mock(
-        return_value=httpx.Response(202, headers={"Operation-Location": "https://api.example/ops/123"})
+        return_value=httpx.Response(
+            202, headers={"Operation-Location": "https://api.example/ops/123"}
+        )
     )
     client = TenantSettingsClient(token_getter)
 

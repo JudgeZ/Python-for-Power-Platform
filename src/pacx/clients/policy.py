@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -63,7 +63,7 @@ class DataLossPreventionClient:
 
         self.http.close()
 
-    def __enter__(self) -> "DataLossPreventionClient":
+    def __enter__(self) -> DataLossPreventionClient:
         return self
 
     def __exit__(
@@ -88,14 +88,17 @@ class DataLossPreventionClient:
             payload = resp.json()
         except Exception:  # pragma: no cover - defensive parsing guard
             return {}
-        return payload if isinstance(payload, dict) else {}
+        if isinstance(payload, dict):
+            return cast(dict[str, Any], payload)
+        return {}
 
     @staticmethod
     def _model_dump(obj: Any) -> dict[str, Any]:
         if hasattr(obj, "model_dump"):
-            return obj.model_dump(by_alias=True, exclude_none=True, exclude_unset=True)
+            data = obj.model_dump(by_alias=True, exclude_none=True, exclude_unset=True)
+            return cast(dict[str, Any], data)
         if isinstance(obj, dict):
-            return obj
+            return cast(dict[str, Any], obj)
         raise TypeError(f"Unsupported payload type: {type(obj)!r}")
 
     def _build_operation_handle(self, resp: httpx.Response) -> PolicyOperationHandle:
@@ -136,7 +139,9 @@ class DataLossPreventionClient:
         )
         return DataLossPreventionPolicy.model_validate(resp.json())
 
-    def create_policy(self, policy: DataLossPreventionPolicy | dict[str, Any]) -> PolicyOperationHandle:
+    def create_policy(
+        self, policy: DataLossPreventionPolicy | dict[str, Any]
+    ) -> PolicyOperationHandle:
         payload = self._model_dump(policy)
         resp = self.http.post(
             "policy/dataLossPreventionPolicies",
@@ -250,7 +255,7 @@ class DataLossPreventionClient:
         def get_progress(status: dict[str, Any]) -> int | None:
             for key in ("percentComplete", "progress", "percentage", "completionPercent"):
                 raw = status.get(key)
-                if isinstance(raw, (int, float)):
+                if isinstance(raw, int | float):
                     return int(raw)
             return None
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from pacx.clients.app_management import AppManagementClient, ApplicationOperationHandle
+from pacx.clients.app_management import ApplicationOperationHandle, AppManagementClient
 from pacx.models.app_management import ApplicationPackageOperation
 
 
@@ -83,7 +83,9 @@ def test_install_application_package(respx_mock, build_client):
         return_value=httpx.Response(
             202,
             json={"operationId": "op-1", "status": "Running"},
-            headers={"Operation-Location": "https://api.powerplatform.com/appmanagement/applications/installStatuses/op-1"},
+            headers={
+                "Operation-Location": "https://api.powerplatform.com/appmanagement/applications/installStatuses/op-1"
+            },
         )
     )
 
@@ -101,9 +103,7 @@ def test_install_environment_package(respx_mock, build_client):
         "https://api.powerplatform.com/appmanagement/environments/env-1/applicationPackages/app-1/install",
         params={"api-version": "2022-03-01-preview"},
         json={"param": "value"},
-    ).mock(
-        return_value=httpx.Response(202, json={"operationId": "op-env"})
-    )
+    ).mock(return_value=httpx.Response(202, json={"operationId": "op-env"}))
 
     handle = client.install_environment_package("env-1", "app-1", payload={"param": "value"})
 
@@ -118,9 +118,7 @@ def test_upgrade_environment_package(respx_mock, build_client):
         "https://api.powerplatform.com/appmanagement/environments/env-1/applicationPackages/pkg-1:upgrade",
         params={"api-version": "2022-03-01-preview"},
         json={"targetVersion": "3.0"},
-    ).mock(
-        return_value=httpx.Response(202, json={"operationId": "op-upgrade"})
-    )
+    ).mock(return_value=httpx.Response(202, json={"operationId": "op-upgrade"}))
 
     handle = client.upgrade_environment_package("env-1", "pkg-1", payload={"targetVersion": "3.0"})
 
@@ -134,9 +132,7 @@ def test_get_install_status(respx_mock, build_client):
     respx_mock.get(
         "https://api.powerplatform.com/appmanagement/applications/installStatuses/op-1",
         params={"api-version": "2022-03-01-preview"},
-    ).mock(
-        return_value=httpx.Response(200, json={"operationId": "op-1", "status": "Succeeded"})
-    )
+    ).mock(return_value=httpx.Response(200, json={"operationId": "op-1", "status": "Succeeded"}))
 
     status = client.get_install_status("op-1")
 
@@ -149,9 +145,7 @@ def test_get_environment_operation_status(respx_mock, build_client):
     respx_mock.get(
         "https://api.powerplatform.com/appmanagement/environments/env-1/operations/op-2",
         params={"api-version": "2022-03-01-preview"},
-    ).mock(
-        return_value=httpx.Response(200, json={"operationId": "op-2", "status": "Running"})
-    )
+    ).mock(return_value=httpx.Response(200, json={"operationId": "op-2", "status": "Running"}))
 
     status = client.get_environment_operation_status("env-1", "op-2")
 

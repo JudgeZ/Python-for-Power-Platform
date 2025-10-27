@@ -7,7 +7,6 @@ import pytest
 import respx
 from typer.testing import CliRunner
 
-
 # Ensure the repository-local ``src`` directory is importable when the project is
 # not installed as a package. Pytest executes from the repository root where the
 # ``src`` layout is not on ``sys.path`` by default, so the pacx package would

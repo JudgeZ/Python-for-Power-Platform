@@ -63,11 +63,15 @@ class StubAdminClient:
         self.calls.append(("waf-status", (environment_id, website_id), {}))
         return {"enabled": True}
 
-    def create_waf_rules(self, environment_id: str, website_id: str, rules: dict) -> WebsiteOperationHandle:
+    def create_waf_rules(
+        self, environment_id: str, website_id: str, rules: dict
+    ) -> WebsiteOperationHandle:
         self.calls.append(("waf-rules", (environment_id, website_id), {"rules": rules}))
         return WebsiteOperationHandle("https://example/ops/rules", {})
 
-    def get_waf_rules(self, environment_id: str, website_id: str, *, rule_type: str | None = None) -> dict:
+    def get_waf_rules(
+        self, environment_id: str, website_id: str, *, rule_type: str | None = None
+    ) -> dict:
         self.calls.append(("waf-rules-get", (environment_id, website_id), {"rule_type": rule_type}))
         return {"rules": ["rule"]}
 
@@ -92,7 +96,8 @@ def cli_app(monkeypatch: pytest.MonkeyPatch):
     app = load_cli_app(monkeypatch)
     monkeypatch.setattr("pacx.cli.pages.PowerPagesAdminClient", StubAdminClient)
     monkeypatch.setattr(
-        "pacx.cli.pages.resolve_environment_id_from_context", lambda ctx, option_value: option_value or "env"
+        "pacx.cli.pages.resolve_environment_id_from_context",
+        lambda ctx, option_value: option_value or "env",
     )
     monkeypatch.setattr(StubAdminClient, "operation_results", {})
     return app
@@ -238,7 +243,7 @@ def test_websites_waf_actions(cli_runner, cli_app):
     assert result_enable.exit_code == 0
     assert "WAF enable completed" in result_enable.stdout
     assert result_status.exit_code == 0
-    assert "\"enabled\": true" in result_status.stdout.lower()
+    assert '"enabled": true' in result_status.stdout.lower()
     assert result_rules.exit_code == 0
     assert "WAF rules update completed" in result_rules.stdout
 
@@ -261,4 +266,4 @@ def test_websites_visibility_updates(cli_runner, cli_app):
     )
 
     assert result.exit_code == 0
-    assert "\"visibility\": " in result.stdout
+    assert '"visibility": ' in result.stdout

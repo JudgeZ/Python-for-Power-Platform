@@ -4,7 +4,7 @@ import json
 import os
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Literal, ParamSpec, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast, overload
 
 import typer
 from rich.console import Console
@@ -13,6 +13,9 @@ from ..cli_utils import get_config_from_context
 from ..config import ConfigData, ConfigStore, EncryptedConfigError
 from ..errors import AuthError, HttpError, PacxError
 from ..secrets import SecretSpec, get_secret
+
+if TYPE_CHECKING:
+    from ..auth.azure_ad import AzureADTokenProvider
 
 console = Console()
 
@@ -32,7 +35,7 @@ CommandReturn = TypeVar("CommandReturn")
 
 
 def handle_cli_errors(
-    func: Callable[CommandParams, CommandReturn]
+    func: Callable[CommandParams, CommandReturn],
 ) -> Callable[CommandParams, CommandReturn]:
     @wraps(func)
     def wrapper(*args: CommandParams.args, **kwargs: CommandParams.kwargs) -> CommandReturn:
@@ -89,6 +92,7 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
 
     token = os.getenv("PACX_ACCESS_TOKEN")
     if token:
+
         def env_getter() -> str:
             override = os.getenv("PACX_ACCESS_TOKEN")
             return override or token
@@ -143,9 +147,9 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
     if token_backend and token_ref:
         token_spec = SecretSpec(backend=str(token_backend), ref=str(token_ref))
 
-    provider: "AzureADTokenProvider" | None = None
+    provider: AzureADTokenProvider | None = None
 
-    def _get_provider() -> "AzureADTokenProvider":
+    def _get_provider() -> AzureADTokenProvider:
         nonlocal provider
         if provider is None:
             try:
@@ -186,13 +190,11 @@ def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
 
 
 @overload
-def get_token_getter(ctx: typer.Context, *, required: Literal[True] = ...) -> TokenGetter:
-    ...
+def get_token_getter(ctx: typer.Context, *, required: Literal[True] = ...) -> TokenGetter: ...
 
 
 @overload
-def get_token_getter(ctx: typer.Context, *, required: Literal[False]) -> TokenGetter | None:
-    ...
+def get_token_getter(ctx: typer.Context, *, required: Literal[False]) -> TokenGetter | None: ...
 
 
 def get_token_getter(ctx: typer.Context, *, required: bool = True) -> TokenGetter | None:

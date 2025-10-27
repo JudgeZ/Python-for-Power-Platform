@@ -43,9 +43,7 @@ def test_list_role_definitions(respx_mock, token_getter):
     assert route.called
     assert len(roles) == 1
     assert roles[0].name == "Support"
-    assert roles[0].assignable_scopes == [
-        "/providers/Microsoft.PowerPlatform/scopes/default"
-    ]
+    assert roles[0].assignable_scopes == ["/providers/Microsoft.PowerPlatform/scopes/default"]
 
 
 def test_create_role_definition_payload_schema(respx_mock, token_getter):
@@ -79,7 +77,14 @@ def test_create_role_definition_payload_schema(respx_mock, token_getter):
     assert sent == {
         "name": "Custom",
         "description": "Custom role",
-        "permissions": [{"actions": ["resource.read"], "notActions": [], "dataActions": [], "notDataActions": []}],
+        "permissions": [
+            {
+                "actions": ["resource.read"],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": [],
+            }
+        ],
         "assignableScopes": ["/scopes/one"],
     }
     assert role.id == "role2"
@@ -135,9 +140,7 @@ def test_list_role_assignments_filters(respx_mock, token_getter):
         )
     )
 
-    assignments = client.list_role_assignments(
-        principal_id="principal", scope="/scopes/one"
-    )
+    assignments = client.list_role_assignments(principal_id="principal", scope="/scopes/one")
 
     assert route.called
     assert assignments[0].role_definition_id == "role1"

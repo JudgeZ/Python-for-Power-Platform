@@ -8,7 +8,6 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-
 from typing import Any, cast
 
 from ..errors import HttpError

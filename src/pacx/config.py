@@ -21,6 +21,7 @@ from .secrets import (
     store_keyring_secret,
 )
 
+
 def _profile_log_hint(name: str | None) -> str:
     """Return a deterministic but redacted hint for logging profile identifiers."""
 
@@ -252,9 +253,7 @@ def _decrypt_profile_dict(profile: dict[str, Any]) -> dict[str, Any]:
         try:
             secret = get_secret(secret_spec)
         except Exception as exc:  # pragma: no cover - defensive guard
-            sanitized_reason = _sanitize_keyring_failure_reason(
-                f"error:{exc.__class__.__name__}"
-            )
+            sanitized_reason = _sanitize_keyring_failure_reason(f"error:{exc.__class__.__name__}")
             logger.warning(
                 "Keyring lookup failed; leaving refresh token unset",
                 extra={

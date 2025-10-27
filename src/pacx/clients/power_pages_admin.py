@@ -83,7 +83,9 @@ class PowerPagesAdminClient:
         body: dict[str, Any] | None = None,
     ) -> WebsiteOperationHandle:
         resp = self.http.post(path, params=params or self._with_api_version(), json=body)
-        return WebsiteOperationHandle(resp.headers.get("Operation-Location"), self._parse_response(resp))
+        return WebsiteOperationHandle(
+            resp.headers.get("Operation-Location"), self._parse_response(resp)
+        )
 
     def _put_operation(
         self,
@@ -93,7 +95,9 @@ class PowerPagesAdminClient:
         body: dict[str, Any] | None = None,
     ) -> WebsiteOperationHandle:
         resp = self.http.put(path, params=params or self._with_api_version(), json=body)
-        return WebsiteOperationHandle(resp.headers.get("Operation-Location"), self._parse_response(resp))
+        return WebsiteOperationHandle(
+            resp.headers.get("Operation-Location"), self._parse_response(resp)
+        )
 
     def _patch_json(
         self,

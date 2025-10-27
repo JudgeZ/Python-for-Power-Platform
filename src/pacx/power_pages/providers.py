@@ -5,10 +5,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Protocol, cast
+from typing import Protocol, cast
 
 import httpx
 

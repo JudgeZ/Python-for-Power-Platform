@@ -43,6 +43,7 @@ def test_export_import_publish(respx_mock, token_getter):
     )
     data = dv.export_solution(ExportSolutionRequest(SolutionName="mysol", Managed=False))
     assert data == b
+
     def import_responder(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content.decode())
         assert body["CustomizationFile"] == b64
@@ -173,9 +174,9 @@ def test_clone_and_export_variants(respx_mock, token_getter):
         assert body == {"SolutionName": "mysol", "Managed": True}
         return httpx.Response(200, json={"ExportSolutionFile": expected_zip})
 
-    respx_mock.post(
-        "https://example.crm.dynamics.com/api/data/v9.2/ExportSolutionAsManaged"
-    ).mock(side_effect=export_managed_responder)
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/ExportSolutionAsManaged").mock(
+        side_effect=export_managed_responder
+    )
     managed = dv.export_solution_as_managed(ExportSolutionAsManagedRequest(SolutionName="mysol"))
     assert managed == b"managed"
 
@@ -199,9 +200,21 @@ def test_clone_and_export_variants(respx_mock, token_getter):
     [
         ("example.crm.dynamics.com", True, "https://example.crm.dynamics.com/api/data/v9.2"),
         ("example.crm.dynamics.com", False, "http://example.crm.dynamics.com/api/data/v9.2"),
-        ("https://example.crm.dynamics.com", True, "https://example.crm.dynamics.com/api/data/v9.2"),
-        ("https://example.crm.dynamics.com/", True, "https://example.crm.dynamics.com/api/data/v9.2"),
-        ("https://example.crm.dynamics.com/custom", True, "https://example.crm.dynamics.com/custom/api/data/v9.2"),
+        (
+            "https://example.crm.dynamics.com",
+            True,
+            "https://example.crm.dynamics.com/api/data/v9.2",
+        ),
+        (
+            "https://example.crm.dynamics.com/",
+            True,
+            "https://example.crm.dynamics.com/api/data/v9.2",
+        ),
+        (
+            "https://example.crm.dynamics.com/custom",
+            True,
+            "https://example.crm.dynamics.com/custom/api/data/v9.2",
+        ),
         ("http://example.crm.dynamics.com", True, "http://example.crm.dynamics.com/api/data/v9.2"),
     ],
 )

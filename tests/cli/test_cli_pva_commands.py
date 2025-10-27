@@ -113,7 +113,8 @@ def cli_app(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(module, "PVAClient", StubPVAClient)
     monkeypatch.setattr("pacx.cli.pva.PVAClient", StubPVAClient)
     monkeypatch.setattr(
-        "pacx.cli.pva.resolve_environment_id_from_context", lambda ctx, value: value or "env-default"
+        "pacx.cli.pva.resolve_environment_id_from_context",
+        lambda ctx, value: value or "env-default",
     )
     StubPVAClient.instances = []
     return app, StubPVAClient

@@ -8,17 +8,16 @@ from pathlib import Path
 from typing import Any
 
 import click
-
 import typer
 from rich import print
 from typer.core import TyperGroup
 
 from ..cli_utils import resolve_dataverse_host_from_context
 from ..clients.dataverse import DataverseClient
+from ..errors import PacxError
 from ..models.dataverse import ExportSolutionRequest, ImportSolutionRequest
 from ..solution_source import pack_solution_folder, unpack_solution_zip
 from ..solution_sp import pack_from_source, unpack_to_source
-from ..errors import PacxError
 from .common import get_token_getter, handle_cli_errors
 
 __all__ = [
@@ -38,6 +37,35 @@ LEGACY_ACTIONS: tuple[str, ...] = (
 )
 
 _legacy_warning_emitted = False
+
+EXPORT_OUT_OPTION = typer.Option(None, "--out", help="Output path for the exported solution zip")
+EXPORT_FILE_OPTION = typer.Option(
+    None,
+    "--file",
+    help="Legacy alias for --out",
+    hidden=True,
+)
+IMPORT_FILE_OPTION = typer.Option(..., "--file", help="Solution zip to import")
+PACK_SRC_OPTION = typer.Option(..., "--src", help="Folder containing unpacked solution")
+PACK_OUT_OPTION = typer.Option(None, "--out", help="Destination zip path (default: solution.zip)")
+LEGACY_PACK_FILE_OPTION = typer.Option(
+    None,
+    "--file",
+    help="Legacy alias for --out",
+    hidden=True,
+)
+UNPACK_FILE_OPTION = typer.Option(..., "--file", help="Solution zip to unpack")
+UNPACK_OUT_OPTION = typer.Option(
+    None, "--out", help="Destination folder (default: solution_unpacked)"
+)
+PACK_SP_SRC_OPTION = typer.Option(..., "--src", help="SolutionPackager source folder")
+PACK_SP_OUT_OPTION = typer.Option(
+    None, "--out", help="Destination zip path (default: solution.zip)"
+)
+UNPACK_SP_FILE_OPTION = typer.Option(..., "--file", help="Solution zip to unpack")
+UNPACK_SP_OUT_OPTION = typer.Option(
+    None, "--out", help="Destination folder (default: solution_src)"
+)
 
 
 def _emit_legacy_warning() -> None:
@@ -207,15 +235,8 @@ def export_solution(
     managed: bool = typer.Option(
         False, "--managed", help="Export managed solution (default: unmanaged)"
     ),
-    out: Path | None = typer.Option(
-        None, "--out", help="Output path for the exported solution zip"
-    ),
-    file: Path | None = typer.Option(
-        None,
-        "--file",
-        help="Legacy alias for --out",
-        hidden=True,
-    ),
+    out: Path | None = EXPORT_OUT_OPTION,
+    file: Path | None = EXPORT_FILE_OPTION,
 ) -> None:
     """Export a solution to a zip archive."""
 
@@ -231,7 +252,7 @@ def export_solution(
 @handle_cli_errors
 def import_solution(
     ctx: typer.Context,
-    file: Path = typer.Option(..., "--file", help="Solution zip to import"),
+    file: Path = IMPORT_FILE_OPTION,
     host: str | None = typer.Option(
         None, "--host", help="Dataverse host (defaults to profile or DATAVERSE_HOST)"
     ),
@@ -282,16 +303,9 @@ def publish_all(
 @app.command("pack")
 @handle_cli_errors
 def pack_solution(
-    src: Path = typer.Option(..., "--src", help="Folder containing unpacked solution"),
-    out: Path | None = typer.Option(
-        None, "--out", help="Destination zip path (default: solution.zip)"
-    ),
-    file: Path | None = typer.Option(
-        None,
-        "--file",
-        help="Legacy alias for --out",
-        hidden=True,
-    ),
+    src: Path = PACK_SRC_OPTION,
+    out: Path | None = PACK_OUT_OPTION,
+    file: Path | None = LEGACY_PACK_FILE_OPTION,
 ) -> None:
     """Pack an unpacked solution folder into a zip archive."""
 
@@ -303,10 +317,8 @@ def pack_solution(
 @app.command("unpack")
 @handle_cli_errors
 def unpack_solution(
-    file: Path = typer.Option(..., "--file", help="Solution zip to unpack"),
-    out: Path | None = typer.Option(
-        None, "--out", help="Destination folder (default: solution_unpacked)"
-    ),
+    file: Path = UNPACK_FILE_OPTION,
+    out: Path | None = UNPACK_OUT_OPTION,
 ) -> None:
     """Unpack a Dataverse solution zip into a folder."""
 
@@ -318,16 +330,9 @@ def unpack_solution(
 @app.command("pack-sp")
 @handle_cli_errors
 def pack_solution_packager(
-    src: Path = typer.Option(..., "--src", help="SolutionPackager source folder"),
-    out: Path | None = typer.Option(
-        None, "--out", help="Destination zip path (default: solution.zip)"
-    ),
-    file: Path | None = typer.Option(
-        None,
-        "--file",
-        help="Legacy alias for --out",
-        hidden=True,
-    ),
+    src: Path = PACK_SP_SRC_OPTION,
+    out: Path | None = PACK_SP_OUT_OPTION,
+    file: Path | None = LEGACY_PACK_FILE_OPTION,
 ) -> None:
     """Pack a SolutionPackager-style tree into a solution zip."""
 
@@ -339,10 +344,8 @@ def pack_solution_packager(
 @app.command("unpack-sp")
 @handle_cli_errors
 def unpack_solution_packager(
-    file: Path = typer.Option(..., "--file", help="Solution zip to unpack"),
-    out: Path | None = typer.Option(
-        None, "--out", help="Destination folder (default: solution_src)"
-    ),
+    file: Path = UNPACK_SP_FILE_OPTION,
+    out: Path | None = UNPACK_SP_OUT_OPTION,
 ) -> None:
     """Unpack a solution zip into a SolutionPackager-compatible tree."""
 

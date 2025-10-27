@@ -226,9 +226,7 @@ class AppManagementClient:
                     f"appmanagement/environments/{environment_id}/operations/{operation_id}"
                 )
             else:
-                operation_url = (
-                    f"appmanagement/applications/installStatuses/{operation_id}"
-                )
+                operation_url = f"appmanagement/applications/installStatuses/{operation_id}"
 
         parsed = urlparse(operation_url)
         params = None if parsed.query else self._with_api_version()
@@ -247,7 +245,7 @@ class AppManagementClient:
 
         def get_progress(status: dict[str, Any]) -> int | None:
             value = status.get("percentComplete")
-            if isinstance(value, (int, float)):
+            if isinstance(value, int | float):
                 return int(value)
             return None
 

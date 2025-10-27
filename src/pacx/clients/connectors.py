@@ -238,9 +238,7 @@ class ConnectorsClient:
             },
         }
 
-    def _connectivity_headers(
-        self, extra: Mapping[str, str] | None = None
-    ) -> dict[str, str]:
+    def _connectivity_headers(self, extra: Mapping[str, str] | None = None) -> dict[str, str]:
         headers = {
             "Accept": "application/json",
             "x-ms-client-request-id": self._client_request_id,

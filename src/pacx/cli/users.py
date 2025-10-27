@@ -1,21 +1,23 @@
 from __future__ import annotations
 
 import importlib
-from typing import Any, Type, cast
+from typing import Any, cast
 
 import typer
 from rich import print
 
 from ..clients.user_management import (
     DEFAULT_API_VERSION,
-    UserManagementClient as _DefaultUserManagementClient,
     UserManagementOperationHandle,
+)
+from ..clients.user_management import (
+    UserManagementClient as _DefaultUserManagementClient,
 )
 from ..models.user_management import AsyncOperationStatus
 from .common import get_token_getter, handle_cli_errors
 
 
-def _resolve_client_class() -> Type[_DefaultUserManagementClient]:
+def _resolve_client_class() -> type[_DefaultUserManagementClient]:
     try:
         module = importlib.import_module("pacx.cli")
     except Exception:  # pragma: no cover - defensive fallback
@@ -24,7 +26,7 @@ def _resolve_client_class() -> Type[_DefaultUserManagementClient]:
     client_cls = getattr(module, "UserManagementClient", None)
     if client_cls is None:
         return _DefaultUserManagementClient
-    return cast(Type[_DefaultUserManagementClient], client_cls) or _DefaultUserManagementClient
+    return cast(type[_DefaultUserManagementClient], client_cls) or _DefaultUserManagementClient
 
 
 def _build_client(
@@ -119,7 +121,9 @@ def apply_admin_role_command(
     ctx: typer.Context,
     user_id: str = typer.Argument(..., help="Azure AD object ID of the target user."),
     api_version: str | None = typer.Option(None, help="Power Platform API version override."),
-    wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for the async operation to finish."),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for the async operation to finish."
+    ),
     interval: float = typer.Option(2.0, help="Polling interval in seconds."),
     timeout: float = typer.Option(600.0, help="Maximum seconds to wait for completion."),
 ) -> None:
@@ -144,7 +148,9 @@ def remove_admin_role_command(
         help="Role definition ID to revoke from the user.",
     ),
     api_version: str | None = typer.Option(None, help="Power Platform API version override."),
-    wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for the async operation to finish."),
+    wait: bool = typer.Option(
+        True, "--wait/--no-wait", help="Wait for the async operation to finish."
+    ),
     interval: float = typer.Option(2.0, help="Polling interval in seconds."),
     timeout: float = typer.Option(600.0, help="Maximum seconds to wait for completion."),
 ) -> None:
@@ -184,4 +190,3 @@ def list_admin_roles_command(
 UserManagementClient = _DefaultUserManagementClient
 
 __all__ = ["app", "UserManagementClient"]
-

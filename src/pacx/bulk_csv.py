@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from .batch import BatchSendResult, send_batch
 from .clients.dataverse import DataverseClient
@@ -29,7 +30,7 @@ class BulkCsvOperationResult:
         payload: dict[str, object],
         *,
         row_index: int | None,
-    ) -> "BulkCsvOperationResult":
+    ) -> BulkCsvOperationResult:
         """Build a :class:`BulkCsvOperationResult` from a batch response entry."""
 
         content_id = payload.get("content_id")

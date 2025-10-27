@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-from pathlib import Path
 
 import pytest
 import typer
@@ -25,9 +24,7 @@ class StubConnectorsClient:
         self.use_connectivity = use_connectivity
         self.client_request_id = client_request_id
         self.list_args: tuple[str, int | None] | None = None
-        self.list_connectivity_args: tuple[
-            str, int | None, str | None, str | None
-        ] | None = None
+        self.list_connectivity_args: tuple[str, int | None, str | None, str | None] | None = None
         self.iter_args: tuple[str, int | None] | None = None
         self.get_args: tuple[str, str] | None = None
         self.put_args: tuple[str, str, str | None] | None = None
@@ -73,8 +70,7 @@ class StubConnectorsClient:
         if self.use_connectivity:
             # Mirrors ConnectorsClient.iter_apis calling list_apis for the first page.
             self.list_apis(environment, top=top)
-        for page in self.pages:
-            yield page
+        yield from self.pages
 
     def get_api(self, environment: str, api_name: str):
         if self.use_connectivity:
@@ -118,9 +114,7 @@ class StubConnectorsClient:
         self.validate_args = (environment, name, openapi_text, display_name)
         return {"status": "Succeeded"}
 
-    def validate_custom_connector(
-        self, environment: str, name: str, payload: dict[str, object]
-    ):
+    def validate_custom_connector(self, environment: str, name: str, payload: dict[str, object]):
         self.validate_args = (environment, name, "payload", None)
         return {"status": "Succeeded"}
 
@@ -276,9 +270,7 @@ def test_connectors_list_falls_back_on_unauthorized_connectivity(
             return super().list_apis(environment, top=top)
 
     app = load_cli_app(monkeypatch)
-    monkeypatch.setattr(
-        "pacx.cli.connectors.ConnectorsClient", UnauthorizedConnectivityStub
-    )
+    monkeypatch.setattr("pacx.cli.connectors.ConnectorsClient", UnauthorizedConnectivityStub)
 
     result = cli_runner.invoke(
         app,

@@ -184,7 +184,9 @@ class GovernanceClient:
             f"governance/ruleBasedPolicies/{policy_id}/assignments/environmentGroups/{environment_group_id}",
         )
 
-    def create_environment_assignment(self, policy_id: str, environment_id: str) -> GovernanceOperation:
+    def create_environment_assignment(
+        self, policy_id: str, environment_id: str
+    ) -> GovernanceOperation:
         return self._post_operation(
             f"governance/ruleBasedPolicies/{policy_id}/assignments/environments/{environment_id}",
         )

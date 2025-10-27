@@ -21,6 +21,12 @@ feature_app = typer.Typer(help="Manage tenant feature controls.")
 app.add_typer(settings_app, name="settings")
 app.add_typer(feature_app, name="feature")
 
+REQUESTED_SETTINGS_OPTION = typer.Option(
+    [],
+    "--setting",
+    help="Optional setting identifiers requiring access (repeat for multiple).",
+)
+
 
 def _set_api_version(ctx: typer.Context, api_version: str) -> None:
     ctx.ensure_object(dict)["tenant_api_version"] = api_version
@@ -116,11 +122,7 @@ def settings_update(
 def settings_request_access(
     ctx: typer.Context,
     justification: str = typer.Option(..., help="Reason for requesting elevated access."),
-    requested_settings: list[str] = typer.Option(
-        [],
-        "--setting",
-        help="Optional setting identifiers requiring access (repeat for multiple).",
-    ),
+    requested_settings: list[str] = REQUESTED_SETTINGS_OPTION,
     api_version: str | None = typer.Option(None, help="Tenant settings API version override."),
 ) -> None:
     """Request admin access to change tenant settings."""
@@ -188,9 +190,7 @@ def feature_request_access(
     client = _build_client(ctx, version)
     payload = {"justification": justification}
     client.request_feature_access(feature_name, payload)
-    print(
-        f"[green]Feature access request submitted for '{feature_name}'.[/green]"
-    )
+    print(f"[green]Feature access request submitted for '{feature_name}'.[/green]")
 
 
 __all__ = [

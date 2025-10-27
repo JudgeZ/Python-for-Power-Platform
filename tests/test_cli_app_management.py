@@ -11,7 +11,7 @@ from pacx.utils.poller import PollTimeoutError
 
 
 class StubAppManagementClient:
-    instances: list["StubAppManagementClient"] = []
+    instances: list[StubAppManagementClient] = []
     wait_should_timeout: bool = False
     next_wait_status: str = "Succeeded"
 
@@ -94,7 +94,9 @@ class StubAppManagementClient:
         return ApplicationPackageOperation(operation_id=operation_id, status="Running")
 
 
-def load_cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[CliRunner, object, type[StubAppManagementClient]]:
+def load_cli_app(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[CliRunner, object, type[StubAppManagementClient]]:
     for name in [mod for mod in list(sys.modules) if mod.startswith("pacx.cli")]:
         sys.modules.pop(name)
     module = importlib.import_module("pacx.cli")
