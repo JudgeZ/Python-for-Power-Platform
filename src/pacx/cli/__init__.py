@@ -12,6 +12,7 @@ from . import (
     connectors,
     dataverse,
     doctor,
+    governance,
     licensing,
     pages,
     power_platform,
@@ -42,6 +43,7 @@ _register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("pva", pva.app)
 _register_sub_app("solution", solution.app)
+_register_sub_app("governance", governance.app)
 _register_sub_app("tenant", tenant.app)
 _register_sub_app("users", users.app)
 
@@ -114,6 +116,7 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "governance",
     "LicensingClient",
     "PowerPlatformClient",
     "pages",
