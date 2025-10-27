@@ -8,6 +8,7 @@ import typer
 from typer.models import CommandInfo
 
 from . import (
+    analytics,
     auth,
     connectors,
     dataverse,
@@ -27,6 +28,7 @@ def _register_sub_app(name: str, sub_app: typer.Typer) -> None:
     app.add_typer(sub_app, name=name)
 
 
+_register_sub_app("analytics", analytics.app)
 _register_sub_app("auth", auth.app)
 _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
@@ -97,6 +99,7 @@ def common(ctx: typer.Context) -> None:
 
 
 __all__ = [
+    "analytics",
     "app",
     "auth",
     "auth_create",

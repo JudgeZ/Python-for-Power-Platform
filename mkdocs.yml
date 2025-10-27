@@ -13,6 +13,7 @@ nav:
       - Solutions: user-manual/07-solutions.md
       - Config & Profiles: user-manual/08-config-profiles.md
       - CI/CD & Release: user-manual/09-ci-cd-release.md
+      - Analytics Advisor Recommendations: user-manual/10-analytics.md
   - Architecture:
       - C4 Model: architecture/index.md
   - Reference:
