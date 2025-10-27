@@ -15,6 +15,8 @@
 - Extend the User Management OpenAPI with admin role audit/rollback endpoints, detailed role assignment schemas, and async operation tracking models, with README guidance for integrators.
 - Extend the RBAC OpenAPI spec with role definition CRUD endpoints, modeled
   schemas, and explicit `Authorization.RBAC.*` scope requirements.
+- Add Authorization RBAC client, CLI (`ppx auth roles|assignments`) commands,
+  and coverage verifying OAuth scope documentation.
 - Model Power Apps admin versioning, restore/publish, and sharing ownership APIs in the OpenAPI bundle for SDK generation.
 - Expand the Power Automate OpenAPI surface with flow lifecycle, run management, and diagnostics endpoints.
 - Expand the Power Virtual Agents bots OpenAPI document with bot metadata, publish/unpublish, package import/export, and channel configuration endpoints.
