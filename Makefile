@@ -1,4 +1,4 @@
-.PHONY: install dev test lint format type coverage build security bandit
+.PHONY: install dev test lint format type coverage build security bandit openapi-check openapi-validate
 install: ; python -m pip install -U pip && pip install -e .
 dev: ; pip install -e .[dev,auth] && pre-commit install
 test: ; pytest -q
@@ -10,3 +10,7 @@ build: ; python -m build
 security: ; pip-audit && $(MAKE) bandit
 
 bandit: ; bandit -c bandit.yaml -r src tests
+
+openapi-check: ; bash scripts/validate_openapi.sh
+
+openapi-validate: ; python -m scripts.openapi_validate validate

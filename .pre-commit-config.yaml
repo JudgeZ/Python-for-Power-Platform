@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        additional_dependencies: ["click<8.1.0"]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        args: ["--config-file", "mypy.ini"]
+        additional_dependencies:
+          - pydantic>=2.3
+          - pydantic-settings>=2.3
+          - typer>=0.12
+          - rich>=13.7
+          - openapi-spec-validator>=0.7
+  - repo: local
+    hooks:
+      - id: openapi-validate
+        name: openapi-validate
+        entry: python -m scripts.openapi_validate
+        language: system
+        pass_filenames: false
+        stages: [manual]
+        args: ["--strict", "--json-report", "reports/openapi-precommit.json"]
