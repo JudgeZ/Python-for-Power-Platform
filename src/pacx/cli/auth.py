@@ -13,9 +13,11 @@ from pydantic import ValidationError
 from rich import print
 
 try:
-    import yaml  # type: ignore[import-untyped]
+    import yaml as _yaml
 except ImportError:  # pragma: no cover - optional dependency handled at runtime
-    yaml = None
+    yaml: Any | None = None
+else:  # pragma: no cover - simple assignment
+    yaml = cast(Any, _yaml)
 
 from ..clients.authorization import AuthorizationRbacClient
 from ..config import ConfigStore, Profile

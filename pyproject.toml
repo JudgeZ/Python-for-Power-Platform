@@ -106,6 +106,7 @@ check_untyped_defs = true
 strict_optional = true
 exclude = ["build/", "dist/"]
 mypy_path = ["stubs"]
+files = ["src"]
 
 [tool.coverage.run]
 branch = true
@@ -122,4 +123,3 @@ parallel = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-

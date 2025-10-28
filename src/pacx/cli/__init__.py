@@ -19,6 +19,7 @@ from . import (
     licensing,
     pages,
     policy,
+    power_automate,
     power_platform,
     profile,
     pva,
@@ -49,6 +50,7 @@ _register_sub_app("policy", policy.app)
 _register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("pva", pva.app)
+_register_sub_app("flows", power_automate.app)
 _register_sub_app("solution", solution.app)
 _register_sub_app("governance", governance.app)
 _register_sub_app("tenant", tenant.app)
@@ -129,6 +131,7 @@ __all__ = [
     "policy",
     "governance",
     "LicensingClient",
+    "power_automate",
     "PowerPlatformClient",
     "pages",
     "licensing",
