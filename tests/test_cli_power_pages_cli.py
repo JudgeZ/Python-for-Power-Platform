@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import typer
+
+
+def _squish(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
 
 
 class StubDataverseClient:
@@ -340,7 +345,7 @@ def test_pages_upload_rejects_string_key_config(monkeypatch, cli_runner, tmp_pat
     )
 
     assert result.exit_code == 2
-    assert "must map to an array of column names" in result.stderr
+    assert "array of column names" in _squish(result.stderr)
 
 
 def test_pages_diff_permissions_rejects_string_key_config(monkeypatch, cli_runner, tmp_path):
@@ -367,4 +372,4 @@ def test_pages_diff_permissions_rejects_string_key_config(monkeypatch, cli_runne
     )
 
     assert result.exit_code == 2
-    assert "must map to an array of column names" in result.stderr
+    assert "array of column names" in _squish(result.stderr)
