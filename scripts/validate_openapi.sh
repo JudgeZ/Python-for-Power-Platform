@@ -86,7 +86,7 @@ for yaml_file in "${yaml_files[@]}"; do
             echo -e "${GREEN}✓ passed${NC}"
         else
             echo -e "${RED}✗ failed${NC}"
-            openapi-spec-validator "$yaml_file" 2>&1 | sed 's/^/    /'
+            { openapi-spec-validator "$yaml_file" 2>&1 || true; } | sed 's/^/    /'
             file_passed=false
         fi
     fi
@@ -98,7 +98,7 @@ for yaml_file in "${yaml_files[@]}"; do
             echo -e "${GREEN}✓ passed${NC}"
         else
             echo -e "${RED}✗ failed${NC}"
-            spectral lint "$yaml_file" 2>&1 | sed 's/^/    /'
+            { spectral lint "$yaml_file" 2>&1 || true; } | sed 's/^/    /'
             file_passed=false
         fi
     fi
