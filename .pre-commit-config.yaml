@@ -24,7 +24,7 @@ repos:
     hooks:
       - id: openapi-validate
         name: openapi-validate
-        entry: python -m scripts.openapi_validate
+        entry: python -m scripts.openapi_validate validate
         language: system
         pass_filenames: false
         stages: [manual]
