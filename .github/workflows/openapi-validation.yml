@@ -1,0 +1,44 @@
+name: OpenAPI Validation
+
+on:
+  push:
+    paths:
+      - 'openapi/*.yaml'
+      - 'openapi/*.yml'
+      - 'scripts/validate_openapi.sh'
+      - '.github/workflows/openapi-validation.yml'
+  pull_request:
+    paths:
+      - 'openapi/*.yaml'
+      - 'openapi/*.yml'
+      - 'scripts/validate_openapi.sh'
+      - '.github/workflows/openapi-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Spectral CLI
+        run: npm install -g @stoplight/spectral-cli
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install .
+
+      - name: Validate OpenAPI specifications
+        run: make openapi-validate

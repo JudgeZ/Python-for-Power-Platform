@@ -1,0 +1,61 @@
+extends:
+  - spectral:oas
+
+rules:
+  operation-operationId-required:
+    description: Every operation must declare an operationId for client generation.
+    message: Operation is missing an operationId.
+    severity: error
+    given: $.paths[*][get,post,put,delete,patch,options,head,trace]
+    then:
+      field: operationId
+      function: truthy
+
+  operation-summary-required:
+    description: Summaries are required for documentation clarity.
+    message: Operation is missing a summary.
+    severity: error
+    given: $.paths[*][get,post,put,delete,patch,options,head,trace]
+    then:
+      field: summary
+      function: truthy
+
+  operation-tags-required:
+    description: Each operation must have at least one tag for grouping.
+    message: Operation must declare at least one tag.
+    severity: error
+    given: $.paths[*][get,post,put,delete,patch,options,head,trace]
+    then:
+      field: tags
+      function: length
+      functionOptions:
+        min: 1
+
+  response-description-required:
+    description: Responses should document their purpose.
+    message: Response object is missing a description.
+    severity: error
+    given: $.paths[*][get,post,put,delete,patch,options,head,trace].responses[*][?(!@['$ref'])]
+    then:
+      field: description
+      function: truthy
+
+  parameter-description-required:
+    description: Parameters must include descriptions at both path and operation level.
+    message: Parameter is missing a description.
+    severity: error
+    given:
+      - $.paths[*].parameters[*][?(!@['$ref'])]
+      - $.paths[*][get,post,put,delete,patch,options,head,trace].parameters[*][?(!@['$ref'])]
+    then:
+      field: description
+      function: truthy
+
+  schema-property-description-required:
+    description: Schema properties require descriptions for downstream consumers.
+    message: Schema property is missing a description.
+    severity: error
+    given: $.components.schemas[*].properties.*[?(!@['$ref'])]
+    then:
+      field: description
+      function: truthy
