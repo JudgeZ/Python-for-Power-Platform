@@ -7,7 +7,7 @@ import shlex
 import shutil
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -321,9 +321,9 @@ def _write_json_report(path: Path, reports: Sequence[FileReport], *, strict: boo
         "files": [
             {
                 "path": str(item.path),
-                "errors": [issue.__dict__ for issue in item.errors],
-                "warnings": [issue.__dict__ for issue in item.warnings],
-                "infos": [issue.__dict__ for issue in item.infos],
+                "errors": [asdict(issue) for issue in item.errors],
+                "warnings": [asdict(issue) for issue in item.warnings],
+                "infos": [asdict(issue) for issue in item.infos],
                 "spectralSkipped": item.spectral_skipped,
             }
             for item in reports

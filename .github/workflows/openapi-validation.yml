@@ -37,8 +37,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install openapi-spec-validator
-        run: pip install openapi-spec-validator
+      - name: Install Python dependencies
+        run: pip install .
 
       - name: Validate OpenAPI specifications
         run: make openapi-validate
