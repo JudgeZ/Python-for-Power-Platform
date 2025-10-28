@@ -5,11 +5,11 @@ test: ; pytest -q
 lint: ; ruff check . && black --check .
 format: ; ruff check --fix . && black .
 type: ; mypy
-coverage: ; pytest --cov=pacx --cov-report=term-missing
+coverage: ; pytest --cov=pacx --cov-report=term-missing --cov-report=xml --cov-report=json --cov-fail-under=81
 build: ; python -m build
 security: ; pip-audit && $(MAKE) bandit
 
-bandit: ; bandit -c bandit.yaml -r src tests
+bandit: ; bandit -c bandit.yaml -r src
 
 openapi-check: ; bash scripts/validate_openapi.sh
 

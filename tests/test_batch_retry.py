@@ -153,9 +153,7 @@ def test_send_batch_mixed_read_and_write(respx_mock: respx.Router, token_getter)
     assert result.operations[1]["status_code"] == 204
 
 
-def test_send_batch_reconciles_out_of_order_response(
-    respx_mock: respx.Router, token_getter
-):
+def test_send_batch_reconciles_out_of_order_response(respx_mock: respx.Router, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
 
     respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/$batch").mock(

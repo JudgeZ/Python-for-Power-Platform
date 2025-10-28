@@ -62,6 +62,91 @@ class AppPermissionAssignment(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
+class AppSummary(BaseModel):
+    """Summary metadata for a Power App returned by admin APIs."""
+
+    id: str | None = None
+    name: str | None = None
+    display_name: str | None = Field(default=None, alias="displayName")
+    environment_id: str | None = Field(default=None, alias="environmentId")
+    properties: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
+class AppListPage(BaseModel):
+    """Page of admin app results with continuation token support."""
+
+    value: list[AppSummary] = Field(default_factory=list)
+    next_link: str | None = Field(default=None, alias="nextLink")
+    continuation_token: str | None = Field(default=None, alias="continuationToken")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
+class AppVersionList(BaseModel):
+    """Container for Power App versions with continuation metadata."""
+
+    value: list[AppVersion] = Field(default_factory=list)
+    next_link: str | None = Field(default=None, alias="nextLink")
+    continuation_token: str | None = Field(default=None, alias="continuationToken")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+
+class SharePrincipal(BaseModel):
+    """Representation of a principal used in share operations."""
+
+    id: str
+    principal_type: str = Field(alias="principalType")
+    role_name: str = Field(alias="roleName")
+    email: str | None = None
+    display_name: str | None = Field(default=None, alias="displayName")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    def to_payload(self) -> dict[str, Any]:
+        return self.model_dump(by_alias=True, exclude_none=True)
+
+
+class ShareAppRequest(BaseModel):
+    """Payload for sharing an app with principals."""
+
+    principals: list[SharePrincipal]
+    notify_share_targets: bool | None = Field(default=None, alias="notifyShareTargets")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    def to_payload(self) -> dict[str, Any]:
+        return self.model_dump(by_alias=True, exclude_none=True)
+
+
+class RevokeShareRequest(BaseModel):
+    """Payload for revoking app access from principals."""
+
+    principal_ids: list[str] = Field(alias="principalIds")
+    notify_share_targets: bool | None = Field(default=None, alias="notifyShareTargets")
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    def to_payload(self) -> dict[str, Any]:
+        return self.model_dump(by_alias=True, exclude_none=True)
+
+
+class SetOwnerRequest(BaseModel):
+    """Payload for assigning a new app owner."""
+
+    owner: SharePrincipal
+    keep_existing_owner_as_co_owner: bool | None = Field(
+        default=None, alias="keepExistingOwnerAsCoOwner"
+    )
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    def to_payload(self) -> dict[str, Any]:
+        return self.model_dump(by_alias=True, exclude_none=True)
+
+
 class FlowTrigger(BaseModel):
     """Trigger metadata returned by the Power Automate APIs."""
 

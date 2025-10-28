@@ -2,24 +2,34 @@ from __future__ import annotations
 
 import json
 from importlib import import_module
+from pathlib import Path
 from typing import Any, cast
 
 import typer
 from rich import print
 
-from ..clients.app_management import (
-    DEFAULT_API_VERSION,
-)
+from ..clients.app_management import DEFAULT_API_VERSION
 from ..clients.app_management import (
     AppManagementClient as _DefaultAppManagementClient,
 )
+from ..clients.power_apps_admin import AdminOperationHandle, PowerAppsAdminClient
 from ..models.app_management import ApplicationPackageOperation, ApplicationPackageSummary
+from ..models.power_platform import (
+    AppListPage,
+    AppSummary,
+    RevokeShareRequest,
+    SetOwnerRequest,
+    ShareAppRequest,
+    SharePrincipal,
+)
 from ..utils.poller import PollTimeoutError
 from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Manage Power Platform application packages.")
 packages_app = typer.Typer(help="Manage application package lifecycle.")
 app.add_typer(packages_app, name="pkgs")
+admin_app = typer.Typer(help="Administer Power Apps within an environment.")
+app.add_typer(admin_app, name="admin")
 
 
 def _resolve_client_class() -> type[_DefaultAppManagementClient]:
@@ -46,6 +56,15 @@ def _build_client(
     return client_cls(token_getter, api_version=api_version)
 
 
+def _build_admin_client(
+    ctx: typer.Context,
+    *,
+    api_version: str,
+) -> PowerAppsAdminClient:
+    token_getter = get_token_getter(ctx)
+    return PowerAppsAdminClient(token_getter, api_version=api_version)
+
+
 def _ensure_api_version(ctx: typer.Context, override: str | None) -> str:
     data = ctx.ensure_object(dict)
     if override:
@@ -64,6 +83,19 @@ def _parse_parameters(raw: str | None) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise typer.BadParameter("Payload must be a JSON object.")
     return cast(dict[str, Any], payload)
+
+
+def _load_json_or_path(raw: str) -> Any:
+    candidate = raw.strip()
+    if not candidate:
+        raise typer.BadParameter("Value cannot be empty.")
+    path = Path(candidate[1:]) if candidate.startswith("@") else Path(candidate)
+    if path.exists():
+        return json.loads(path.read_text())
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(f"Invalid JSON value: {exc}") from exc
 
 
 def _render_package_line(package: ApplicationPackageSummary) -> str:
@@ -263,7 +295,258 @@ def get_status(
     _print_operation("Status", status, fail_on_incomplete=False)
 
 
-__all__ = ["app", "packages_app"]
+# ----------------------- Admin commands -------------------------------------
+
+
+def _render_admin_line(app_summary: AppSummary) -> str:
+    name = app_summary.display_name or app_summary.name or app_summary.id or "<unknown>"
+    parts = [f"[bold]{name}[/bold]"]
+    if app_summary.id:
+        parts.append(f"id={app_summary.id}")
+    if app_summary.environment_id:
+        parts.append(f"environment={app_summary.environment_id}")
+    return "  ".join(parts)
+
+
+def _admin_operation_output(action: str, handle: AdminOperationHandle) -> None:
+    palette = "green" if handle.operation_location else "yellow"
+    print(f"[{palette}]{action} accepted[/{palette}]")
+    if handle.operation_location:
+        print(f"operation={handle.operation_location}")
+    if handle.retry_after is not None:
+        print(f"retry_after={handle.retry_after}")
+
+
+@admin_app.command("list")
+@handle_cli_errors
+def list_admin_apps(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID to query."),
+    top: int | None = typer.Option(None, help="Maximum number of apps to return."),
+    continuation_token: str | None = typer.Option(
+        None, "--continuation-token", help="Continuation token from a previous response."
+    ),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    page: AppListPage = client.list_apps(
+        environment_id,
+        top=top,
+        continuation_token=continuation_token,
+    )
+    for summary in page.value:
+        print(_render_admin_line(summary))
+    if page.continuation_token:
+        print(f"[yellow]Continuation token:[/yellow] {page.continuation_token}")
+
+
+@admin_app.command("show")
+@handle_cli_errors
+def show_admin_app(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    summary = client.get_app(environment_id, app_id)
+    print(summary.model_dump(by_alias=True, exclude_none=True))
+
+
+@admin_app.command("versions")
+@handle_cli_errors
+def list_app_versions(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    top: int | None = typer.Option(None, help="Maximum number of versions to return."),
+    continuation_token: str | None = typer.Option(
+        None, "--continuation-token", help="Continuation token returned by the service."
+    ),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    page = client.list_app_versions(
+        environment_id, app_id, top=top, continuation_token=continuation_token
+    )
+    for item in page.value:
+        descriptor = item.description or ""
+        identifier = item.version_id or item.id or "<unknown>"
+        print(f"{identifier} {descriptor}".strip())
+    if page.continuation_token:
+        print(f"[yellow]Continuation token:[/yellow] {page.continuation_token}")
+
+
+@admin_app.command("restore")
+@handle_cli_errors
+def restore_admin_app(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    payload: str = typer.Option(..., help="JSON string or @file describing the restore request."),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    data = _load_json_or_path(payload)
+    if not isinstance(data, dict):
+        raise typer.BadParameter("Restore payload must be a JSON object.")
+    handle = client.restore_app(environment_id, app_id, data)
+    _admin_operation_output("Restore", handle)
+
+
+@admin_app.command("publish")
+@handle_cli_errors
+def publish_admin_app(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    payload: str = typer.Option(..., help="JSON string or @file describing the publish request."),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    data = _load_json_or_path(payload)
+    if not isinstance(data, dict):
+        raise typer.BadParameter("Publish payload must be a JSON object.")
+    handle = client.publish_app(environment_id, app_id, data)
+    _admin_operation_output("Publish", handle)
+
+
+@admin_app.command("share")
+@handle_cli_errors
+def share_admin_app(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    principals: str = typer.Option(
+        ...,
+        "--principals",
+        help="JSON array or @file containing principals to share with. Accepts objects with 'principals' and optional 'notifyShareTargets'.",
+    ),
+    notify: bool | None = typer.Option(
+        None,
+        "--notify",
+        help="Override whether to send share notifications.",
+    ),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    decoded = _load_json_or_path(principals)
+    payload_notify: bool | None = None
+    if isinstance(decoded, dict) and "principals" in decoded:
+        principal_objs = decoded.get("principals", [])
+        payload_notify = decoded.get("notifyShareTargets")
+    elif isinstance(decoded, list):
+        principal_objs = decoded
+    else:
+        raise typer.BadParameter("Expected principals JSON array or object with 'principals'.")
+    principal_list = PowerAppsAdminClient.share_principals_from_dict(principal_objs or [])
+    if not principal_list:
+        raise typer.BadParameter("No valid principals supplied.")
+    request = ShareAppRequest(principals=principal_list)
+    selected_notify = notify if notify is not None else payload_notify
+    if selected_notify is not None:
+        request.notify_share_targets = selected_notify
+    handle = client.share_app(environment_id, app_id, request)
+    _admin_operation_output("Share", handle)
+
+
+@admin_app.command("revoke")
+@handle_cli_errors
+def revoke_access(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    principal_ids: str = typer.Option(
+        ...,
+        "--principal-ids",
+        help="JSON array or @file containing principal GUIDs to revoke. Accepts objects with 'principalIds' and optional 'notifyShareTargets'.",
+    ),
+    notify: bool | None = typer.Option(
+        None,
+        "--notify",
+        help="Override whether to send revoke notifications.",
+    ),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    decoded = _load_json_or_path(principal_ids)
+    if isinstance(decoded, dict) and "principalIds" in decoded:
+        ids = decoded.get("principalIds", [])
+        payload_notify = decoded.get("notifyShareTargets")
+    else:
+        ids = decoded
+        payload_notify = None
+    if not isinstance(ids, list) or not ids:
+        raise typer.BadParameter("Principal IDs must be provided as a non-empty JSON array.")
+    request = RevokeShareRequest.model_validate({"principalIds": [str(value) for value in ids]})
+    selected_notify = notify if notify is not None else payload_notify
+    if selected_notify is not None:
+        request.notify_share_targets = selected_notify
+    handle = client.revoke_share(environment_id, app_id, request)
+    _admin_operation_output("Revoke", handle)
+
+
+@admin_app.command("set-owner")
+@handle_cli_errors
+def set_admin_owner(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    owner: str = typer.Option(
+        ...,
+        "--owner",
+        help="JSON object or @file describing the new owner principal. Accepts objects with 'owner' and optional 'keepExistingOwnerAsCoOwner'.",
+    ),
+    keep_existing: bool | None = typer.Option(
+        None,
+        "--keep-existing",
+        help="Override whether to keep the previous owner as co-owner.",
+    ),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    decoded = _load_json_or_path(owner)
+    if isinstance(decoded, dict) and "owner" in decoded:
+        owner_payload = decoded.get("owner")
+        payload_keep = decoded.get("keepExistingOwnerAsCoOwner")
+    else:
+        owner_payload = decoded
+        payload_keep = None
+    if not isinstance(owner_payload, dict):
+        raise typer.BadParameter("Owner payload must be a JSON object.")
+    principal = SharePrincipal.model_validate(owner_payload)
+    request = SetOwnerRequest(owner=principal)
+    selected_keep = keep_existing if keep_existing is not None else payload_keep
+    if selected_keep is not None:
+        request.keep_existing_owner_as_co_owner = selected_keep
+    handle = client.set_owner(environment_id, app_id, request)
+    _admin_operation_output("Set owner", handle)
+
+
+@admin_app.command("permissions")
+@handle_cli_errors
+def list_admin_permissions(
+    ctx: typer.Context,
+    environment_id: str = typer.Argument(..., help="Environment ID."),
+    app_id: str = typer.Argument(..., help="App identifier."),
+    api_version: str | None = typer.Option(None, help="Power Platform API version override."),
+) -> None:
+    version = _ensure_api_version(ctx, api_version)
+    client = _build_admin_client(ctx, api_version=version)
+    assignments = client.list_permissions(environment_id, app_id)
+    for assignment in assignments:
+        print(assignment.model_dump(by_alias=True, exclude_none=True))
+
+
+__all__ = ["app", "packages_app", "admin_app"]
 
 
 AppManagementClient = _DefaultAppManagementClient
