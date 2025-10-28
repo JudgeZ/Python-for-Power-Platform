@@ -13,13 +13,17 @@ repos:
     rev: v1.11.2
     hooks:
       - id: mypy
-        args: ["--config-file", "mypy.ini"]
+        files: ^src/
+        args: ["--config-file", "pyproject.toml"]
         additional_dependencies:
           - pydantic>=2.3
           - pydantic-settings>=2.3
           - typer>=0.12
           - rich>=13.7
           - openapi-spec-validator>=0.7
+          - types-PyYAML
+          - httpx>=0.27
+          - types-requests
   - repo: local
     hooks:
       - id: openapi-validate

@@ -4,7 +4,7 @@ dev: ; pip install -e .[dev,auth] && pre-commit install
 test: ; pytest -q
 lint: ; ruff check . && black --check .
 format: ; ruff check --fix . && black .
-type: ; mypy src
+type: ; mypy
 coverage: ; pytest --cov=pacx --cov-report=term-missing
 build: ; python -m build
 security: ; pip-audit && $(MAKE) bandit

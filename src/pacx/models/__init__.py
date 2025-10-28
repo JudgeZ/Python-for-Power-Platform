@@ -44,6 +44,7 @@ from .dataverse import (
     StageSolutionRequest,
     StageSolutionResponse,
 )
+from .power_automate import CloudFlowPage, CloudFlowState, CloudFlowStatePatch
 from .power_platform import (
     CloudFlow,
     EnvironmentSummary,
@@ -123,6 +124,9 @@ __all__ = [
     "PolicyConnectorReference",
     "DataLossPreventionPolicy",
     "PolicyAssignment",
+    "CloudFlowPage",
+    "CloudFlowState",
+    "CloudFlowStatePatch",
     "CloudFlow",
     "EnvironmentSummary",
     "FlowRun",

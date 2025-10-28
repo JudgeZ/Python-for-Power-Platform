@@ -145,7 +145,13 @@ class AnnotationBinaryProvider:
                     filter=f"_objectid_value eq {wf_id}",
                     top=top,
                 )
-            for note in page.get("value", []):
+            raw_notes = page.get("value", [])
+            notes: Iterable[object]
+            if isinstance(raw_notes, Iterable):
+                notes = raw_notes
+            else:
+                notes = ()
+            for note in notes:
                 if isinstance(note, Mapping):
                     yield note
                     yielded += 1
@@ -232,9 +238,7 @@ class AzureBlobVirtualFileProvider:
                     result.errors.append(f"{sanitized_url}: {detail}")
                     continue
                 except httpx.RequestError as exc:  # pragma: no cover - manifest log only
-                    result.errors.append(
-                        f"{sanitized_url}: {exc.__class__.__name__}"
-                    )
+                    result.errors.append(f"{sanitized_url}: {exc.__class__.__name__}")
                     continue
                 except Exception as exc:  # pragma: no cover - manifest log only
                     result.errors.append(f"{sanitized_url}: {exc}")

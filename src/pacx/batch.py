@@ -4,9 +4,8 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any
-
 from email.parser import HeaderParser
+from typing import Any
 
 from .clients.dataverse import DataverseClient
 
@@ -92,7 +91,14 @@ def parse_batch_response(content_type: str, body: bytes) -> list[dict[str, Any]]
         try:
             parser = HeaderParser()
             headers = parser.parsestr(f"Content-Type: {content_type}", headersonly=True)
-            boundary = headers.get_param("boundary", header="content-type")
+            raw_boundary = headers.get_param("boundary", header="content-type")
+            if isinstance(raw_boundary, tuple):
+                boundary = next(
+                    (part for part in raw_boundary if isinstance(part, str) and part),
+                    None,
+                )
+            elif isinstance(raw_boundary, str):
+                boundary = raw_boundary
         except Exception:  # pragma: no cover - defensive fallback to regex parsing
             logger.debug("Failed to parse Content-Type header for boundary", exc_info=True)
     if not boundary:
@@ -195,8 +201,8 @@ def send_batch(
             resolved[target_idx] = result
 
         for idx in pending_indices:
-            result = resolved.get(idx)
-            if result is None:
+            matched = resolved.get(idx)
+            if matched is None:
                 if idx not in final_results:
                     final_results[idx] = {
                         "status_code": 0,
@@ -204,12 +210,12 @@ def send_batch(
                         "operation_index": idx,
                     }
                 continue
-            result["operation_index"] = idx
-            if result.get("status_code") in statuses and attempt <= max_retries:
+            matched["operation_index"] = idx
+            if matched.get("status_code") in statuses and attempt <= max_retries:
                 retry_counts[idx] = retry_counts.get(idx, 0) + 1
                 next_round.append((idx, ops[idx]))
             else:
-                final_results[idx] = result
+                final_results[idx] = matched
         if next_round and attempt <= max_retries:
             time.sleep(base_backoff * (2 ** (attempt - 1)))
         pending = next_round

@@ -27,7 +27,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install .[dev,tests]
-          python -m pip install pip-audit
 
       - name: Run Ruff
         id: ruff
@@ -42,7 +41,7 @@ jobs:
       - name: Run mypy
         id: mypy
         continue-on-error: true
-        run: mypy .
+        run: mypy
 
       - name: Run pytest with coverage
         id: pytest
@@ -66,7 +65,7 @@ jobs:
       - name: Run Bandit
         id: bandit
         continue-on-error: true
-        run: bandit -q -r src
+        run: bandit -c bandit.yaml -r src tests
 
       - name: Fail if any checks failed
         if: |
