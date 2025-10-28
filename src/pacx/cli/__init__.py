@@ -15,6 +15,7 @@ from . import (
     connectors,
     dataverse,
     doctor,
+    environment,
     governance,
     licensing,
     pages,
@@ -51,6 +52,7 @@ _register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
 _register_sub_app("pva", pva.app)
 _register_sub_app("flows", power_automate.app)
+_register_sub_app("environment", environment.app)
 _register_sub_app("solution", solution.app)
 _register_sub_app("governance", governance.app)
 _register_sub_app("tenant", tenant.app)
@@ -128,6 +130,7 @@ __all__ = [
     "connectors",
     "dataverse",
     "doctor",
+    "environment",
     "policy",
     "governance",
     "LicensingClient",

@@ -279,7 +279,7 @@ def _persist_refresh_token_with_keyring(payload: dict[str, Any]) -> None:
     success, reason = store_keyring_secret(ref, refresh_token)
     if success:
         payload.pop("refresh_token", None)
-        payload["refresh_token_backend"] = "keyring"  # noqa: S105
+        payload["refresh_token_backend"] = "keyring"  # noqa: S105  # nosec: B105
         payload["refresh_token_ref"] = ref
         return
     payload.pop("refresh_token_backend", None)

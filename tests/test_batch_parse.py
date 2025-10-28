@@ -41,9 +41,7 @@ HTTP/1.1 200 OK
 {{"result": "ok"}}
 --{boundary}--
 """
-    res = parse_batch_response(
-        f'multipart/mixed; boundary="{boundary}"', body.encode("utf-8")
-    )
+    res = parse_batch_response(f'multipart/mixed; boundary="{boundary}"', body.encode("utf-8"))
     assert len(res) == 1
     assert res[0]["status_code"] == 200
 

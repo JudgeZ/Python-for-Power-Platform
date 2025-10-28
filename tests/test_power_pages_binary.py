@@ -358,9 +358,7 @@ def test_download_with_azure_provider_and_sas_query(
     assert "sig=xyz" not in manifest_source
 
 
-def test_azure_provider_records_sanitized_error(
-    monkeypatch, tmp_path, respx_mock, token_getter
-):
+def test_azure_provider_records_sanitized_error(monkeypatch, tmp_path, respx_mock, token_getter):
     dv = DataverseClient(token_getter, host="example.crm.dynamics.com")
     pp = PowerPagesClient(dv)
 
