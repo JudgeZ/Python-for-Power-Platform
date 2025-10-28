@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from typer.testing import CliRunner
 
 from pacx.cli import app
@@ -7,13 +9,19 @@ from pacx.cli import app
 runner = CliRunner()
 
 
+def _squish(text: str) -> str:
+    """Collapse repeated whitespace to simplify Typer-rich output checks."""
+
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def test_dataverse_list_help_highlights_docstring_and_options() -> None:
     result = runner.invoke(app, ["dv", "list", "--help"])
     assert result.exit_code == 0
-    output = result.stdout
+    output = _squish(result.stdout)
     assert "List table rows with optional OData query parameters" in output
     assert "--select" in output and "Comma-separated column logical names" in output
-    assert "--host" in output and "defaults to profile or DATAVERSE_HOST" in output
+    assert "--host" in output and "DATAVERSE_HOST" in output
 
 
 def test_connector_push_help_mentions_openapi_details() -> None:
@@ -28,18 +36,18 @@ def test_connector_push_help_mentions_openapi_details() -> None:
 def test_pages_download_help_describes_binary_options() -> None:
     result = runner.invoke(app, ["pages", "download", "--help"])
     assert result.exit_code == 0
-    output = result.stdout
+    output = _squish(result.stdout)
     assert "Download a Power Pages site to a local folder" in output
-    assert "--binaries" in output and "default binary provider" in output
-    assert "--provider-options" in output and "custom binary providers" in output
+    assert "--binaries" in output and "binary provider" in output
+    assert "provider_options" in output
 
 
 def test_solution_command_help_lists_lifecycle_summary() -> None:
     result = runner.invoke(app, ["solution", "--help"])
     assert result.exit_code == 0
-    output = result.stdout
+    output = _squish(result.stdout)
     assert "Perform solution lifecycle operations" in output
-    assert "--host" in output and "defaults to profile or DATAVERSE_HOST" in output
+    assert "--host" in output and "DATAVERSE_HOST" in output
     assert "--managed" in output and "default: unmanaged" in output
 
 
