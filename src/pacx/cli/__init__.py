@@ -120,6 +120,67 @@ def common(ctx: typer.Context) -> None:
     ctx.obj.setdefault("token_getter", None)
 
 
+# ---- Aliases ---------------------------------------------------------------
+
+from .auth import (  # noqa: E402  (import after app initialization)
+    PROFILE_CLIENT_OPTION,
+    PROFILE_CLIENT_SECRET_ENV_OPTION,
+    PROFILE_DATAVERSE_OPTION,
+    PROFILE_FLOW_OPTION,
+    PROFILE_PROMPT_SECRET_OPTION,
+    PROFILE_SCOPE_OPTION,
+    PROFILE_SECRET_BACKEND_OPTION,
+    PROFILE_SECRET_REF_OPTION,
+    PROFILE_SET_DEFAULT_OPTION,
+    PROFILE_TENANT_OPTION,
+    FlowType,
+)
+
+
+@app.command("login", help="Alias for 'auth create' (routes to the same handler)")
+def login(
+    name: str = typer.Argument(..., help="Profile name"),
+    tenant_id: str = PROFILE_TENANT_OPTION,
+    client_id: str = PROFILE_CLIENT_OPTION,
+    scope: str = PROFILE_SCOPE_OPTION,
+    flow: FlowType = PROFILE_FLOW_OPTION,
+    dataverse_host: str | None = PROFILE_DATAVERSE_OPTION,
+    client_secret_env: str | None = PROFILE_CLIENT_SECRET_ENV_OPTION,
+    secret_backend: str | None = PROFILE_SECRET_BACKEND_OPTION,
+    secret_ref: str | None = PROFILE_SECRET_REF_OPTION,
+    prompt_secret: bool = PROFILE_PROMPT_SECRET_OPTION,
+    set_default: bool = PROFILE_SET_DEFAULT_OPTION,
+) -> None:
+    """Forward to ``ppx auth create`` with the same options.
+
+    This command is a thin alias to improve discoverability.
+    """
+
+    from . import auth as _auth  # local import to avoid circulars at import time
+
+    typer.echo("[yellow]Alias:[/yellow] Forwarding to 'ppx auth create'.")
+    _auth.auth_create(
+        name=name,
+        tenant_id=tenant_id,
+        client_id=client_id,
+        scope=scope,
+        flow=_ensure_flow(flow),
+        dataverse_host=dataverse_host,
+        client_secret_env=client_secret_env,
+        secret_backend=secret_backend,
+        secret_ref=secret_ref,
+        prompt_secret=prompt_secret,
+        set_default=set_default,
+    )
+
+
+def _ensure_flow(value: FlowType) -> FlowType:
+    normalized = value.lower()
+    if normalized not in {"device", "web", "client-credential"}:
+        normalized = "device"
+    return cast(FlowType, normalized)
+
+
 __all__ = [
     "AppManagementClient",
     "analytics",

@@ -1,178 +1,73 @@
 from __future__ import annotations
 
-import importlib
-import sys
-import types
+import os
+from collections.abc import Callable
 
 import pytest
 
-from pacx.config import ConfigData, Profile
-from pacx.errors import AuthError
+from pacx.cli.common import resolve_access_token
+
+TokenSource = Callable[[], str | None]
 
 
-def load_common_module():
-    sys.modules.pop("pacx.cli.common", None)
-    return importlib.import_module("pacx.cli.common")
+def _clear_env(var: str = "PACX_ACCESS_TOKEN") -> None:
+    os.environ.pop(var, None)
 
 
-def make_config(profile: Profile) -> ConfigData:
-    return ConfigData(default_profile=profile.name, profiles={profile.name: profile})
-
-
-def test_token_resolution_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_env_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PACX_ACCESS_TOKEN", "env-token")
 
-    profile = Profile(
-        name="default",
-        tenant_id="tenant",
-        client_id="client",
-        scope="https://api.powerplatform.com/.default",
+    called: list[str] = []
+
+    def secret() -> str | None:  # pragma: no cover - should not be called
+        called.append("secret")
+        return "secret-token"
+
+    resolved = resolve_access_token(
+        get_secret_token=secret,
+        get_config_token=lambda: "config-token",
+        get_provider_token=lambda: "provider-token",
     )
-    config = make_config(profile)
-
-    common = load_common_module()
-
-    getter = common.resolve_token_getter(config=config)
-
-    assert getter() == "env-token"
-
-    # Subsequent calls should continue to honour the runtime environment override.
-    monkeypatch.setenv("PACX_ACCESS_TOKEN", "updated-env-token")
-    assert getter() == "updated-env-token"
+    assert resolved == "env-token"
+    assert called == []
+    _clear_env()
 
 
-def test_token_resolution_prefers_keyring_secret(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
-
-    profile = Profile(
-        name="default",
-        tenant_id="tenant",
-        client_id="client",
-        scope="https://api.powerplatform.com/.default",
+def test_secret_when_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_env()
+    resolved = resolve_access_token(
+        get_secret_token=lambda: "secret-token",
+        get_config_token=lambda: "config-token",
+        get_provider_token=lambda: "provider-token",
     )
-    profile.token_backend = "keyring"  # noqa: S105
-    profile.token_ref = "svc:user"  # noqa: S105
-    config = make_config(profile)
-
-    common = load_common_module()
-
-    calls: list[str] = []
-
-    def fake_get_secret(spec):
-        calls.append(f"{spec.backend}:{spec.ref}")
-        return "keyring-token"
-
-    monkeypatch.setattr(common, "get_secret", fake_get_secret)
-
-    getter = common.resolve_token_getter(config=config)
-
-    assert getter() == "keyring-token"
-    assert calls == ["keyring:svc:user"]
+    assert resolved == "secret-token"
 
 
-def test_token_resolution_uses_cached_config_token(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
-
-    profile = Profile(
-        name="default",
-        tenant_id="tenant",
-        client_id="client",
-        scope="https://api.powerplatform.com/.default",
-        access_token="stored-token",  # noqa: S106
+def test_config_when_env_and_secret_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_env()
+    resolved = resolve_access_token(
+        get_secret_token=lambda: None,
+        get_config_token=lambda: "config-token",
+        get_provider_token=lambda: "provider-token",
     )
-    config = make_config(profile)
-
-    common = load_common_module()
-
-    getter = common.resolve_token_getter(config=config)
-
-    assert getter() == "stored-token"
-
-    profile.access_token = "rotated-token"  # noqa: S105
-    assert getter() == "rotated-token"
+    assert resolved == "config-token"
 
 
-def test_token_resolution_refresh_persists(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
-
-    profile = Profile(
-        name="default",
-        tenant_id="tenant",
-        client_id="client",
-        scope="https://api.powerplatform.com/.default",
+def test_provider_when_others_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_env()
+    resolved = resolve_access_token(
+        get_secret_token=lambda: None,
+        get_config_token=lambda: None,
+        get_provider_token=lambda: "provider-token",
     )
-    config = make_config(profile)
-
-    common = load_common_module()
-
-    saved_tokens: list[str] = []
-
-    class StubStore:
-        def add_or_update_profile(self, updated_profile: Profile, *, set_default: bool = False):
-            if updated_profile.access_token:
-                saved_tokens.append(updated_profile.access_token)
-            return make_config(updated_profile)
-
-    stub_store = StubStore()
-    monkeypatch.setattr(common, "ConfigStore", lambda: stub_store)
-
-    class RecordingProvider:
-        def __init__(self, **kwargs) -> None:
-            self.profile = kwargs["profile"]
-            self.store_factory = kwargs["store_factory"]
-            self.calls = 0
-
-        def get_token(self) -> str:
-            self.calls += 1
-            token_value = f"provider-token-{self.calls}"
-            self.profile.access_token = token_value
-            store = self.store_factory()
-            store.add_or_update_profile(self.profile)
-            return token_value
-
-    fake_module = types.ModuleType("pacx.auth.azure_ad")
-    fake_module.AzureADTokenProvider = RecordingProvider
-    monkeypatch.setitem(sys.modules, "pacx.auth.azure_ad", fake_module)
-
-    getter = common.resolve_token_getter(config=config)
-
-    first = getter()
-    assert first == "provider-token-1"
-    assert saved_tokens == ["provider-token-1"]
-
-    saved_tokens.clear()
-    second = getter()
-    assert second == "provider-token-1"
-    assert saved_tokens == []
+    assert resolved == "provider-token"
 
 
-def test_token_resolution_refresh_auth_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("PACX_ACCESS_TOKEN", raising=False)
-
-    profile = Profile(
-        name="default",
-        tenant_id="tenant",
-        client_id="client",
-        scope="https://api.powerplatform.com/.default",
+def test_none_when_all_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_env()
+    resolved = resolve_access_token(
+        get_secret_token=lambda: None,
+        get_config_token=lambda: None,
+        get_provider_token=lambda: None,
     )
-    config = make_config(profile)
-
-    common = load_common_module()
-
-    class FailingProvider:
-        def __init__(self, **kwargs) -> None:
-            pass
-
-        def get_token(self) -> str:
-            raise AuthError("refresh failed")
-
-    fake_module = types.ModuleType("pacx.auth.azure_ad")
-    fake_module.AzureADTokenProvider = FailingProvider
-    monkeypatch.setitem(sys.modules, "pacx.auth.azure_ad", fake_module)
-
-    getter = common.resolve_token_getter(config=config)
-
-    with pytest.raises(AuthError):
-        getter()
+    assert resolved is None

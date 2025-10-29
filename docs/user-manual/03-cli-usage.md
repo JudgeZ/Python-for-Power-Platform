@@ -67,6 +67,51 @@ $ ppx auth use demo
 Default profile set to demo
 ```
 
+### Authenticate with web
+
+```shell
+$ ppx auth create demo-web \
+  --tenant-id 00000000-0000-0000-0000-000000000000 \
+  --client-id 11111111-1111-1111-1111-111111111111 \
+  --flow web
+```
+
+Opens a browser for sign‑in and consent.
+
+### Authenticate with client credentials
+
+Using an environment variable for the secret:
+
+```shell
+$ export SERVICE_SECRET="..."
+$ ppx auth create svc \
+  --tenant-id 00000000-0000-0000-0000-000000000000 \
+  --client-id 22222222-2222-2222-2222-222222222222 \
+  --flow client-credential \
+  --client-secret-env SERVICE_SECRET
+```
+
+Or point to a secret backend (keyring/Key Vault):
+
+```shell
+$ ppx auth create svc-kv \
+  --tenant-id 00000000-0000-0000-0000-000000000000 \
+  --client-id 22222222-2222-2222-2222-222222222222 \
+  --flow client-credential \
+  --secret-backend keyvault \
+  --secret-ref https://vault.example.net:pacx-client-secret
+```
+
+### Select a profile
+
+```shell
+$ ppx auth use svc
+Default profile set to svc
+```
+
+The active profile participates in token resolution; see Token resolution order above for how overrides apply.
+
+For headless pipelines, see CI Examples: [04-ci-examples.md](./04-ci-examples.md).
 ### Explore Dataverse data
 
 ```shell

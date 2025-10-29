@@ -33,3 +33,12 @@
 - Add Dataverse client helpers and models for staging upgrades, cloning patches, solution export variants, translation flows, and delete/promote actions, including LRO metadata exposure and documentation updates.
 
 - 0.2.0 Extended features
+
+## 0.6.1 - 2025-10-29
+
+- feat(cli): add `ppx login` alias that forwards to `ppx auth create` with identical options.
+- feat(secrets): add `set_secret(SecretSpec, value)` helper for keyring writes with tests.
+- docs(auth): expand 02-authentication and 03-cli-usage with multi-profile, precedence, and troubleshooting.
+- docs(ci): add 04-ci-examples with headless Device Code and Client Credentials guidance; add guard test.
+- docs(examples): add minimal `docs/examples/quickstart.py` and `quickstart.ipynb` (no network required).
+- build: add optional extra `crypto = ["cryptography>=42"]` and mention in installation docs.

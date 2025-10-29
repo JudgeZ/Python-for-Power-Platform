@@ -316,13 +316,21 @@ class Profile:
     use_device_code: bool = False
 
 
+def _current_pacx_dir() -> Path:
+    return Path(os.path.expanduser(os.getenv("PACX_HOME", "~/.pacx")))
+
+
+def _current_config_path() -> Path:
+    return _current_pacx_dir() / "config.json"
+
+
 def _ensure_dir() -> None:
-    os.makedirs(PACX_DIR, exist_ok=True)
+    _current_pacx_dir().mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict[str, Any]:
     _ensure_dir()
-    path = Path(CONFIG_PATH)
+    path = _current_config_path()
     if not path.exists():
         return {"default": None, "profiles": {}}
 
@@ -338,7 +346,7 @@ def load_config() -> dict[str, Any]:
 
 def save_config(cfg: dict[str, Any]) -> None:
     _ensure_dir()
-    path = Path(CONFIG_PATH)
+    path = _current_config_path()
     tmp = path.with_suffix(".tmp")
 
     payload = dict(cfg)

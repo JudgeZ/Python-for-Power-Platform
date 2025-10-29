@@ -77,6 +77,7 @@ def handle_cli_errors(
 
 
 TokenGetter = Callable[[], str]
+TokenSource = Callable[[], str | None]
 
 
 def resolve_token_getter(config: ConfigData | None = None) -> TokenGetter:
@@ -227,4 +228,49 @@ __all__ = [
     "resolve_token_getter",
     "get_token_getter",
     "TokenGetter",
+    "resolve_access_token",
 ]
+
+
+def resolve_access_token(
+    *,
+    get_secret_token: TokenSource | None = None,
+    get_config_token: TokenSource | None = None,
+    get_provider_token: TokenSource | None = None,
+    env_var: str = "PACX_ACCESS_TOKEN",
+) -> str | None:
+    """Resolve an access token using injectable sources.
+
+    Precedence:
+    1) Environment variable (``env_var``)
+    2) ``get_secret_token`` (e.g., keyring/KeyVault) if provided
+    3) ``get_config_token`` (encrypted config) if provided
+    4) ``get_provider_token`` (refresh/interactive) if provided
+
+    The helper is intentionally pure and side‑effect free: it does not import
+    backends, print output, or mutate configuration. Callers supply the
+    callables for each source. Returns the first non‑empty token or ``None``.
+    """
+
+    token = os.getenv(env_var)
+    if token:
+        token = token.strip()
+        if token:
+            return token
+
+    if get_secret_token is not None:
+        token = get_secret_token() or None
+        if token:
+            return token
+
+    if get_config_token is not None:
+        token = get_config_token() or None
+        if token:
+            return token
+
+    if get_provider_token is not None:
+        token = get_provider_token() or None
+        if token:
+            return token
+
+    return None

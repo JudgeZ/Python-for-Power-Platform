@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pacx"
-version = "0.6.0"
+version = "0.6.1"
 description = "PACX: A Python library and CLI for Power Platform + Dataverse (PAC-like)"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -40,6 +40,7 @@ secrets = [
   "azure-keyvault-secrets>=4.8"
 ]
 auth = ["msal>=1.27"]
+crypto = ["cryptography>=42"]
 tests = [
   "pytest>=7.4",
   "pytest-cov>=4.1",

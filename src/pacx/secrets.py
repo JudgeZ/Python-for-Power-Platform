@@ -153,3 +153,28 @@ def get_secret(spec: SecretSpec) -> str | None:
         client = secret_client_cls(vault_url=vault_url, credential=credential)
         return client.get_secret(secret_name).value
     return None
+
+
+def set_secret(spec: SecretSpec, value: str) -> tuple[bool, str | None]:
+    """Persist a secret for the given ``spec``.
+
+    Currently supports only the ``keyring`` backend for writes. Returns a
+    ``(success, reason)`` tuple where ``reason`` is ``None`` on success or a
+    machine‑friendly error code on failure:
+
+    - "module-unavailable" | "setter-missing" | "invalid-ref" | "error:<Type>"
+      (bubbled from keyring operations)
+    - "unsupported-backend" when the backend is not writable via this helper
+
+    Examples
+    --------
+    >>> set_secret(SecretSpec(backend="keyring", ref="svc:user"), "s3cr3t")
+    (True, None)
+    >>> set_secret(SecretSpec(backend="env", ref="VAR"), "value")
+    (False, 'unsupported-backend')
+    """
+
+    backend = spec.backend.lower()
+    if backend == "keyring":
+        return store_keyring_secret(spec.ref, value)
+    return False, "unsupported-backend"

@@ -5,11 +5,11 @@ Use a virtual environment to isolate dependencies and install PACX in editable m
 ```bash
 python -m venv .venv
 . .venv/bin/activate
-pip install -e .[dev,auth]     # add [secrets],[keyvault],[docs] as needed
+pip install -e .[dev,auth]     # add [secrets],[keyvault],[crypto],[docs] as needed
 pre-commit install
 ```
 
-> **Tip:** The optional extras install MSAL authentication helpers (`auth`), keyring/Key Vault integrations (`secrets`, `keyvault`), and documentation tooling (`docs`). Add the ones you need to the install command up front.
+> **Tip:** Optional extras: `auth` (MSAL helpers), `secrets`/`keyvault` (keyring & Azure Key Vault), `crypto` (Fernet encryption support), and `docs` (site tooling). Add what you need to the install command up front.
 
 ## End-to-end quick start scenario
 
