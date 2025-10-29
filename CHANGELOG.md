@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- CLI: Dataverse CRUD/query (`ppx dv get|create|update|delete|query`) with tests.
+- CLI: Solution flags — import (`--activate-plugins`, `--publish-workflows`, `--overwrite-unmanaged`) and export (`--include-dependencies`).
+- CLI: Solution intelligence (`ppx solution deps|components|check`).
+- CLI: Environment `copy|reset|backup|restore` support `--wait/--timeout` via OperationMonitor.
+- CLI: Connection references MVP (`ppx connection list|validate`).
+- Tests: targeted suites for the above features (respx + CliRunner).
+
 - Add licensing client and CLI coverage for billing policies, allocations, storage warnings,
   and capacity snapshots with documentation for required scopes.
 - Extend Analytics advisor recommendations OpenAPI with detail, acknowledgement, dismissal, and status polling endpoints, plus documentation covering the end-to-end workflow.

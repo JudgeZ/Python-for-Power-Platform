@@ -23,6 +23,8 @@ class Solution(BaseModel):
 class ExportSolutionRequest(BaseModel):
     SolutionName: str
     Managed: bool = False
+    # Optional flags
+    IncludeSolutionDependencies: bool | None = None
 
 
 class ExportSolutionAsManagedRequest(ExportSolutionRequest):
@@ -51,6 +53,7 @@ class ExportTranslationResponse(BaseModel):
 class ImportSolutionRequest(BaseModel):
     OverwriteUnmanagedCustomizations: bool = True
     PublishWorkflows: bool = True
+    ActivatePlugins: bool | None = None
     CustomizationFile: str  # base64 zip
     ImportJobId: str | None = None
 

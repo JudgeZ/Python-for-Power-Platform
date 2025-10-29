@@ -56,6 +56,9 @@ EXPORT_NAME_OPTION = typer.Option(..., "--name", "-n", help="Solution unique nam
 EXPORT_MANAGED_OPTION = typer.Option(
     False, "--managed", help="Export managed solution (default: unmanaged)"
 )
+EXPORT_INCLUDE_DEPS_OPTION = typer.Option(
+    False, "--include-dependencies", help="Include solution dependencies where supported"
+)
 EXPORT_OUT_OPTION = typer.Option(None, "--out", help="Output path for the exported solution zip")
 EXPORT_FILE_ALIAS_OPTION = typer.Option(
     None,
@@ -242,6 +245,99 @@ def list_solutions(
         print(f"[bold]{solution.uniquename}[/bold]  {solution.friendlyname}  v{solution.version}")
 
 
+@app.command("deps")
+@handle_cli_errors
+def solution_dependencies(
+    ctx: typer.Context,
+    name: str = EXPORT_NAME_OPTION,
+    host: str | None = HOST_OPTION,
+    format: str = typer.Option("json", "--format", help="Output format: json|dot"),
+) -> None:
+    """Print the dependency graph for a solution.
+
+    JSON is the default; use ``--format dot`` to emit a Graphviz DOT graph.
+    """
+
+    client = _get_dataverse_client(ctx, host)
+    deps = client.get_solution_dependencies(name)
+    fmt = format.lower()
+    if fmt == "dot":
+
+        def _node(n: dict[str, Any], role: str) -> str:
+            for key in (f"{role}componentname", f"{role}componentlogicalname"):
+                v = n.get(key)
+                if isinstance(v, str) and v:
+                    return v
+            for key in (f"{role}componentobjectid",):
+                v = n.get(key)
+                if isinstance(v, str) and v:
+                    return v
+            return role
+
+        lines = ["digraph dependencies {"]
+        for d in deps:
+            a = _node(d, "dependent")
+            b = _node(d, "required")
+            lines.append(f'  "{a}" -> "{b}";')
+        lines.append("}")
+        print("\n".join(lines))
+    else:
+        print({"value": deps})
+
+
+@app.command("components")
+@handle_cli_errors
+def solution_components(
+    ctx: typer.Context,
+    name: str = EXPORT_NAME_OPTION,
+    host: str | None = HOST_OPTION,
+    type: int | None = typer.Option(None, "--type", help="Filter by component type id"),
+    format: str = typer.Option("json", "--format", help="Output format: json|csv"),
+) -> None:
+    """List components for a solution."""
+
+    client = _get_dataverse_client(ctx, host)
+    comps = client.get_solution_components(name, component_type=type)
+    if format.lower() == "csv":
+        import csv as _csv  # local import to avoid hard dep for non-csv users
+        import io
+
+        if not comps:
+            print("")
+            return
+        header = sorted({k for row in comps for k in row.keys()})
+        buf = io.StringIO()
+        writer = _csv.DictWriter(buf, fieldnames=header)
+        writer.writeheader()
+        for row in comps:
+            writer.writerow({k: row.get(k, "") for k in header})
+        print(buf.getvalue().rstrip("\n"))
+    else:
+        print({"value": comps})
+
+
+@app.command("check")
+@handle_cli_errors
+def solution_check(
+    ctx: typer.Context,
+    name: str = EXPORT_NAME_OPTION,
+    host: str | None = HOST_OPTION,
+) -> None:
+    """Validate that dependencies for a solution appear satisfied.
+
+    This is a lightweight heuristic that flags entries where a ``missing`` field
+    is present and truthy in the dependency payload.
+    """
+
+    client = _get_dataverse_client(ctx, host)
+    deps = client.get_solution_dependencies(name)
+    missing = [d for d in deps if bool(str(d.get("missing", "")).lower() in {"true", "1"})]
+    if missing:
+        print({"ok": False, "missing": missing})
+        raise typer.Exit(code=1)
+    print({"ok": True, "count": len(deps)})
+
+
 @app.command("export")
 @handle_cli_errors
 def export_solution(
@@ -249,13 +345,18 @@ def export_solution(
     name: str = EXPORT_NAME_OPTION,
     host: str | None = HOST_OPTION,
     managed: bool = EXPORT_MANAGED_OPTION,
+    include_dependencies: bool = EXPORT_INCLUDE_DEPS_OPTION,
     out: Path | None = EXPORT_OUT_OPTION,
     file: Path | None = EXPORT_FILE_ALIAS_OPTION,
 ) -> None:
     """Export a solution to a zip archive."""
 
     client = _get_dataverse_client(ctx, host)
-    request = ExportSolutionRequest(SolutionName=name, Managed=managed)
+    request = ExportSolutionRequest(
+        SolutionName=name,
+        Managed=managed,
+        IncludeSolutionDependencies=True if include_dependencies else None,
+    )
     data = client.export_solution(request)
     output_path = Path(out or file or Path(f"{name}.zip"))
     output_path.write_bytes(data)
@@ -270,13 +371,35 @@ def import_solution(
     host: str | None = HOST_OPTION,
     wait: bool = WAIT_OPTION,
     import_job_id: str | None = IMPORT_JOB_ID_OPTION,
+    activate_plugins: bool = typer.Option(
+        False, "--activate-plugins", help="Activate plug-ins after import"
+    ),
+    publish_workflows: bool = typer.Option(
+        True,
+        "--publish-workflows/--no-publish-workflows",
+        help="Publish workflows after import",
+    ),
+    overwrite_unmanaged: bool = typer.Option(
+        True,
+        "--overwrite-unmanaged/--no-overwrite-unmanaged",
+        help="Overwrite unmanaged customizations",
+    ),
 ) -> None:
     """Import a solution zip into Dataverse."""
 
     client = _get_dataverse_client(ctx, host)
     payload = base64.b64encode(file.read_bytes()).decode("ascii")
     job_id = import_job_id or uuid.uuid4().hex
-    request = ImportSolutionRequest(CustomizationFile=payload, ImportJobId=job_id)
+    request_args: dict[str, object] = {
+        "CustomizationFile": payload,
+        "ImportJobId": job_id,
+        "PublishWorkflows": publish_workflows,
+        "OverwriteUnmanagedCustomizations": overwrite_unmanaged,
+    }
+    if activate_plugins:
+        request_args["ActivatePlugins"] = True
+
+    request = ImportSolutionRequest(**request_args)
     client.import_solution(request)
     print(f"Import submitted (job: {job_id})")
     if wait:

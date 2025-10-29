@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Any
 
 import typer
 from rich import print
@@ -13,6 +15,30 @@ from ..clients.dataverse import DataverseClient
 from .common import get_token_getter, handle_cli_errors
 
 app = typer.Typer(help="Dataverse operations")
+
+
+def _load_json_payload(value: str) -> dict[str, Any]:
+    """Return JSON object from ``value`` which may be ``@file.json`` or inline JSON.
+
+    Raises ``typer.BadParameter`` when the payload cannot be parsed into a dict.
+    """
+
+    raw: str
+    if value.startswith("@"):
+        path = Path(value[1:])
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as exc:  # pragma: no cover - surfaced via CLI error
+            raise typer.BadParameter(f"Unable to read JSON file: {path} ({exc})") from exc
+    else:
+        raw = value
+    try:
+        obj = json.loads(raw)
+    except Exception as exc:  # pragma: no cover - surfaced via CLI error
+        raise typer.BadParameter("--data must be valid JSON or @file.json") from exc
+    if not isinstance(obj, dict):
+        raise typer.BadParameter("--data must be a JSON object")
+    return obj
 
 
 @app.command("whoami")
@@ -116,7 +142,7 @@ def dv_create(
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
-    obj = json.loads(data)
+    obj = _load_json_payload(data)
     print(dv.create_record(entityset, obj))
 
 
@@ -144,9 +170,32 @@ def dv_update(
     token_getter = get_token_getter(ctx)
     resolved_host = resolve_dataverse_host_from_context(ctx, host)
     dv = DataverseClient(token_getter, host=resolved_host)
-    obj = json.loads(data)
+    obj = _load_json_payload(data)
     dv.update_record(entityset, record_id, obj)
     print("updated")
+
+
+@app.command("query")
+@handle_cli_errors
+def dv_query(
+    ctx: typer.Context,
+    entityset: str = typer.Argument(..., help="Logical table name (entity set)"),
+    select: str | None = typer.Option(None, help="Comma-separated column logical names to return"),
+    filter: str | None = typer.Option(None, help="OData $filter expression to constrain rows"),
+    top: int | None = typer.Option(
+        None, help="Maximum rows to return (OData $top, defaults to server limit)"
+    ),
+    orderby: str | None = typer.Option(None, help="OData $orderby expression, e.g. createdon desc"),
+    host: str | None = typer.Option(
+        None, help="Dataverse host to query (defaults to profile or DATAVERSE_HOST)"
+    ),
+) -> None:
+    """Alias of ``list`` that accepts typical query options explicitly."""
+
+    token_getter = get_token_getter(ctx)
+    resolved_host = resolve_dataverse_host_from_context(ctx, host)
+    dv = DataverseClient(token_getter, host=resolved_host)
+    print(dv.list_records(entityset, select=select, filter=filter, top=top, orderby=orderby))
 
 
 @app.command("delete")
@@ -275,4 +324,5 @@ __all__ = [
     "dv_update",
     "dv_delete",
     "dv_bulk_csv",
+    "dv_query",
 ]

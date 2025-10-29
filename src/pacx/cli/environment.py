@@ -75,6 +75,59 @@ def _print_json(data: Any) -> None:
         print(data)
 
 
+def _stringify_error(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if isinstance(value, dict):
+        for key in ("message", "Message", "detail", "Detail", "error", "code", "reason"):
+            nested = _stringify_error(value.get(key))
+            if nested:
+                return nested
+        return None
+    if isinstance(value, list):
+        parts = [part for part in (_stringify_error(item) for item in value) if part]
+        if parts:
+            return "; ".join(parts)
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _ensure_operation_success(action: str, payload: Any) -> None:
+    if not isinstance(payload, dict):
+        return
+    state_raw = (
+        payload.get("status")
+        or payload.get("state")
+        or payload.get("provisioningState")
+        or ""
+    )
+    state = str(state_raw).strip()
+    if not state:
+        return
+    normalized = state.lower()
+    if normalized in {"succeeded", "completed"}:
+        return
+    if normalized in {"failed", "canceled", "cancelled", "faulted", "error"}:
+        detail = (
+            _stringify_error(payload.get("error"))
+            or _stringify_error(payload.get("message"))
+            or _stringify_error(payload.get("detail"))
+            or _stringify_error(payload.get("details"))
+            or _stringify_error(payload.get("reason"))
+        )
+        if detail:
+            print(
+                f"[red]{action} operation ended in state '{state}': {detail}[/red]"
+            )
+        else:
+            print(f"[red]{action} operation ended in state '{state}'[/red]")
+        raise typer.Exit(code=1)
+
+
 def _client(ctx: typer.Context, api_version: str | None = None) -> EnvironmentManagementClient:
     token_getter = get_token_getter(ctx)
     version = api_version or ctx.obj.get("api_version", DEFAULT_API_VERSION)
@@ -164,6 +217,8 @@ def copy_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Copy an environment into a new target environment."""
 
@@ -171,6 +226,13 @@ def copy_environment(
     request = EnvironmentCopyRequest.model_validate(_load_json(payload))
     handle = client.copy_environment(environment_id, request)
     _print_handle("environment copy", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
+        _ensure_operation_success("environment copy", result)
 
 
 @app.command("reset")
@@ -179,6 +241,8 @@ def reset_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Reset an environment to a prior state."""
 
@@ -186,6 +250,13 @@ def reset_environment(
     request = EnvironmentResetRequest.model_validate(_load_json(payload))
     handle = client.reset_environment(environment_id, request)
     _print_handle("environment reset", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
+        _ensure_operation_success("environment reset", result)
 
 
 @app.command("backup")
@@ -194,6 +265,8 @@ def backup_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Schedule an environment backup."""
 
@@ -201,6 +274,13 @@ def backup_environment(
     request = EnvironmentBackupRequest.model_validate(_load_json(payload))
     handle = client.backup_environment(environment_id, request)
     _print_handle("environment backup", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
+        _ensure_operation_success("environment backup", result)
 
 
 @app.command("restore")
@@ -209,6 +289,8 @@ def restore_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Restore an environment from backup."""
 
@@ -216,6 +298,13 @@ def restore_environment(
     request = EnvironmentRestoreRequest.model_validate(_load_json(payload))
     handle = client.restore_environment(environment_id, request)
     _print_handle("environment restore", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
+        _ensure_operation_success("environment restore", result)
 
 
 @app.command("enable-managed")
