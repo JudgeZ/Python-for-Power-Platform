@@ -75,3 +75,38 @@ def test_backup_timeout_returns_last_state(respx_mock: Any) -> None:
     )
     assert result.exit_code == 0, result.output
     assert "InProgress" in result.output
+
+
+def test_restore_failure_sets_exit_code(respx_mock: Any) -> None:
+    env_id = "env-3"
+    respx_mock.post(
+        f"https://api.powerplatform.com/environmentmanagement/environments/{env_id}:restore"
+    ).mock(return_value=httpx.Response(202, headers={"Operation-Location": "/ops/3"}, json={}))
+    respx_mock.get("https://api.powerplatform.com/ops/3").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "status": "Failed",
+                "error": {"message": "Restore validation failed."},
+            },
+        )
+    )
+
+    payload = '{"backupId": "backup-1"}'
+    result = runner.invoke(
+        app,
+        [
+            "environment",
+            "restore",
+            env_id,
+            "--payload",
+            payload,
+            "--wait",
+            "--timeout",
+            "10",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Failed" in result.output
+    assert "Restore validation failed." in result.output

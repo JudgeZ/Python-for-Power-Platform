@@ -75,6 +75,59 @@ def _print_json(data: Any) -> None:
         print(data)
 
 
+def _stringify_error(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+    if isinstance(value, dict):
+        for key in ("message", "Message", "detail", "Detail", "error", "code", "reason"):
+            nested = _stringify_error(value.get(key))
+            if nested:
+                return nested
+        return None
+    if isinstance(value, list):
+        parts = [part for part in (_stringify_error(item) for item in value) if part]
+        if parts:
+            return "; ".join(parts)
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _ensure_operation_success(action: str, payload: Any) -> None:
+    if not isinstance(payload, dict):
+        return
+    state_raw = (
+        payload.get("status")
+        or payload.get("state")
+        or payload.get("provisioningState")
+        or ""
+    )
+    state = str(state_raw).strip()
+    if not state:
+        return
+    normalized = state.lower()
+    if normalized in {"succeeded", "completed"}:
+        return
+    if normalized in {"failed", "canceled", "cancelled", "faulted", "error"}:
+        detail = (
+            _stringify_error(payload.get("error"))
+            or _stringify_error(payload.get("message"))
+            or _stringify_error(payload.get("detail"))
+            or _stringify_error(payload.get("details"))
+            or _stringify_error(payload.get("reason"))
+        )
+        if detail:
+            print(
+                f"[red]{action} operation ended in state '{state}': {detail}[/red]"
+            )
+        else:
+            print(f"[red]{action} operation ended in state '{state}'[/red]")
+        raise typer.Exit(code=1)
+
+
 def _client(ctx: typer.Context, api_version: str | None = None) -> EnvironmentManagementClient:
     token_getter = get_token_getter(ctx)
     version = api_version or ctx.obj.get("api_version", DEFAULT_API_VERSION)
@@ -179,6 +232,7 @@ def copy_environment(
         monitor = OperationMonitor()
         result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
         _print_json(result)
+        _ensure_operation_success("environment copy", result)
 
 
 @app.command("reset")
@@ -202,6 +256,7 @@ def reset_environment(
         monitor = OperationMonitor()
         result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
         _print_json(result)
+        _ensure_operation_success("environment reset", result)
 
 
 @app.command("backup")
@@ -225,6 +280,7 @@ def backup_environment(
         monitor = OperationMonitor()
         result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
         _print_json(result)
+        _ensure_operation_success("environment backup", result)
 
 
 @app.command("restore")
@@ -248,6 +304,7 @@ def restore_environment(
         monitor = OperationMonitor()
         result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
         _print_json(result)
+        _ensure_operation_success("environment restore", result)
 
 
 @app.command("enable-managed")
