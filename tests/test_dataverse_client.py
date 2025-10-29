@@ -47,6 +47,8 @@ def test_export_import_publish(respx_mock, token_getter):
     def import_responder(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content.decode())
         assert body["CustomizationFile"] == b64
+        assert body["OverwriteUnmanagedCustomizations"] is True
+        assert body["PublishWorkflows"] is True
         return httpx.Response(
             202,
             headers={"Operation-Location": "https://example.crm.dynamics.com/ops/import"},

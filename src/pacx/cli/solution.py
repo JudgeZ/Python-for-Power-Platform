@@ -375,10 +375,14 @@ def import_solution(
         False, "--activate-plugins", help="Activate plug-ins after import"
     ),
     publish_workflows: bool = typer.Option(
-        False, "--publish-workflows", help="Publish workflows after import"
+        True,
+        "--publish-workflows/--no-publish-workflows",
+        help="Publish workflows after import",
     ),
     overwrite_unmanaged: bool = typer.Option(
-        False, "--overwrite-unmanaged", help="Overwrite unmanaged customizations"
+        True,
+        "--overwrite-unmanaged/--no-overwrite-unmanaged",
+        help="Overwrite unmanaged customizations",
     ),
 ) -> None:
     """Import a solution zip into Dataverse."""
@@ -389,13 +393,11 @@ def import_solution(
     request_args: dict[str, object] = {
         "CustomizationFile": payload,
         "ImportJobId": job_id,
+        "PublishWorkflows": publish_workflows,
+        "OverwriteUnmanagedCustomizations": overwrite_unmanaged,
     }
     if activate_plugins:
         request_args["ActivatePlugins"] = True
-    if publish_workflows:
-        request_args["PublishWorkflows"] = True
-    if overwrite_unmanaged:
-        request_args["OverwriteUnmanagedCustomizations"] = True
 
     request = ImportSolutionRequest(**request_args)
     client.import_solution(request)

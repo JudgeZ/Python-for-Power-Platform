@@ -40,6 +40,36 @@ def test_export_include_dependencies_flag(respx_mock: Any) -> None:
     assert "Exported to" in out.output
 
 
+def test_import_defaults_publish_and_overwrite(
+    tmp_path: Path, respx_mock: Any
+) -> None:
+    zip_path = tmp_path / "s.zip"
+    zip_path.write_bytes(b"zip")
+
+    captured: dict[str, Any] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = _json.loads(request.content.decode())
+        captured.update(body)
+        return httpx.Response(202, headers={"Operation-Location": "ops/1"}, json={})
+
+    respx_mock.post("https://example.crm.dynamics.com/api/data/v9.2/ImportSolution").mock(
+        side_effect=handler
+    )
+    out = runner.invoke(
+        app,
+        [
+            "solution",
+            "import",
+            "--file",
+            str(zip_path),
+        ],
+    )
+    assert out.exit_code == 0, out.output
+    assert captured.get("PublishWorkflows") is True
+    assert captured.get("OverwriteUnmanagedCustomizations") is True
+
+
 def test_import_flags_flow_into_payload(tmp_path: Path, respx_mock: Any) -> None:
     zip_path = tmp_path / "s.zip"
     zip_path.write_bytes(b"zip")
@@ -62,12 +92,12 @@ def test_import_flags_flow_into_payload(tmp_path: Path, respx_mock: Any) -> None
             "--file",
             str(zip_path),
             "--activate-plugins",
-            "--publish-workflows",
-            "--overwrite-unmanaged",
+            "--no-publish-workflows",
+            "--no-overwrite-unmanaged",
         ],
     )
     assert out.exit_code == 0, out.output
     # flags propagate
     assert captured.get("ActivatePlugins") is True
-    assert captured.get("PublishWorkflows") is True
-    assert captured.get("OverwriteUnmanagedCustomizations") is True
+    assert captured.get("PublishWorkflows") is False
+    assert captured.get("OverwriteUnmanagedCustomizations") is False
