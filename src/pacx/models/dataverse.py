@@ -51,8 +51,8 @@ class ExportTranslationResponse(BaseModel):
 
 
 class ImportSolutionRequest(BaseModel):
-    OverwriteUnmanagedCustomizations: bool = True
-    PublishWorkflows: bool = True
+    OverwriteUnmanagedCustomizations: bool | None = None
+    PublishWorkflows: bool | None = None
     ActivatePlugins: bool | None = None
     CustomizationFile: str  # base64 zip
     ImportJobId: str | None = None
