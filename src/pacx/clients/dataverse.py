@@ -266,6 +266,60 @@ class DataverseClient:
 
         self.http.post("PublishAllXml")
 
+    # ---- Solution intelligence helpers ----
+    def _get_solution_id_by_name(self, solution_name: str) -> str:
+        """Return solutionid for the given ``solution_name`` or raise ``ValueError``."""
+
+        items = self.list_solutions(
+            select="solutionid,uniquename", filter=f"uniquename eq '{solution_name}'"
+        )
+        for s in items:
+            if s.uniquename and s.solutionid and s.uniquename.lower() == solution_name.lower():
+                return s.solutionid
+        raise ValueError(f"Solution not found: {solution_name}")
+
+    def get_solution_dependencies(self, solution_name: str) -> list[dict[str, Any]]:
+        """Fetch dependency records for a solution by unique name.
+
+        Returns a list of dicts parsed from the OData ``value`` array. This is a
+        minimal helper intended for CLI reporting; the structure is left opaque
+        to callers to keep the client surface small.
+        """
+
+        sid = self._get_solution_id_by_name(solution_name)
+        resp = self.http.get(f"solutions({sid})/dependencies")
+        data = cast(dict[str, Any], resp.json())
+        value = data.get("value", [])
+        return [v for v in value if isinstance(v, dict)]
+
+    def get_solution_components(
+        self, solution_name: str, component_type: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch solution components, optionally filtered by component type id."""
+
+        sid = self._get_solution_id_by_name(solution_name)
+        params: dict[str, Any] = {}
+        if component_type is not None:
+            params["$filter"] = f"componenttype eq {component_type}"
+        resp = self.http.get(f"solutions({sid})/solutioncomponents", params=params)
+        data = cast(dict[str, Any], resp.json())
+        value = data.get("value", [])
+        return [v for v in value if isinstance(v, dict)]
+
+    def list_connection_references(self, solution_name: str) -> list[dict[str, Any]]:
+        """Return connection references for a solution by unique name.
+
+        Resolves the solution id and queries the ``connectionreferences``
+        navigation under the solution. Returns the raw dicts from the OData
+        ``value`` array to keep the client surface small and flexible.
+        """
+
+        sid = self._get_solution_id_by_name(solution_name)
+        resp = self.http.get(f"solutions({sid})/connectionreferences")
+        data = cast(dict[str, Any], resp.json())
+        value = data.get("value", [])
+        return [v for v in value if isinstance(v, dict)]
+
     # ---- Generic CRUD ----
     def whoami(self) -> dict[str, Any]:
         """Return the identity details of the calling user."""

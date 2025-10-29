@@ -16,6 +16,12 @@ We run automated quality gates on every push and pull request. Before opening a 
 
 The CI workflow also uploads coverage artifacts from `pytest` and enforces a minimum 85% coverage floor, so new changes should keep or raise the overall coverage.
 
+## Documentation
+
+See the [User Manual](docs/user-manual/00-overview.md) to get started.
+
+- Examples: offline‑friendly snippets — [docs/user-manual/05-examples.md](docs/user-manual/05-examples.md)
+
 ## New in 0.2.0 (this build)
 - **Profiles** and token storage (`ppx profile *`)
 - **Auth** via MSAL flows (`ppx auth create --flow device|web|client-credential`) — optional extra

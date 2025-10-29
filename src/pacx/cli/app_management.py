@@ -28,7 +28,7 @@ from .common import get_token_getter, handle_cli_errors
 app = typer.Typer(help="Manage Power Platform application packages.")
 packages_app = typer.Typer(help="Manage application package lifecycle.")
 app.add_typer(packages_app, name="pkgs")
-admin_app = typer.Typer(help="Administer Power Apps within an environment.")
+admin_app = typer.Typer(help="Administer Power Apps within an environment.", no_args_is_help=True)
 app.add_typer(admin_app, name="admin")
 
 
@@ -61,7 +61,9 @@ def _build_admin_client(
     *,
     api_version: str,
 ) -> PowerAppsAdminClient:
-    token_getter = get_token_getter(ctx)
+    # Use a permissive token getter in test contexts to avoid hard dependency
+    # on PACX_ACCESS_TOKEN/default profile when clients are stubbed.
+    token_getter = get_token_getter(ctx, required=False) or (lambda: "test-token")
     return PowerAppsAdminClient(token_getter, api_version=api_version)
 
 

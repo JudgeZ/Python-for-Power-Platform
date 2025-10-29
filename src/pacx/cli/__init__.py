@@ -12,6 +12,8 @@ from . import (
     analytics,
     app_management,
     auth,
+    coe,
+    connection,
     connectors,
     dataverse,
     doctor,
@@ -46,10 +48,12 @@ _register_sub_app("analytics", analytics.app)
 _register_sub_app("auth", auth.app)
 _register_sub_app("profile", profile.app)
 _register_sub_app("dv", dataverse.app)
+_register_sub_app("connection", connection.app)
 _register_sub_app("connector", connectors.app)
 _register_sub_app("policy", policy.app)
 _register_sub_app("licensing", licensing.app)
 _register_sub_app("pages", pages.app)
+_register_sub_app("coe", coe.app)
 _register_sub_app("pva", pva.app)
 _register_sub_app("flows", power_automate.app)
 _register_sub_app("environment", environment.app)

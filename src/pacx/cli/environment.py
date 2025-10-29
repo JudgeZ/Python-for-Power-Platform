@@ -164,6 +164,8 @@ def copy_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Copy an environment into a new target environment."""
 
@@ -171,6 +173,12 @@ def copy_environment(
     request = EnvironmentCopyRequest.model_validate(_load_json(payload))
     handle = client.copy_environment(environment_id, request)
     _print_handle("environment copy", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
 
 
 @app.command("reset")
@@ -179,6 +187,8 @@ def reset_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Reset an environment to a prior state."""
 
@@ -186,6 +196,12 @@ def reset_environment(
     request = EnvironmentResetRequest.model_validate(_load_json(payload))
     handle = client.reset_environment(environment_id, request)
     _print_handle("environment reset", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
 
 
 @app.command("backup")
@@ -194,6 +210,8 @@ def backup_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Schedule an environment backup."""
 
@@ -201,6 +219,12 @@ def backup_environment(
     request = EnvironmentBackupRequest.model_validate(_load_json(payload))
     handle = client.backup_environment(environment_id, request)
     _print_handle("environment backup", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
 
 
 @app.command("restore")
@@ -209,6 +233,8 @@ def restore_environment(
     ctx: typer.Context,
     environment_id: str,
     payload: str = typer.Option(..., "--payload", help="JSON payload or @file for the request."),
+    wait: bool = typer.Option(False, "--wait", help="Wait for completion"),
+    timeout: int = typer.Option(900, "--timeout", help="Timeout seconds when waiting"),
 ) -> None:
     """Restore an environment from backup."""
 
@@ -216,6 +242,12 @@ def restore_environment(
     request = EnvironmentRestoreRequest.model_validate(_load_json(payload))
     handle = client.restore_environment(environment_id, request)
     _print_handle("environment restore", handle)
+    if wait and handle.operation_location:
+        from ..utils.operation_monitor import OperationMonitor
+
+        monitor = OperationMonitor()
+        result = monitor.track(client.http, handle.operation_location, timeout_s=timeout)
+        _print_json(result)
 
 
 @app.command("enable-managed")

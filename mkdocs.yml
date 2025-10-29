@@ -8,6 +8,7 @@ nav:
       - Authentication: user-manual/02-authentication.md
       - CLI Usage: user-manual/03-cli-usage.md
       - CI Examples: user-manual/04-ci-examples.md
+      - Examples: user-manual/05-examples.md
       - Power Pages: user-manual/04-power-pages.md
       - Dataverse Bulk & Batch: user-manual/05-dataverse-batch-bulk.md
       - Connectors: user-manual/06-connectors.md
