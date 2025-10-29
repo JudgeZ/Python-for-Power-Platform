@@ -5,3 +5,6 @@ __pycache__/
 .coverage
 coverage.xml
 coverage.json
+
+# Local artifacts
+MySolution.zip
