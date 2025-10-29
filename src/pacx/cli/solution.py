@@ -386,13 +386,18 @@ def import_solution(
     client = _get_dataverse_client(ctx, host)
     payload = base64.b64encode(file.read_bytes()).decode("ascii")
     job_id = import_job_id or uuid.uuid4().hex
-    request = ImportSolutionRequest(
-        CustomizationFile=payload,
-        ImportJobId=job_id,
-        ActivatePlugins=True if activate_plugins else None,
-        PublishWorkflows=True if publish_workflows else None,
-        OverwriteUnmanagedCustomizations=True if overwrite_unmanaged else None,
-    )
+    request_args: dict[str, object] = {
+        "CustomizationFile": payload,
+        "ImportJobId": job_id,
+    }
+    if activate_plugins:
+        request_args["ActivatePlugins"] = True
+    if publish_workflows:
+        request_args["PublishWorkflows"] = True
+    if overwrite_unmanaged:
+        request_args["OverwriteUnmanagedCustomizations"] = True
+
+    request = ImportSolutionRequest(**request_args)
     client.import_solution(request)
     print(f"Import submitted (job: {job_id})")
     if wait:
