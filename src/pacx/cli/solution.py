@@ -390,8 +390,8 @@ def import_solution(
         CustomizationFile=payload,
         ImportJobId=job_id,
         ActivatePlugins=True if activate_plugins else None,
-        PublishWorkflows=True if publish_workflows else True,
-        OverwriteUnmanagedCustomizations=True if overwrite_unmanaged else True,
+        PublishWorkflows=True if publish_workflows else None,
+        OverwriteUnmanagedCustomizations=True if overwrite_unmanaged else None,
     )
     client.import_solution(request)
     print(f"Import submitted (job: {job_id})")
