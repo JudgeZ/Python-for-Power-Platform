@@ -11,11 +11,14 @@ class OperationMonitor:
 
     The monitor issues GET requests against ``url`` using the provided
     :class:`HttpClient` and inspects the JSON payload for a status/state field.
-    Polling stops when the state is one of {Succeeded, Completed, Failed, Canceled}
-    (case‑insensitive) or the timeout elapses. The last JSON payload is returned.
+    Polling stops when the state is one of {Succeeded, Completed, Failed,
+    Canceled, Cancelled} (case‑insensitive) or the timeout elapses. The last JSON
+    payload is returned.
     """
 
-    terminal_states = {"succeeded", "completed", "failed", "canceled"}
+    terminal_states = frozenset(
+        {"succeeded", "completed", "failed", "canceled", "cancelled"}
+    )
 
     def track(
         self,
